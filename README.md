@@ -207,7 +207,8 @@ uv run pytest
 uv run python scripts/check_wheels.py
 ```
 
-CI runs these checks. Ruff includes a maximum cyclomatic complexity of 10;
+[CI](.github/workflows/checks.yml) runs these checks on Ubuntu 24.04 using Node 24
+action releases. Ruff includes a maximum cyclomatic complexity of 10;
 strict typing covers the runtime packages. The wheel matrix builds packages and
 tests five fresh environments: foundation, Go, offline Odoo, plugin template,
 and combined plugins with MCP. Stdio/process tests require a host runtime that
