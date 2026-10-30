@@ -5,8 +5,9 @@ from dataclasses import dataclass
 from importlib.metadata import EntryPoint, entry_points
 
 from devkit.contracts import EFFECTS, SURFACES, CommandSpec, DevkitError, Specialization
+from devkit.output import capture_output
 from devkit.policy import Policy
-from devkit.schemas import check_schema
+from devkit.schemas import check_schema, validate
 
 GROUP = "devkit.specializations.v1"
 IDENTIFIER = re.compile(r"^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$")
@@ -31,6 +32,8 @@ def discover() -> tuple[Candidate, ...]:
 
 
 def validate_command(spec: CommandSpec) -> None:
+    if not callable(spec.handler):
+        raise DevkitError("INVALID_PLUGIN", "Command handler must be callable")
     if not IDENTIFIER.fullmatch(spec.id):
         raise DevkitError("INVALID_PLUGIN", "Command IDs must be namespaced identifiers")
     if not spec.effects <= EFFECTS or not spec.surfaces <= SURFACES:
@@ -41,7 +44,10 @@ def validate_command(spec: CommandSpec) -> None:
 
 def _load(candidate: Candidate) -> Specialization:
     try:
-        plugin = candidate.entry_point.load()()
+        with capture_output() as output:
+            plugin = candidate.entry_point.load()()
+        if output.getvalue():
+            raise ValueError("Plugin registration must not print")
         if not isinstance(plugin, Specialization) or plugin.api_version != "1.0":
             raise ValueError("unsupported plugin contract")
         if plugin.id != candidate.id or plugin.id == "core":
@@ -50,13 +56,18 @@ def _load(candidate: Candidate) -> Specialization:
             validate_command(command)
             if not command.id.startswith(plugin.id + "."):
                 raise ValueError("command outside plugin namespace")
-        commands = {command.id for command in plugin.commands}
+        commands = {command.id: command for command in plugin.commands}
         checks = plugin.checks + plugin.environment_checks
         if len({check.id for check in checks}) != len(checks):
             raise ValueError("duplicate checks")
         for check in checks:
-            if check.command not in commands or not check.id.startswith(plugin.id + "."):
+            if (
+                check.command not in commands
+                or not check.id.startswith(plugin.id + ".")
+                or not IDENTIFIER.fullmatch(check.id)
+            ):
                 raise ValueError("invalid check reference")
+            validate(check.arguments, commands[check.command].input_schema)
         return plugin
     except Exception as exc:
         raise DevkitError("INVALID_PLUGIN", f"Cannot activate plugin: {candidate.id}") from exc

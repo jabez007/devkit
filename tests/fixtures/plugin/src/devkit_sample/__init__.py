@@ -14,4 +14,14 @@ def inspect(context: Context, arguments: JSONObject) -> CommandResult:
 
 
 def register() -> Specialization:
-    return Specialization("sample", (CommandSpec("sample.inspect", "Inspect sample", inspect),))
+    return Specialization(
+        "sample",
+        (
+            CommandSpec("sample.inspect", "Inspect sample", inspect),
+            CommandSpec("sample.invalid", "Return an invalid result for contract testing", invalid),
+        ),
+    )
+
+
+def invalid(context: Context, arguments: JSONObject) -> CommandResult:
+    return CommandResult("success", "Invalid output", {"unserializable": object()})

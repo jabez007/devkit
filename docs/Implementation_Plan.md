@@ -1,6 +1,6 @@
 # Devkit implementation plan
 
-Status: Implementation in progress.\
+Status: First-release implementation complete; public publication is pending.\
 Date: October 30, 2026.\
 Scope: Build a new toolkit inspired by Crpaxton4/devcontainer-features.\
 First release: Go checks and offline Odoo validation, as selected by the project owner.
@@ -14,7 +14,7 @@ First release: Go checks and offline Odoo validation, as selected by the project
 | 2 | Complete | Seventeen tests passed, including real Go pass/fail/skip cases and process-group timeout, cancellation, bounded output, and environment filtering. Go 1.24.4 was tested. |
 | 3 | Complete | Twenty-eight tests and all configured checks passed. Installed-wheel validation ran without Odoo, Docker, or MCP. Manifest rules were checked against Odoo revision `005e0a0eb7ef80cd15b0c82b570b2b0843181ba2`. |
 | 4 | Complete | Thirty tests passed, including real stdio discovery, three-interface parity, denial, revocation, and cancellation of a running Go test. MCP SDK 1.30.0 negotiated protocol 2025-11-25. Stdio tests require the host runtime in this sandbox environment. |
-| 5 | In progress | Release documentation, profile execution, contract hardening, and repeatable wheel acceptance remain. |
+| 5 | Complete | Forty-three tests and five independent wheel environments passed. Includes profiles, prerequisite checks, plugin template, contract helpers, documentation, strict JSON results, bounded diagnostics, and Git metadata hook suppression. |
 
 Build a small Python foundation that discovers explicitly activated plugins, invokes commands through one policy path, and produces portable evidence. Prove the design with useful Go checks and Odoo manifest validation before adding live Odoo environments, task connectors, or orchestration.
 
@@ -24,19 +24,19 @@ The [architecture draft](Composable_Developer_Tookkit_Architecture.md) defines t
 
 The strongest decisions are the separation of development capabilities from work tracking, optional integrations, standard plugin packaging, and one invocation implementation across interfaces. Keep them. Upstream [ADR-006](https://github.com/Crpaxton4/devcontainer-features/blob/main/docs/design/adr/ADR-006-workspace-three-layers-state-root.md) describes a shared command registry and enforced package dependencies. Those are useful design precedents for this project.
 
-Architecture draft 0.2 incorporates the confirmed fresh-build direction, first-release scope, and smaller initial package layout. The following contract findings remain open. References below identify sections in the architecture draft.
+Architecture draft 0.3 records the implemented first release. The original review findings and their disposition are retained below. References identify sections in the architecture.
 
-| Priority | Finding and consequence | Proposed resolution |
+| Priority | Original finding and consequence | Disposition |
 | --- | --- | --- |
-| High | Section 11's precedence and MCP configuration example lack an operative trusted-grant model. Section 17 records authorization as an open decision. | Apply ordinary precedence only to settings. Repository policy requests capabilities. Trusted operator policy grants them, and explicit denials win. Require operator trust before loading project-selected plugin code. |
-| High | Section 7.2's `CommandSpec` has no output schema despite section 7.3 requiring result validation. `CheckSpec`, handler context, and the full status vocabulary remain undefined. | Specify one result envelope, typed failures, check aggregation, output schemas, and execution context before implementing adapters. |
-| High | Section 7.2 requires cancellation and timeouts but exposes an ordinary callable without enforcement semantics. | Define cooperative cancellation for trusted Python handlers and supervised termination for managed subprocesses. Policy checks declared operations and does not sandbox Python plugins or repository tests. |
-| Medium | Sections 11 and 13 leave project identity, dirty working trees, artifact containment, evidence write failures, and checks that never ran underspecified. | Include these cases in the first result and evidence contract. Make evidence part of the first working slice. |
+| High | Settings precedence could be confused with authorization; the MCP example lacked trusted grants. | Implemented external operator policy, exact distribution-version trust before imports, project-bound command grants, and explicit denial precedence. |
+| High | Output schemas, checks, handler context, and statuses were undefined. | Implemented and documented the shared result, command, check, context, and aggregation contracts. |
+| High | Cancellation had no enforcement semantics. | Cooperative Python cancellation and supervised Linux process-group termination are implemented and tested; limitations are documented. |
+| Medium | Identity, source state, evidence failures, and absent coverage were underspecified. | Implemented path-hash project identity, Git revision/dirty state, atomic evidence with explicit storage failures, and blocked empty verification. Arbitrary artifacts are deferred. |
 | Medium | Section 8.3 requires idempotent imports but does not define recovery after Beads creation succeeds and the connector checkpoint fails. | Before shipping the connector, prove lookup or reconciliation using a stable external key. Block ambiguous retries rather than creating another issue. |
 
 Section 8.2's Beads deployment assumptions also need validation against a selected release. Treat embedded and server modes as candidates until integration tests establish the supported configuration. This does not block the first release.
 
-The architecture now uses examples suited to the first release and omits upstream SDK dependencies and migration obligations. The contract proposals below remain subject to review before implementation freezes the public interface.
+The architecture now uses implemented configuration and result examples and omits upstream SDK dependencies and migration obligations. The plugin interface remains provisional until a public compatibility commitment is made.
 
 ## First release scope
 
@@ -51,13 +51,13 @@ The release must support these workflows:
 
 Live Odoo install and upgrade tests, Beads integration, external tracker import, Gas City packs, native agent packages, a TUI, a web UI, and Dev Container packaging belong to later releases. Odoo 19 is the initial offline validation profile. Passing it does not establish runtime or Odoo 17 compatibility.
 
-Start with Linux support. Confirm other platforms through their own filesystem and process-control tests before claiming support. Python minimum version, exact dependency versions, and public package names remain decisions for the first slice.
+The tested baseline is Linux with Python 3.12. Confirm other platforms through their own filesystem and process-control tests before claiming support. Dependencies are pinned in [uv.lock](../uv.lock); public package names remain undecided.
 
 ## Module design and reuse
 
-There is no local implementation to extract. Reuse standard Python distribution metadata for discovery, TOML for configuration, an existing JSON Schema validator, and the real Go toolchain for execution. Python's [entry-point mechanism](https://packaging.python.org/en/latest/specifications/entry-points/) already supports separately installed plugins. The [metadata API](https://docs.python.org/3/library/importlib.metadata.html#entry-points) separates discovery from loading an entry point.
+There was no local implementation to extract. The implementation reuses standard Python distribution metadata for discovery, TOML for configuration, JSON Schema validation, and the real Go toolchain for execution. Python's [entry-point mechanism](https://packaging.python.org/en/latest/specifications/entry-points/) supports separately installed plugins. The [metadata API](https://docs.python.org/3/library/importlib.metadata.html#entry-points) separates discovery from loading an entry point.
 
-Create a new [uv workspace](https://docs.astral.sh/uv/concepts/projects/workspaces/) with one lockfile. The proposed initial layout is:
+The new [uv workspace](https://docs.astral.sh/uv/concepts/projects/workspaces/) uses one lockfile. The implemented layout is:
 
 ```text
 pyproject.toml
@@ -65,37 +65,39 @@ uv.lock
 packages/
   devkit/                 foundation distribution and CLI
     src/devkit/
-      contracts/          plugin declarations, request and result types
+      contracts.py        plugin declarations, request and result types
       discovery.py        metadata discovery and activation validation
       invocation.py       CommandService and the execution pipeline
-      config.py           settings and project identity
+      config.py           settings resolution
       policy.py           trusted grants and authorization decisions
       processes.py        supervised subprocess execution
       evidence.py         redaction and portable bundles
       cli.py              argument parsing and rendering
   devkit_go/              separately installable Go plugin
   devkit_odoo/            separately installable offline Odoo plugin
+  devkit_mcp/             separately installable local MCP adapter
 tests/
-  acceptance/            installed-wheel and workflow tests
-  fixtures/              small Go projects and Odoo addons
+  fixtures/              separately packaged contract-test plugin
+scripts/check_wheels.py  independent installed-wheel acceptance
+examples/                project settings, policy, and plugin template
 docs/
 ```
 
-Add `packages/devkit_mcp/` when the MCP slice begins. Its optional dependencies must not enter the foundation's runtime dependency set. Package and import names are provisional until naming is checked.
+The MCP distribution's optional dependencies do not enter the foundation's runtime dependency set. Package and entry-point names are provisional until public naming is checked.
 
 `CommandService` is the deep module. Its small interface lists eligible commands and executes a command with validated input and trusted invocation context. Its implementation owns argument validation, policy decisions, handler invocation, result validation, and evidence finalization. Adapters format the result and translate transport errors. They do not call handlers directly.
 
 Plugins depend on the public contract. The foundation discovers them through metadata and never imports Go or Odoo modules by name. Keep process execution and evidence writing behind internal seams so tests can exercise failures without exposing more plugin interface than necessary.
 
-Use the same invocation path for checks and ordinary commands. A check declaration references a command ID and supplies profile and prerequisite metadata. Environment checks run only when explicitly requested or required by an invocation. Discovery itself does not run checks.
+Use the same invocation path for checks and ordinary commands. A check declaration references a command ID and fixed arguments; profiles and environment-check declarations compose these checks. Environment checks run only when explicitly requested or required by an invocation. Discovery itself does not run checks.
 
-No functions or configured complexity checks exist in the inspected project files. Establish a complexity threshold in the first slice, then measure changed functions before and after each implementation change. Do not add pass-through modules solely to match this proposed layout.
+The initial project contained only documentation. Slice 0 established Ruff's complexity threshold of 10; the completed implementation passes it with no functions above the threshold. Do not add pass-through modules solely to match this layout.
 
-## Contracts to establish in the first slice
+## Implemented first-release contracts
 
-These are proposed implementation defaults, subject to review before the plugin interface is frozen.
+These defaults are implemented and tested, subject to review before a public plugin compatibility commitment.
 
-| Contract | Proposed behavior |
+| Contract | Implemented behavior |
 | --- | --- |
 | Plugin discovery | Read entry-point metadata without calling `.load()`. Display distribution name and version. Disabled or untrusted plugins do not execute registration code. |
 | Activation | Require project selection plus trusted operator approval of the plugin distribution and version. Validate the entire selected registry before exposing commands. Duplicate IDs and incompatible versions fail activation deterministically. |
@@ -103,24 +105,24 @@ These are proposed implementation defaults, subject to review before the plugin 
 | Versioning | Version the plugin contract and evidence schema independently from distribution releases. Declare supported versions explicitly and reject unsupported major versions. Keep the public contract provisional until both real plugins and the MCP adapter pass their tests. |
 | Result status | Use `success`, `failed`, `blocked`, `error`, and `cancelled` consistently across transports and evidence. A failed check is `failed`. An unmet prerequisite or denied operation is `blocked`. A handler exception, invalid output, or deadline expiry is `error` with a stable reason code. |
 | Check aggregation | Record each required check and whether it ran. The aggregate succeeds only when every required check succeeds. Skipped tests and test counts remain explicit evidence fields. A profile with no required checks does not report successful verification. |
-| Handler interface | Use `handler(context, arguments) -> CommandResult`. Context supplies the resolved project root, run identity, deadline, cancellation signal, and approved runtime helpers. Handlers do not print protocol output or resolve global configuration. |
-| Effects | Start with `read_fs`, `write_fs`, `execute_process`, `network_read`, and `network_write`. Pair grants with resource constraints such as paths and targets. Unknown effects fail activation. Add database and remote mutation capabilities only with their implementing integration. |
-| Authorization | Compute allowed operations from trusted grants, project restrictions, command declarations, and invocation restrictions. A repository setting or ordinary command flag cannot relax a trusted denial. Bind any one-shot approval to the command, arguments, resources, and plugin version. |
+| Handler interface | Use `handler(context, arguments) -> CommandResult`. Context supplies the resolved project root, run identity, deadline, cancellation signal, plugin settings, and surface. Handlers do not print protocol output or resolve global configuration. |
+| Effects | Use `read_fs`, `write_fs`, `execute_process`, `network_read`, and `network_write`. Grants bind to a resolved project, declared effects, and surfaces. Unknown effects fail activation. Finer path/target constraints require future integrations and host enforcement. |
+| Authorization | Require explicit operator grants and exact plugin version trust. A repository setting or ordinary command flag cannot relax a trusted denial. One-shot approval flows are not implemented. |
 | Settings | Resolve explicit settings, project settings, user settings, then defaults. Validate unknown keys and types. Resolve project-relative paths against the selected project root, independent of the caller's working directory. |
-| Process lifecycle | Use argument arrays and explicit working directories. Apply deadlines, bounded output, and environment filtering. On Linux, terminate the managed process group, allow a short grace period, then kill and reap it. Record incomplete cleanup as an error. |
+| Process lifecycle | Use argument arrays and explicit working directories. Apply deadlines, bounded output, and environment filtering. On Linux, terminate the managed process group, allow a short grace period, then kill and reap its parent. Cleanup exceptions become errors; deliberate process detachment is outside this guarantee. |
 | Python cancellation | Trusted in-process Python handlers cooperate with deadlines and cancellation. Do not advertise hard termination for arbitrary Python code. A future worker process can provide that guarantee if required. |
-| CLI mapping | Propose exit codes 0 for success, 1 for failed checks, 2 for blocked operations, 3 for errors, and 130 for cancellation. JSON output is one result document on stdout. Diagnostics use stderr. |
-| Evidence | Include schema version, run ID, command ID, plugin distribution and version, status and reason, timestamps, tool versions, parameters after redaction, source revision when available, dirty-tree state, and bounded artifact references. Work-item references are optional. |
+| CLI mapping | Exit codes are 0 for success, 1 for failed checks, 2 for blocked operations, 3 for errors, and 130 for cancellation. JSON output is one result document on stdout. Captured Python diagnostics are bounded and redacted in the envelope. |
+| Evidence | Include schema version, run/parent IDs, command ID, producer/version, result, timestamps, tool versions when applicable, redacted parameters, source revision and dirty state, and bounded diagnostics. Work-item references are null; arbitrary artifacts are deferred. |
 | Evidence failure | Write bundles atomically under a configured state root with restrictive permissions. If required evidence cannot be persisted, return an error and preserve the observed command outcome in the response. Never rerun a mutation automatically to repair evidence. |
-| Project identity | Assign a persisted local project identifier outside the repository and record the resolved worktree location. Do not require Git or derive identity only from a remote URL. Repositories without Git have an explicit unavailable revision value. |
+| Project identity | Hash the resolved local project path with SHA-256 and record the location. Moving a project changes its identity. Git and remotes are not required; unavailable revision and dirty state are null. |
 
 Go tests execute repository code. Their declaration must include process execution and possible filesystem and network effects. Use a dependency-free fixture to demonstrate offline operation. Running arbitrary project tests without network access requires enforcement by the host runtime. A declaration alone cannot provide that restriction.
 
-Evidence writes are a separate, documented runtime effect. An offline validator can avoid project mutation while the runtime writes a run bundle. Validate artifact paths against the run directory, including symlink escapes. Store bounded, redacted output and do not claim that pattern-based redaction can detect every secret.
+Evidence writes and read-only Git provenance are separate, documented runtime effects. An offline validator can avoid project mutation while the runtime writes a run bundle. The runtime accepts no arbitrary artifact paths. Store bounded, redacted output and do not claim that pattern-based redaction can detect every secret.
 
 ## Implementation slices
 
-Each slice ends in a runnable workflow. Dependencies identify when work can start, without requiring parallel execution. Assign an implementation owner when scheduling each slice.
+The following slice briefs preserve the delivery sequence and acceptance gates. All six first-release slices are implemented. Dependencies identify when work could start, without requiring parallel execution.
 
 ### Slice 0: Establish the project and executable contract
 
@@ -197,7 +199,7 @@ Exit gate: a developer can install, activate, authorize, run, inspect evidence, 
 | Timeout or cancellation | Managed fixture processes stop and the result records incomplete work. |
 | Invalid output or evidence storage failure | The invocation returns an error and never claims successful verification. |
 | No tests, missing prerequisite, or skipped required check | The result distinguishes absent coverage from successful verification. |
-| Unsafe artifact or manifest path | Traversal and symlink escapes are rejected. |
+| Unsafe manifest path | Traversal and symlink escapes are rejected; arbitrary artifact attachments are not supported. |
 | CLI, Python, and MCP | Input validation, policy decisions, and result meaning agree. |
 | No Git metadata or dirty worktree | Evidence records the actual source condition without inventing a clean revision. |
 
@@ -218,11 +220,10 @@ The [Beads repository](https://github.com/gastownhall/beads) is the upstream sta
 
 ## Decisions still needed
 
-The fresh-build direction and first-release scope are confirmed. The following choices remain proposed:
+The fresh-build direction and first-release scope are confirmed and implemented. Remaining decisions concern future compatibility and integrations:
 
-- Confirm Linux as the initial supported platform and choose the Python baseline in slice 0.
-- Review the status vocabulary, approval ownership, plugin trust rules, and cancellation limits before freezing the first public plugin interface.
+- Review the implemented status vocabulary, operator ownership, plugin trust rules, and cancellation limits before freezing the first public plugin interface.
 - Select public distribution names and an owned entry-point namespace before publication.
 - Select Odoo runtime environments, Beads versions, and external credentials only when scheduling those later increments.
 
-The next implementation step is slice 0. Resolve the remaining contract decisions during that slice and reflect them in the architecture before freezing the public plugin interface.
+The next integration increment needs either an agreed disposable Odoo runtime or a pinned Beads compatibility target. Neither is required to use the completed local toolkit. No public package publication or external tracker mutation has been performed.

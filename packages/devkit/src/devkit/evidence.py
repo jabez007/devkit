@@ -35,14 +35,23 @@ def source_identity(root: Path) -> JSONObject:
     result: JSONObject = {"revision": None, "dirty": None}
     try:
         revision = subprocess.run(
-            ["git", "-C", str(root), "rev-parse", "HEAD"],
+            ["git", "-c", "core.fsmonitor=false", "-C", str(root), "rev-parse", "HEAD"],
             capture_output=True,
             text=True,
             timeout=2,
             check=True,
         ).stdout.strip()
         dirty = subprocess.run(
-            ["git", "-C", str(root), "status", "--porcelain", "--untracked-files=normal"],
+            [
+                "git",
+                "-c",
+                "core.fsmonitor=false",
+                "-C",
+                str(root),
+                "status",
+                "--porcelain",
+                "--untracked-files=normal",
+            ],
             capture_output=True,
             text=True,
             timeout=2,

@@ -1,0 +1,15 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "devkit-example"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["devkit>=0.1,<0.2"]
+
+[project.entry-points."devkit.specializations.v1"]
+example = "devkit_example:register"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/devkit_example"]

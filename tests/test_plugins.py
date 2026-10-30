@@ -83,3 +83,34 @@ def test_policy_revocation_applies_to_existing_service(tmp_path, monkeypatch):
     assert service.execute(spec.id)["result"]["status"] == "success"
     (config / "policy.toml").write_text('deny=["sample.run"]')
     assert service.execute(spec.id)["result"]["status"] == "blocked"
+
+
+@pytest.mark.parametrize(
+    "schema",
+    [
+        {"type": "array"},
+        {"type": "object", "$ref": "https://example.invalid/schema"},
+        {"type": "object", "$schema": "http://json-schema.org/draft-07/schema#"},
+    ],
+)
+def test_incompatible_schemas_fail_activation(schema):
+    command = CommandSpec(
+        "sample.run",
+        "Sample",
+        lambda ctx, args: CommandResult("success", "OK"),
+        input_schema=schema,
+    )
+    entry = candidate([], Specialization("sample", (command,)))
+    with pytest.raises(DevkitError, match="Cannot activate"):
+        activate(("sample",), Policy({"devkit-sample": "0.1.0"}), (entry,))
+
+
+def test_registration_output_is_rejected_without_leaking(capsys):
+    def noisy():
+        print("plugin registration output")
+        return Specialization("sample", ())
+
+    entry = Candidate("sample", "devkit-sample", "0.1.0", SimpleNamespace(load=lambda: noisy))
+    with pytest.raises(DevkitError, match="Cannot activate"):
+        activate(("sample",), Policy({"devkit-sample": "0.1.0"}), (entry,))
+    assert capsys.readouterr().out == ""

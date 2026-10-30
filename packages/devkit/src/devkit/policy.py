@@ -39,7 +39,7 @@ class Policy:
     def allows(self, spec: CommandSpec, project: Path, surface: str) -> bool:
         if spec.id in self.deny or surface not in spec.surfaces:
             return False
-        if spec.id == "core.doctor" and surface != "mcp":
+        if spec.id in {"core.doctor", "core.check"} and surface != "mcp":
             return True
         grant = self.commands.get(spec.id)
         return bool(

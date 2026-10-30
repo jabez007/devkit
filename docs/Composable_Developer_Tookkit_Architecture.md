@@ -1,6 +1,6 @@
 # Composable Developer Toolkit — Architectural Specification
 
-**Status:** Proposed design, draft 0.2. Fresh-build direction and first-release scope confirmed.\
+**Status:** Draft 0.3. First-release implementation complete; public names and plugin API remain provisional.\
 **Date:** October 30, 2026\
 **Working project name:** `devkit` (placeholder, not a proposed public package name)\
 **Design inspiration:** [Crpaxton4/devcontainer-features](https://github.com/Crpaxton4/devcontainer-features) and its [ADR-006](https://github.com/Crpaxton4/devcontainer-features/blob/main/docs/design/adr/ADR-006-workspace-three-layers-state-root.md)\
@@ -111,7 +111,7 @@ Task connectors and orchestration are optional later integrations. The foundatio
 
 ## 6. Component and package topology
 
-Create a new `uv` workspace with one lockfile. Start with one foundation distribution containing cohesive internal modules and the CLI, plus two independently installable specialization distributions. Add a separate MCP distribution when implementing the optional adapter. Its dependencies must remain absent from the foundation installation.
+The implementation uses a new `uv` workspace with one lockfile, a foundation distribution containing cohesive internal modules and the CLI, two independently installable specialization distributions, and a separate MCP distribution. MCP dependencies remain absent from the foundation installation. Python 3.12 on Linux is the tested baseline.
 
 ```text
 pyproject.toml
@@ -121,14 +121,15 @@ packages/
                           policy, process execution, evidence, CLI
   devkit_go/              Go checks
   devkit_odoo/            offline Odoo validation
-  devkit_mcp/             optional local MCP adapter, added in its slice
+  devkit_mcp/             optional local MCP adapter
 tests/
-  acceptance/            installed-wheel and workflow tests
-  fixtures/              small Go projects and Odoo addons
+  fixtures/              independently packaged test plugin
+scripts/check_wheels.py  installed-wheel acceptance matrix
+examples/                project settings, policy, and plugin template
 docs/
 ```
 
-These names are proposed. The implementation plan describes the internal modules. `CommandService` is the shared invocation module. CLI and MCP adapters call its interface, while plugins depend on the public contract. The foundation discovers plugins through metadata and does not import a specialization by name.
+These are working names, pending public namespace selection. `CommandService` is the shared invocation module. CLI and MCP adapters call its interface, while plugins depend on the public contract. The foundation discovers plugins through metadata and does not import a specialization by name.
 
 Add Beads and tracker connector distributions when implementing those integrations. A later Odoo capability may use a maintained client or a narrow transport adapter when a concrete operation needs RPC. The offline plugin requires neither an SDK nor a server. The Odoo Project connector may depend on the Beads adapter and an Odoo client, but the Odoo development plugin must not depend on the connector.
 
@@ -138,27 +139,45 @@ The default CLI exposes basic operations such as `plugins`, `doctor`, `commands`
 
 ### 7.1 Distribution and discovery
 
-Use Python wheels and `importlib.metadata.entry_points()`; do **not** build a new package manager or registry in v1. The proposed entry point group is `devkit.specializations.v1`.
+Use Python wheels and `importlib.metadata.entry_points()`; do **not** build a new package manager or registry in v1. The implemented entry point group is `devkit.specializations.v1`, pending public namespace review.
 
 ```toml
-# Illustrative third-party plugin pyproject.toml
+# Current Odoo plugin registration
 [project]
 name = "devkit-odoo"
 version = "0.1.0"
 dependencies = ["devkit>=0.1,<0.2"]
 
 [project.entry-points."devkit.specializations.v1"]
-odoo = "devkit_odoo.plugin:register"
+odoo = "devkit_odoo:register"
 ```
 
 Distribution names and the entry-point namespace are placeholders until public naming is settled. Installing a distribution makes it **discoverable**. Project activation is separate and explicit. Installers must not silently alter shared Claude, GitHub, Docker, or shell configuration.
 
-### 7.2 Minimal stable contract
+### 7.2 Implemented provisional contract
 
 Use a typed, data-first declaration with explicit schema version and identifiers; command handlers can be ordinary Python callables. Avoid a large inheritance hierarchy.
 
 ```python
-# Illustrative API, not existing implementation
+# A declaration using the implemented API
+from devkit.contracts import CheckSpec, CommandResult, CommandSpec, Context, Specialization
+
+def inspect(context: Context, arguments: dict) -> CommandResult:
+    return CommandResult("success", "Inspection complete", {"checked": True})
+
+def register() -> Specialization:
+    return Specialization(
+        id="example",
+        api_version="1.0",
+        commands=(CommandSpec("example.inspect", "Inspect the example", inspect),),
+        checks=(CheckSpec("example.inspection", "example.inspect"),),
+    )
+```
+
+The exact definitions live in [`contracts.py`](../packages/devkit/src/devkit/contracts.py), with authoring guidance in [Plugin_Contract.md](Plugin_Contract.md):
+
+```python
+# Field overview; defaults omitted
 @dataclass(frozen=True)
 class Specialization:
     id: str                         # e.g. "odoo"
@@ -170,20 +189,27 @@ class Specialization:
 @dataclass(frozen=True)
 class CommandSpec:
     id: str                         # e.g. "odoo.module.validate"
-    input_schema: dict              # JSON Schema
+    description: str
+    input_schema: dict              # Draft 2020-12 object schema
+    output_schema: dict             # validates successful result.data
     handler: Callable
-    effects: frozenset[str]         # e.g. read_fs, write_fs, network
+    effects: frozenset[str]         # read_fs, write_fs, execute_process,
+                                    # network_read, network_write
     surfaces: frozenset[str]        # cli, python, mcp
 
 @dataclass(frozen=True)
 class CommandResult:
-    status: str                     # success | failed | blocked | error
+    status: str                     # success | failed | blocked | error | cancelled
     summary: str
-    artifacts: tuple[str, ...] = ()
-    evidence: tuple[dict, ...] = ()
+    data: dict
+    reason: str | None
 ```
 
-The actual v1 spec MUST precisely define the allowed effect vocabulary, schema validation, error types, cancellation behavior, timeouts, and serializable result fields before third-party release. Proposed code above is intentionally minimal, not a complete ABI.
+`CheckSpec` contains an ID, command ID, and fixed arguments. Context contains the resolved project root, run ID, monotonic deadline, cancellation event, plugin settings, and invocation surface. Inputs and results must be bounded JSON objects. External schema references are rejected. Every result is validated; successful data also satisfies its command's output schema.
+
+Profiles aggregate required checks through the same invocation path, with independent child evidence and inherited deadlines. All children must succeed. Mixed statuses use the priority cancelled, error, failed, blocked, success; an empty profile is blocked. Environment checks are prerequisites for the plugin's other commands and `doctor`, without recursively applying those prerequisites to themselves.
+
+Python handlers cooperate with cancellation; they cannot be forcibly terminated in process. Managed subprocesses receive deadlines, bounded output, and process-group termination on Linux. Deliberately detached processes require host isolation. Policy is an authorization mechanism, not a sandbox.
 
 ### 7.3 Registration and invocation
 
@@ -191,7 +217,7 @@ The actual v1 spec MUST precisely define the allowed effect vocabulary, schema v
 - Duplicate plugin IDs, command IDs, unsupported API versions, or invalid schema fail activation with actionable diagnostics.
 - Load only activated plugins for a project. Sort discovery deterministically; order may not decide conflicts.
 - CLI/Python/MCP all invoke the same `CommandService`; MCP does not reimplement operations.
-- Only commands explicitly authorized in project policy can appear on the MCP surface. High-effect tools must additionally pass execution-time authorization.
+- Only commands explicitly authorized in external operator policy can appear on the MCP surface. Every invocation checks policy again, including plugin version trust.
 - Command arguments and results are schema-validated on every surface. Normal error results cannot claim checks ran when they did not.
 - Plugins may offer context providers and skill documentation in future versions, but **v1 is commands + checks + environment checks**. When adding skill documentation, use native harness packaging rather than defining a cross-harness prompt format.
 
@@ -201,7 +227,7 @@ Multiple specializations may be active for one repository (e.g., Odoo + Python +
 
 ### 7.5 Third-party developer experience
 
-Provide a template plugin and reusable contract-test helpers. The Go plugin is the first non-Odoo reference implementation. Keep test helpers in the repository initially and publish a separate package when external plugin authors need it. A `devkit plugins validate` command should check registration, namespace uniqueness, JSON schemas, permission declarations, CLI/MCP equivalence, and error handling. CI contract tests should be runnable without an Odoo server, Beads, Gas City, or paid model credentials.
+The [plugin template](../examples/plugin) builds independently, and [contract-test helpers](../tests/contract_helpers.py) stay in the repository. The Go plugin is the first non-Odoo reference implementation. `devkit plugins validate` checks activation and runs declared environment prerequisites through `doctor`. Behavioral equivalence and error handling require automated tests; the command does not certify arbitrary plugin code. CI runs without an Odoo server, Beads, Gas City, or paid model credentials.
 
 ## 8. Beads task integration
 
@@ -290,27 +316,25 @@ Support them through their actual native integration mechanisms (CLI invocation,
 
 ## 11. Configuration and runtime behavior
 
-Configuration precedence is **explicit CLI override → repository project configuration → user configuration → built-in defaults**. Secrets must be external references or environment/injected credentials, not committed plaintext. A proposed project manifest:
+Settings precedence is **explicit timeout override → repository project configuration → user configuration → built-in defaults**. Top-level project tables replace user tables. Permission grants do not follow settings precedence. Secrets must be external references or environment/injected credentials, not committed plaintext. A supported project manifest:
 
 ```toml
-# Illustrative devkit.toml; not a supported current format
 schema_version = 1
+plugins = ["odoo", "go"]
+timeout = 90
 
-[project]
-name = "warehouse-customizations"
-
-[plugins]
-enabled = ["odoo", "go"]
-
-[plugins.odoo]
+[options.odoo]
 target_version = "19.0"
 addons_paths = ["custom", "oca"]
+strict_dependencies = false
 
-[security]
-allow_mcp = ["odoo.module.validate"]
+[profiles]
+verify = ["go.tests", "odoo.manifests"]
 ```
 
-Profiles and plugin defaults cannot silently expand the allowed capability set. Do not run package installation as part of ordinary command execution. A working tree without `devkit.toml` may still run generic `doctor` and explicitly selected checks. The user configuration and state locations should follow appropriate XDG conventions. Use project-owned paths with no dependency on `ODOO_DEV_HOME` or upstream state imports.
+Operator grants live outside the project at `$XDG_CONFIG_HOME/devkit/policy.toml`, default `~/.config/devkit/policy.toml`. The file must not be group/world writable. `[trusted_plugins]` maps normalized distribution names to exact versions; `[commands."command.id"]` supplies an absolute `project`, allowed `effects`, and `surfaces`. Top-level `deny` overrides grants. One project grant per command is supported. Neither project configuration nor an ordinary flag can widen permissions. See the [policy example](../examples/policy.toml).
+
+Do not run package installation as part of ordinary command execution. A working tree without `devkit.toml` may run generic `doctor`; plugin checks require selection through project or user settings. User settings live at `$XDG_CONFIG_HOME/devkit/settings.toml`. State uses `$XDG_STATE_HOME/devkit`, default `~/.local/state/devkit`, with no upstream state imports.
 
 MCP access is opt-in, namespaced, and authorization-aware. Remote MCP hosting, authentication, and transport are outside v1; the initial MCP mode can remain local stdio. A native shell CLI must remain equally functional.
 
@@ -321,7 +345,7 @@ MCP access is opt-in, namespaced, and authorization-aware. Remote MCP hosting, a
 - **No broad credential mounts by default.** Never require mounting a developer's whole Claude/GitHub home or Docker socket to use generic tools. Prefer scoped, short-lived credentials and restricted network/volume access.
 - **No surprise writes.** File mutation, network writes, repository pushes, database upgrades, and external tracker updates require permission declarations and separate enforcement by the invoking runtime or host policy.
 - **Treat retrieved content as untrusted.** Beads descriptions, Odoo chatter, repository files, and MCP results may contain malicious instructions; they are task data, not authoritative operating policy.
-- **Redact evidence at collection time.** Logs, traces, stdout/stderr, exception messages, and MCP outputs must scrub known credential classes; store minimal necessary customer data and allow local retention configuration.
+- **Redact evidence before persistence and response.** Scrub known credential environment values and patterns; minimize customer data. Pattern-based redaction is incomplete. Automatic retention is a later feature.
 - **Approval and auditability.** Keep high-risk actions gated, timestamped, attributable, and revocable. A plugin's own prompt-based guard is defense in depth, not a security boundary.
 - **Supply-chain checks:** lock and audit dependencies, inspect third-party entry-point packages before activation, publish checksums/provenance where feasible, and maintain a compatibility matrix.
 
@@ -334,17 +358,23 @@ The foundation specifies a **portable evidence envelope** and does not replace B
   "schema_version": "1.0",
   "run_id": "<unique-run-id>",
   "work_item_ref": null,
-  "plugin": "go",
+  "parent_run_id": null,
+  "producer": {"distribution": "devkit-go", "version": "0.1.0"},
   "command": "go.test",
-  "status": "success",
+  "project_root": "/absolute/path/to/project",
+  "project_id": "<sha256-of-resolved-project-path>",
+  "arguments": {},
+  "diagnostics": "",
   "started_at": "<ISO-8601>",
   "finished_at": "<ISO-8601>",
-  "source_revision": "<git-sha>",
-  "artifacts": ["artifacts/test-report.json"]
+  "source": {"revision": "<git-sha-or-null>", "dirty": false},
+  "result": {"status": "success", "summary": "Go tests passed", "data": {}, "reason": null}
 }
 ```
 
-This is a proposed schema; fields in angle brackets are placeholders. Work-item references are optional so local verification requires no task tracker. Version the schema independently from plugin API versions. Validate path safety and redact sensitive values. A JSON result should never claim success based on an inferred or merely requested operation.
+This example shows the implemented envelope; angle-bracket values are placeholders and Go data is abbreviated. Work-item references are currently null. Git revision and dirty state are null when unavailable. Project identity hashes the resolved local path; moving a checkout changes its identity. Git metadata collection disables repository filesystem-monitor hooks.
+
+Bundles are atomic `result.json` files in private UUID run directories. Responses add `evidence_path` after persistence. Evidence failure returns `EVIDENCE_WRITE_FAILED` and preserves `observed_result` without rerunning the handler. Arbitrary artifact attachments are not implemented. Inputs and handler results are bounded to 1 MiB, subprocess output to 256 KiB per stream, and captured Python diagnostics to 16,384 characters. Native descriptor output by trusted plugins is outside Python capture. Never claim verification based on an operation that did not run.
 
 Track human effort, wall-clock agent execution, model token/currency cost, and billable effort as **distinct optional metrics** with provenance. Do not automatically infer human time from Git commits or agent tokens. Permit linking a PR or acceptance artifact to a business outcome, but do not create a parallel outcome-tracking platform in v1.
 
@@ -373,7 +403,7 @@ State formats belong to this project. Future changes to persisted devkit state w
 - Plugin discovery and activation: missing dependencies, duplicate IDs, invalid schemas, incompatible plugin/core versions, and disabled packages behave predictably.
 - Surface parity: one command has equivalent validated arguments, result semantics, and authorization checks through Python API, CLI, and allowed MCP exposure.
 - Authorization: denied declared effects do not reach handlers, unauthorized MCP tools cannot execute, and project settings cannot silently expand permissions. These tests do not establish sandboxing of arbitrary plugin code.
-- Evidence: invalid results, sensitive output, unsafe artifact paths, and storage failures produce explicit errors or appropriate redaction. No check claims work that did not run.
+- Evidence: invalid results, sensitive output, repository metadata hooks, and storage failures produce explicit errors or appropriate redaction. No arbitrary artifact paths are accepted. No check claims work that did not run.
 - Go: real passing and failing tests, missing toolchains, no runnable tests, bounded output, timeout, cancellation, and managed subprocess cleanup.
 - Odoo: offline manifest validation, invalid fields, missing files, unsafe paths, unavailable dependencies, and executable manifest expressions. No Odoo runtime is installed.
 - Packaging: built wheels install independently, and the foundation dependency set excludes optional integrations.
@@ -441,22 +471,25 @@ State formats belong to this project. Future changes to persisted devkit state w
 
 **Open questions:**
 
-1. What Python baseline and initial platform support should the new workspace use? The implementation plan proposes Linux first.
-2. What are the exact result schema, check aggregation rules, handler context, cancellation semantics, and timeout guarantees? Resolve these before freezing the plugin contract.
-3. How are trusted operator grants combined with project settings, and how is plugin trust recorded? Ordinary settings precedence must not determine permission grants. The implementation plan proposes a separate authorization model for review.
-4. Which public distribution names and entry-point namespace can the project use?
-5. Which pinned Beads release and supported interface should the later adapter target, and what concurrency configuration does it actually support?
-6. Which Odoo runtime environments and editions will support later isolated CI? Odoo 17 requires a separately tested profile.
+1. Which public distribution names and entry-point namespace can the project use? Review the provisional API before publication.
+2. Which pinned Beads release and supported interface should the later adapter target, and what concurrency configuration does it actually support?
+3. Which Odoo runtime environments and editions will support later isolated CI? Odoo 17 requires a separately tested profile.
+
+The implementation selected Python 3.12/Linux, the result and check contracts in section 7, and external operator grants in section 11. These are tested implementation defaults; broader platform and public compatibility promises remain separate decisions.
 
 ## 18. Implementation plan
 
-The [implementation plan](Implementation_Plan.md) is the working delivery document. It contains slices 0 through 5, proposed contract details, dependencies, test cases, and later increments. This architecture defines responsibilities and scope. Changes to either document must preserve that distinction and keep their release scope consistent.
+The [implementation plan](Implementation_Plan.md) records delivered slices 0 through 5, acceptance evidence, and later increments. This architecture defines responsibilities and scope. Changes to either document must preserve that distinction and keep their release scope consistent.
 
-Begin with slice 0, which establishes the workspace, quality checks, invocation contract, and a working `doctor` command with evidence. Assign an owner when scheduling each slice and write a proportionate design note before implementation. Add a new abstraction only for a demonstrated seam or a concrete second use case.
+The first-release implementation is complete. Follow the [README](../README.md) to install and exercise it. Later slices need their stated service and version prerequisites. Add a new abstraction only for a demonstrated seam or a concrete second use case.
 
 ## 19. References and verification notes
 
-This proposal is based on public upstream documentation as of October 30, 2026. It is **not** a claim that the proposed interfaces, package names, or configuration schemas already exist. Verify versions, packaging interfaces, and commands against pinned upstream commits before implementation.
+The design draws on public upstream documentation reviewed October 30, 2026. First-release behavior is supported by local and installed-wheel tests. Later Beads, connector, and orchestration sections remain proposals; verify their supported interfaces at implementation time. Public package names are not reserved or published.
+
+- Implemented contracts: [Plugin_Contract.md](Plugin_Contract.md)
+- Tested dependency versions: [uv.lock](../uv.lock)
+- Odoo 19 manifest profile: <https://github.com/odoo/odoo/blob/005e0a0eb7ef80cd15b0c82b570b2b0843181ba2/odoo/modules/module.py>
 
 - Source repository: <https://github.com/Crpaxton4/devcontainer-features>
 - ADR-006: <https://github.com/Crpaxton4/devcontainer-features/blob/main/docs/design/adr/ADR-006-workspace-three-layers-state-root.md>

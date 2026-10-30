@@ -18,7 +18,12 @@ SETTINGS_SCHEMA: JSONObject = {
         "options": {"type": "object", "additionalProperties": {"type": "object"}},
         "profiles": {
             "type": "object",
-            "additionalProperties": {"type": "array", "items": {"type": "string"}},
+            "additionalProperties": {
+                "type": "array",
+                "items": {"type": "string"},
+                "maxItems": 128,
+                "uniqueItems": True,
+            },
         },
     },
 }

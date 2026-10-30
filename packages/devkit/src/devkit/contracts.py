@@ -38,6 +38,7 @@ class Context:
     deadline: float
     cancellation: Event
     settings: JSONObject = field(default_factory=dict)
+    surface: str = "python"
 
 
 @dataclass(frozen=True)

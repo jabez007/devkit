@@ -10,6 +10,9 @@ from devkit.contracts import DevkitError, JSONObject
 
 def check_schema(schema: JSONObject) -> None:
     """Limit v1 to self-contained schemas, including local fragment references."""
+    dialect = "https://json-schema.org/draft/2020-12/schema"
+    if schema.get("$schema", dialect) != dialect or schema.get("type") != "object":
+        raise DevkitError("INVALID_SCHEMA", "Command schemas must describe Draft 2020-12 objects")
     Draft202012Validator.check_schema(schema)
     _check_references(schema)
 

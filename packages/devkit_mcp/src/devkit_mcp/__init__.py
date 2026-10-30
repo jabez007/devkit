@@ -38,6 +38,10 @@ def create_server(project: Path) -> Server[Any]:
 
     @server.list_tools()  # type: ignore[no-untyped-call, untyped-decorator]
     async def list_tools() -> list[Tool]:
+        async with lock:
+            return tools()
+
+    def tools() -> list[Tool]:
         try:
             service = create_service(project)
             specs = service.allowed("mcp")

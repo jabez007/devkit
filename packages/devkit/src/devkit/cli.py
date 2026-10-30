@@ -19,6 +19,8 @@ def parser() -> argparse.ArgumentParser:
     sub = result.add_subparsers(dest="action", required=True)
     sub.add_parser("doctor")
     sub.add_parser("commands")
+    check = sub.add_parser("check")
+    check.add_argument("profile")
     plugins = sub.add_parser("plugins")
     plugins.add_argument("operation", choices=["list", "validate"], default="list", nargs="?")
     run = sub.add_parser("run")
@@ -53,8 +55,25 @@ def dispatch(args: argparse.Namespace) -> JSONObject:
             }
         }
     arguments = json.loads(args.args) if args.action == "run" else {}
+    if not isinstance(arguments, dict):
+        raise DevkitError("INVALID_INPUT", "Arguments must be a JSON object")
     command = args.command if args.action == "run" else "core.doctor"
+    if args.action == "check":
+        command, arguments = "core.check", {"profile": args.profile}
     return service.execute(command, arguments, surface="cli")
+
+
+def render(envelope: JSONObject, action: str) -> None:
+    result = envelope["result"]
+    print(f"{result['status']}: {result['summary']}")
+    if result.get("reason"):
+        print(f"Reason: {result['reason']}")
+    for command in result["data"].get("commands", []) if action == "commands" else []:
+        print(f"  {command}")
+    for plugin in result["data"].get("plugins", []) if action == "plugins" else []:
+        print(f"  {plugin['id']} ({plugin['distribution']} {plugin['version']})")
+    if envelope.get("evidence_path"):
+        print(f"Evidence: {envelope['evidence_path']}")
 
 
 def main() -> int:
@@ -76,7 +95,5 @@ def main() -> int:
     if args.json:
         print(json.dumps(envelope, allow_nan=False))
     else:
-        print(f"{envelope['result']['status']}: {envelope['result']['summary']}")
-        if envelope.get("evidence_path"):
-            print(f"Evidence: {envelope['evidence_path']}")
+        render(envelope, args.action)
     return EXIT_CODES[envelope["result"]["status"]]

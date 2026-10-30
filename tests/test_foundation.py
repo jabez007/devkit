@@ -1,22 +1,12 @@
 import json
+import subprocess
 from pathlib import Path
 
+import pytest
 from devkit.app import create_service
 from devkit.contracts import CommandResult, CommandSpec
-from devkit.invocation import CommandService
-from devkit.policy import Policy
 
-
-def service_with_grants(settings, commands):
-    grants = {
-        spec.id: {
-            "project": str(settings.project_root),
-            "effects": list(spec.effects),
-            "surfaces": ["python"],
-        }
-        for spec in commands
-    }
-    return CommandService(settings, commands, Policy(commands=grants))
+from tests.contract_helpers import service_with_grants
 
 
 def test_doctor_without_git(tmp_path, monkeypatch):
@@ -74,3 +64,67 @@ def test_invalid_output_and_secrets(tmp_path, monkeypatch):
     assert service_with_grants(settings, (broken,)).execute("test.bad")["result"]["reason"] == (
         "INVALID_OUTPUT"
     )
+
+
+def test_plugin_output_cannot_corrupt_protocol(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    monkeypatch.setenv("TEST_TOKEN", "test-sensitive-value")
+
+    def noisy(context, arguments):
+        print("test-sensitive-value")
+        return CommandResult("success", "Done")
+
+    spec = CommandSpec("test.noisy", "Noisy", noisy)
+    result = service_with_grants(create_service(tmp_path).settings, (spec,)).execute(spec.id)
+    assert capsys.readouterr().out == ""
+    assert result["diagnostics"] == "[REDACTED]\n"
+
+
+def test_non_json_input_returns_error_instead_of_crashing(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    result = create_service(tmp_path).execute("core.doctor", {"invalid": b"bytes"})
+    assert result["result"]["reason"] == "INVALID_INPUT"
+
+
+@pytest.mark.parametrize("data", [{1: "value"}, {"value": (1, 2)}])
+def test_non_json_output_is_normalized_to_error(tmp_path, monkeypatch, data):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    command = CommandSpec(
+        "test.output", "Output", lambda ctx, args: CommandResult("success", "OK", data)
+    )
+    result = service_with_grants(create_service(tmp_path).settings, (command,)).execute(command.id)
+    assert result["result"]["reason"] == "INVALID_OUTPUT"
+
+
+def test_source_metadata_does_not_execute_repository_hooks(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    root = tmp_path / "project"
+    root.mkdir()
+
+    def git(*args):
+        subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True)
+
+    git("init")
+    git(
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.invalid",
+        "commit",
+        "--allow-empty",
+        "-m",
+        "Fixture",
+    )
+    hook = root / "monitor.sh"
+    hook.write_text('#!/bin/sh\ntouch "$PWD/hook-ran"\n')
+    hook.chmod(0o700)
+    git("config", "core.fsmonitor", str(hook))
+    result = create_service(root).execute("core.doctor")
+    assert result["result"]["status"] == "success"
+    assert result["source"]["revision"]
+    assert result["source"]["dirty"] is True
+    assert not (root / "hook-ran").exists()

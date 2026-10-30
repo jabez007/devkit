@@ -1,0 +1,16 @@
+# Install outside the selected project at $XDG_CONFIG_HOME/devkit/policy.toml
+# (default ~/.config/devkit/policy.toml), mode 0600.
+# Replace every project value with the selected project's absolute path.
+[trusted_plugins]
+devkit-go = "0.1.0"
+devkit-odoo = "0.1.0"
+
+[commands."go.test"]
+project = "/absolute/path/to/project"
+effects = ["read_fs", "write_fs", "execute_process", "network_read", "network_write"]
+surfaces = ["cli", "python"]
+
+[commands."odoo.module.validate"]
+project = "/absolute/path/to/project"
+effects = ["read_fs"]
+surfaces = ["cli", "python", "mcp"]

@@ -14,6 +14,8 @@ def test_real_go_tests(go_project, body, status):
     assert result["result"]["status"] == status, result
     assert result["producer"]["distribution"] == "devkit-go"
     assert result["result"]["data"]["tool_version"].startswith("go version")
+    count = {"success": "passed", "failed": "failed", "blocked": "skipped"}[status]
+    assert result["result"]["data"]["tests"][count] == 1
 
 
 def test_no_tests_and_missing_go(go_project, monkeypatch):
