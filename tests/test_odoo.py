@@ -1,29 +1,5 @@
-import json
-
 import pytest
 from devkit.app import create_service
-
-
-@pytest.fixture
-def odoo_project(tmp_path, monkeypatch):
-    project = tmp_path / "project"
-    module = project / "addons/example"
-    module.mkdir(parents=True)
-    (module / "__manifest__.py").write_text(repr({"name": "Example", "depends": ["base"]}))
-    (project / "devkit.toml").write_text('plugins=["odoo", "go"]')
-    config = tmp_path / "config/devkit"
-    config.mkdir(parents=True)
-    policy = config / "policy.toml"
-    policy.write_text(
-        '[trusted_plugins]\ndevkit-odoo="0.1.0"\ndevkit-go="0.1.0"\n'
-        '[commands."odoo.module.validate"]\nproject='
-        + json.dumps(str(project))
-        + '\neffects=["read_fs"]\nsurfaces=["python","cli","mcp"]'
-    )
-    policy.chmod(0o600)
-    monkeypatch.setenv("XDG_CONFIG_HOME", str(config.parent))
-    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
-    return project, module
 
 
 def run(project, arguments=None):

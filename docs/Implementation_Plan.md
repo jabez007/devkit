@@ -13,7 +13,8 @@ First release: Go checks and offline Odoo validation, as selected by the project
 | 1 | Complete | Ten tests and all configured checks passed. An independently installed fixture wheel proved metadata-only discovery, blocked untrusted imports, and authorized invocation. |
 | 2 | Complete | Seventeen tests passed, including real Go pass/fail/skip cases and process-group timeout, cancellation, bounded output, and environment filtering. Go 1.24.4 was tested. |
 | 3 | Complete | Twenty-eight tests and all configured checks passed. Installed-wheel validation ran without Odoo, Docker, or MCP. Manifest rules were checked against Odoo revision `005e0a0eb7ef80cd15b0c82b570b2b0843181ba2`. |
-| 4 and 5 | Pending | MCP and release acceptance remain. |
+| 4 | Complete | Thirty tests passed, including real stdio discovery, three-interface parity, denial, revocation, and cancellation of a running Go test. MCP SDK 1.30.0 negotiated protocol 2025-11-25. Stdio tests require the host runtime in this sandbox environment. |
+| 5 | In progress | Release documentation, profile execution, contract hardening, and repeatable wheel acceptance remain. |
 
 Build a small Python foundation that discovers explicitly activated plugins, invokes commands through one policy path, and produces portable evidence. Prove the design with useful Go checks and Odoo manifest validation before adding live Odoo environments, task connectors, or orchestration.
 
