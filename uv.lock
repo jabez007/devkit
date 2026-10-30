@@ -9,6 +9,7 @@ resolution-markers = [
 [manifest]
 members = [
     "devkit",
+    "devkit-go",
 ]
 
 [manifest.dependency-groups]
@@ -57,6 +58,17 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [{ name = "jsonschema", specifier = ">=4.25,<5" }]
+
+[[package]]
+name = "devkit-go"
+version = "0.1.0"
+source = { editable = "packages/devkit_go" }
+dependencies = [
+    { name = "devkit" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "devkit", editable = "packages/devkit" }]
 
 [[package]]
 name = "grimp"
