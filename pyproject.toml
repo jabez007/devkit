@@ -1,0 +1,34 @@
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[dependency-groups]
+dev = ["pytest>=8,<9", "ruff>=0.14,<0.15", "mypy>=1.18,<2", "types-jsonschema>=4", "import-linter>=2,<3"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--import-mode=importlib"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C90"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["packages"]
+
+[tool.importlinter]
+root_packages = ["devkit"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Foundation has no optional integrations"
+type = "forbidden"
+source_modules = ["devkit"]
+forbidden_modules = ["devkit_go", "devkit_odoo", "devkit_mcp", "odoo", "mcp", "docker"]

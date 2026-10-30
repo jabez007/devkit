@@ -1,9 +1,16 @@
 # Devkit implementation plan
 
-Status: Draft for review.\
+Status: Implementation in progress.\
 Date: October 30, 2026.\
 Scope: Build a new toolkit inspired by Crpaxton4/devcontainer-features.\
 First release: Go checks and offline Odoo validation, as selected by the project owner.
+
+## Delivery progress
+
+| Slice | State | Verification |
+| --- | --- | --- |
+| 0 | Complete | Five tests, lint including complexity, formatting, strict typing, import contract, and isolated foundation wheel installation passed. Python 3.12 and Linux are the initial baseline. |
+| 1 through 5 | Pending | Plugin activation, Go, Odoo, MCP, and release acceptance remain. |
 
 Build a small Python foundation that discovers explicitly activated plugins, invokes commands through one policy path, and produces portable evidence. Prove the design with useful Go checks and Odoo manifest validation before adding live Odoo environments, task connectors, or orchestration.
 
