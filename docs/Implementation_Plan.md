@@ -12,7 +12,8 @@ First release: Go checks and offline Odoo validation, as selected by the project
 | 0 | Complete | Five tests, lint including complexity, formatting, strict typing, import contract, and isolated foundation wheel installation passed. Python 3.12 and Linux are the initial baseline. |
 | 1 | Complete | Ten tests and all configured checks passed. An independently installed fixture wheel proved metadata-only discovery, blocked untrusted imports, and authorized invocation. |
 | 2 | Complete | Seventeen tests passed, including real Go pass/fail/skip cases and process-group timeout, cancellation, bounded output, and environment filtering. Go 1.24.4 was tested. |
-| 3 through 5 | Pending | Odoo, MCP, and release acceptance remain. |
+| 3 | Complete | Twenty-eight tests and all configured checks passed. Installed-wheel validation ran without Odoo, Docker, or MCP. Manifest rules were checked against Odoo revision `005e0a0eb7ef80cd15b0c82b570b2b0843181ba2`. |
+| 4 and 5 | Pending | MCP and release acceptance remain. |
 
 Build a small Python foundation that discovers explicitly activated plugins, invokes commands through one policy path, and produces portable evidence. Prove the design with useful Go checks and Odoo manifest validation before adding live Odoo environments, task connectors, or orchestration.
 

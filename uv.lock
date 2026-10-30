@@ -10,6 +10,7 @@ resolution-markers = [
 members = [
     "devkit",
     "devkit-go",
+    "devkit-odoo",
 ]
 
 [manifest.dependency-groups]
@@ -63,6 +64,17 @@ requires-dist = [{ name = "jsonschema", specifier = ">=4.25,<5" }]
 name = "devkit-go"
 version = "0.1.0"
 source = { editable = "packages/devkit_go" }
+dependencies = [
+    { name = "devkit" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "devkit", editable = "packages/devkit" }]
+
+[[package]]
+name = "devkit-odoo"
+version = "0.1.0"
+source = { editable = "packages/devkit_odoo" }
 dependencies = [
     { name = "devkit" },
 ]

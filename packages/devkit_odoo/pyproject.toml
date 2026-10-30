@@ -1,0 +1,15 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "devkit-odoo"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["devkit>=0.1,<0.2"]
+
+[project.entry-points."devkit.specializations.v1"]
+odoo = "devkit_odoo:register"
+
+[tool.uv.sources]
+devkit = {workspace = true}
