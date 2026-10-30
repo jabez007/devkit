@@ -7,6 +7,7 @@ from pathlib import Path
 from devkit import __version__
 from devkit.app import create_service
 from devkit.contracts import EXIT_CODES, CommandResult, DevkitError, JSONObject
+from devkit.discovery import discover
 
 
 def parser() -> argparse.ArgumentParser:
@@ -18,6 +19,8 @@ def parser() -> argparse.ArgumentParser:
     sub = result.add_subparsers(dest="action", required=True)
     sub.add_parser("doctor")
     sub.add_parser("commands")
+    plugins = sub.add_parser("plugins")
+    plugins.add_argument("operation", choices=["list", "validate"], default="list", nargs="?")
     run = sub.add_parser("run")
     run.add_argument("command")
     run.add_argument("--args", default="{}", help="JSON object")
@@ -25,13 +28,27 @@ def parser() -> argparse.ArgumentParser:
 
 
 def dispatch(args: argparse.Namespace) -> JSONObject:
-    service = create_service(args.project, args.timeout)
+    if args.action == "plugins" and args.operation == "list":
+        return {
+            "result": {
+                "status": "success",
+                "summary": "Installed plugins",
+                "data": {
+                    "plugins": [
+                        {"id": item.id, "distribution": item.distribution, "version": item.version}
+                        for item in discover()
+                    ]
+                },
+                "reason": None,
+            }
+        }
+    service = create_service(args.project, args.timeout, diagnostic=args.action == "doctor")
     if args.action == "commands":
         return {
             "result": {
                 "status": "success",
                 "summary": "Available commands",
-                "data": {"commands": sorted(service.commands)},
+                "data": {"commands": sorted(spec.id for spec in service.allowed("cli"))},
                 "reason": None,
             }
         }

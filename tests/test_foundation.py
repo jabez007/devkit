@@ -4,6 +4,19 @@ from pathlib import Path
 from devkit.app import create_service
 from devkit.contracts import CommandResult, CommandSpec
 from devkit.invocation import CommandService
+from devkit.policy import Policy
+
+
+def service_with_grants(settings, commands):
+    grants = {
+        spec.id: {
+            "project": str(settings.project_root),
+            "effects": list(spec.effects),
+            "surfaces": ["python"],
+        }
+        for spec in commands
+    }
+    return CommandService(settings, commands, Policy(commands=grants))
 
 
 def test_doctor_without_git(tmp_path, monkeypatch):
@@ -25,7 +38,7 @@ def test_invalid_input_does_not_call_handler(tmp_path, monkeypatch):
     service = create_service(tmp_path)
     calls = []
     spec = CommandSpec("test.run", "Test", lambda ctx, args: calls.append(1))
-    service = CommandService(service.settings, (spec,))
+    service = service_with_grants(service.settings, (spec,))
     result = service.execute("test.run", {"unexpected": True})
     assert result["result"]["reason"] == "INVALID_INPUT"
     assert not calls
@@ -54,10 +67,10 @@ def test_invalid_output_and_secrets(tmp_path, monkeypatch):
             {"password": "hidden"},
         ),
     )
-    result = CommandService(settings, (spec,)).execute("test.run")
+    result = service_with_grants(settings, (spec,)).execute("test.run")
     assert "test-credential-value" not in json.dumps(result)
     assert "hidden" not in json.dumps(result)
     broken = CommandSpec("test.bad", "Bad", lambda ctx, args: None)
-    assert CommandService(settings, (broken,)).execute("test.bad")["result"]["reason"] == (
+    assert service_with_grants(settings, (broken,)).execute("test.bad")["result"]["reason"] == (
         "INVALID_OUTPUT"
     )
