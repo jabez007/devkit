@@ -59,6 +59,7 @@ OUTPUT_SCHEMA: JSONObject = {
         "not_checked",
         "inspection_complete",
         "xml_counts",
+        "xml_reference_counts",
     ],
     "properties": {
         "validation_schema_version": {"const": "1.2"},
@@ -126,11 +127,14 @@ def _data(inventory: Inventory, policy: JSONObject, *, scanned: bool = True) -> 
             "data/demo file paths",
             "direct module dependency presence",
             "declared XML syntax",
+            "literal XML reference ordering",
         ],
         "not_checked": [
             "runtime",
             "database",
-            "XML semantics",
+            "XML runtime semantics and XPath validity",
+            "dynamic XML references and embedded view content",
+            "CSV contents",
             "assets",
             "external dependencies",
             "transitive dependencies",
@@ -138,6 +142,7 @@ def _data(inventory: Inventory, policy: JSONObject, *, scanned: bool = True) -> 
         ],
         "xml_counts": dict.fromkeys(("valid", "invalid", "blocked"), 0),
         "xml_limits": XML_LIMITS,
+        "xml_reference_counts": {"resolved": 0, "unknown": 0},
         "dependency_counts": dict.fromkeys(("resolved", "missing", "unknown", "invalid"), 0),
     }
 
@@ -207,6 +212,8 @@ def _inspect(
         data["modules"].append(finding)
         for file in finding["xml"]["files"]:
             data["xml_counts"][file["status"]] += 1
+        for status, count in finding["xml"]["reference_counts"].items():
+            data["xml_reference_counts"][status] += count
         for edge in finding["dependencies"]:
             data["dependency_counts"][edge["status"]] += 1
     data["inspection_complete"] = True
@@ -220,6 +227,8 @@ def _summary(data: JSONObject, action: str) -> str:
         f"Examined {len(data['modules'])} modules; dependencies: {counts}.",
         f"Modules: {names[:500]}",
         "XML files: " + ", ".join(f"{n} {status}" for status, n in data["xml_counts"].items()),
+        "XML references: "
+        + ", ".join(f"{n} {status}" for status, n in data["xml_reference_counts"].items()),
     ]
     for finding in data["modules"]:
         issues = list(finding["errors"])
@@ -227,6 +236,13 @@ def _summary(data: JSONObject, action: str) -> str:
             f"{file['path']}:{file['line']}:{file['column']}: {file['message']}"
             for file in finding["xml"]["files"]
             if file["status"] != "valid"
+        )
+        issues.extend(
+            f"{file['path']}:{ref['line']}:{ref['column']}: unknown XML ID "
+            f"{ref['value']} ({ref['reason']})"
+            for file in finding["xml"]["files"]
+            for ref in file["references"]
+            if ref["status"] == "unknown"
         )
         issues.extend(
             f"{edge['status']}: {edge['name']}"

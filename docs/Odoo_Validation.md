@@ -190,3 +190,42 @@ elements. Each file is capped at 1 MiB and nesting at 128 elements. Cancellation
 and deadlines are checked between parse chunks and elements. The overall findings
 size limit still applies. These restrictions do not replace maintaining Python
 and its linked Expat library. See the [Python XML guidance](https://docs.python.org/3.12/library/xml.html).
+
+### Literal XML references
+
+`xml.files` also reports `definitions`, `references` and `unexamined` operations.
+References carry their raw value, normalized `xml_id`, attribute, source location,
+status, reason and, when resolved, the target definition location. Top-level
+`xml_reference_counts` aggregates resolved and unknown references. Source columns
+are one-based Expat offsets; multibyte text may use byte-oriented offsets.
+
+The supported subset is direct loader `record`, `menuitem` and `template`
+operations under `odoo`, `openerp` or `data`. Definitions become available after
+an operation ends. Direct record `field ref`, menu `parent` and `action`, and
+template `inherit_id` and `website_id` attributes are examined. Definitions and
+references inside embedded view/template markup are not treated as loader
+operations. Nested record/menu operations and group membership are outside this
+subset. Dynamic `eval`, search and context expressions are never evaluated.
+
+A resolved reference has an earlier same-module literal definition in the
+examined load sequence. This is static source evidence, not proof that a database
+record exists or that an Odoo operation succeeds. Repeated definitions are
+retained as potential updates. Definitions under explicit `noupdate`,
+`forcecreate`, context or user conditions cannot establish unconditional presence.
+Foreign-module updates are reported as external references, not new definitions.
+
+Data files precede demo files, and each phase preserves manifest order. Demo
+references can use earlier data definitions; data cannot rely on demo. Unknown
+reasons distinguish forward definitions, demo-only definitions, conditional
+sources, external modules, unsupported literals and IDs absent from scanned XML.
+Dynamic operations, unparsed files and skipped non-XML files interrupt static
+certainty about earlier definitions. Later lookups may report `unverified_effects`.
+
+Module-inventory completeness does not imply XML-ID completeness. CSV data,
+model metadata, hooks and installed records can supply IDs. Unknown XML references
+therefore do not fail validation, and `strict_dependencies` continues to govern
+module dependencies only. Inspect `unexamined` and `skipped_files` alongside the
+reference counts. `xml.complete` describes file inspection, not complete runtime
+reference verification. Reference collection is limited to 4,000 events per
+invocation; exceeding the limit blocks inspection and discards partial events
+from the affected file.

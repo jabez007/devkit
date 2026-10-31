@@ -10,6 +10,7 @@ from devkit.schemas import validate
 
 from devkit_odoo.dependencies import external_dependencies, module_dependencies
 from devkit_odoo.xml_inspection import XMLInspection
+from devkit_odoo.xml_references import analyze_references
 
 STRINGS: JSONObject = {"type": "array", "items": {"type": "string", "minLength": 1}}
 MANIFEST_SCHEMA: JSONObject = {
@@ -91,7 +92,12 @@ def inspect_module(
         "path": module.relative_to(context.project_root).as_posix(),
         "dependencies": [],
         "external_dependencies": [],
-        "xml": {"files": [], "complete": False},
+        "xml": {
+            "files": [],
+            "skipped_files": [],
+            "complete": False,
+            "reference_counts": {"resolved": 0, "unknown": 0},
+        },
     }
     try:
         manifest = read_manifest(module)
@@ -126,6 +132,7 @@ def inspect_module(
     )
     _check_triggers(manifest, result)
     _check_files(module, manifest, context, result, xml)
+    analyze_references(name, result["xml"])
     return result
 
 
@@ -139,18 +146,24 @@ def _check_triggers(manifest: JSONObject, result: JSONObject) -> None:
 def _check_files(
     module: Path, manifest: JSONObject, context: Context, result: JSONObject, xml: XMLInspection
 ) -> None:
+    load_index = 0
     for phase in ("data", "demo"):
         for filename in manifest.get(phase, []):
+            entry = {"path": filename, "phase": phase, "load_index": load_index}
+            load_index += 1
             checkpoint(context)
             try:
                 path = contained(module, filename)
                 if not path.is_file():
                     raise ValueError("Missing file")
                 result["checked_files"].append(filename)
-                if path.suffix.lower() == ".xml":
-                    result["xml"]["files"].append(xml.inspect(path, filename, phase))
+                if Path(filename).suffix.lower() == ".xml":
+                    result["xml"]["files"].append({**xml.inspect(path, filename, phase), **entry})
+                else:
+                    result["xml"]["skipped_files"].append({**entry, "reason": "non_xml"})
             except (OSError, ValueError, RuntimeError):
                 result["errors"].append(f"Missing or unsafe declared file: {filename}")
+                result["xml"]["skipped_files"].append({**entry, "reason": "unavailable_file"})
     result["xml"]["complete"] = not result["errors"] and all(
         item["status"] == "valid" for item in result["xml"]["files"]
     )

@@ -6,12 +6,15 @@ from xml.parsers import expat
 
 from devkit.contracts import DevkitError, JSONObject
 
+from devkit_odoo.xml_references import LiteralReferences
+
 LIMITS = {
     "file_bytes": 1_048_576,
     "total_bytes": 16_777_216,
     "files": 256,
     "elements": 100_000,
     "depth": 128,
+    "reference_events": 4000,
 }
 
 
@@ -23,6 +26,7 @@ class XMLInspection:
         self.files = 0
         self.bytes = 0
         self.elements = 0
+        self.events = 0
 
     def inspect(self, path: Path, relative: str, phase: str) -> JSONObject:
         document = _Document(self)
@@ -34,9 +38,11 @@ class XMLInspection:
             "message": "XML is well formed; Odoo runtime semantics are unverified",
             "line": None,
             "column": None,
+            "events": [],
         }
         try:
             document.parse(self._read(path))
+            result["events"] = document.references.events
         except expat.ExpatError as exc:
             result.update(
                 status="invalid", reason="INVALID_XML", message=expat.ErrorString(exc.code)
@@ -60,6 +66,13 @@ class XMLInspection:
             )
         return result
 
+    def consume_event(self) -> None:
+        self.events += 1
+        if self.events > LIMITS["reference_events"]:
+            raise DevkitError(
+                "XML_LIMIT", "XML reference event limit exceeded; select fewer modules"
+            )
+
     def _read(self, path: Path) -> bytes:
         self.checkpoint()
         self.files += 1
@@ -77,6 +90,7 @@ class _Document:
     def __init__(self, inspection: XMLInspection) -> None:
         self.inspection = inspection
         self.depth = 0
+        self.references = LiteralReferences(inspection.consume_event)
         self.parser = expat.ParserCreate(namespace_separator="}")
         self.parser.StartElementHandler = self._start
         self.parser.EndElementHandler = self._end
@@ -98,8 +112,12 @@ class _Document:
         self.inspection.elements += 1
         if self.depth > LIMITS["depth"] or self.inspection.elements > LIMITS["elements"]:
             raise DevkitError("XML_LIMIT", "XML element or nesting limit exceeded")
+        self.references.start(
+            name, attributes, self.parser.CurrentLineNumber, self.parser.CurrentColumnNumber + 1
+        )
 
     def _end(self, name: str) -> None:
+        self.references.end()
         self.depth -= 1
 
     def _doctype(self, name: str, system: str | None, public: str | None, internal: int) -> None:
