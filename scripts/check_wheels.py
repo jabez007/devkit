@@ -1,5 +1,6 @@
 """Build and exercise independent installed distributions outside the workspace."""
 
+import hashlib
 import json
 import os
 import subprocess
@@ -119,6 +120,30 @@ def exercise_template(root, wheels, constraints):
     print("PASS: independently built plugin template")
 
 
+def exercise_artifact_pin(root, wheels, constraints):
+    project, env = install(root, wheels, ["devkit", "devkit_sample"], constraints)
+    (project / "devkit.toml").write_text('plugins=["sample"]')
+    marker = root / "imported"
+    env["DEVKIT_TEST_IMPORT_MARKER"] = str(marker)
+    policy(root, project, [], {"sample.inspect": []})
+    wheel = next(wheels.glob("devkit_sample-*.whl"))
+    digest = hashlib.sha256(wheel.read_bytes()).hexdigest()
+    with (root / "config/devkit/policy.toml").open("a") as stream:
+        stream.write('\n[trusted_plugins.devkit-sample]\nversion="0.1.0"\n')
+        stream.write(f'wheel={json.dumps(str(wheel))}\nsha256="{digest}"\n')
+    result = cli(root, project, env, "run", "sample.inspect")
+    assert result["producer"]["artifact_sha256"] == digest
+    assert marker.exists()
+    marker.unlink()
+    source = next((root / "venv/lib").glob("python*/site-packages/devkit_sample/__init__.py"))
+    source.unlink()  # Do not modify a file that could be hard-linked into an installer cache.
+    source.write_text('raise RuntimeError("replaced distribution with the same version")')
+    result = cli(root, project, env, "run", "sample.inspect", expected=3)
+    assert result["result"]["reason"] == "ARTIFACT_MISMATCH"
+    assert not marker.exists()
+    print("PASS: pinned installed wheel rejects same-version replacement before import")
+
+
 def exercise_mcp(root, wheels, constraints):
     project, env = install(
         root,
@@ -189,6 +214,7 @@ def main():
             exercise_go,
             exercise_odoo,
             exercise_template,
+            exercise_artifact_pin,
             exercise_mcp,
         ):
             target = root / exercise.__name__

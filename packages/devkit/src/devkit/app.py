@@ -52,7 +52,11 @@ def create_service(
             )
             origins.update(
                 {
-                    spec.id: {"distribution": candidate.distribution, "version": candidate.version}
+                    spec.id: {
+                        "distribution": candidate.distribution,
+                        "version": candidate.version,
+                        "artifact_sha256": candidate.artifact_sha256,
+                    }
                     for spec in plugin.commands
                 }
             )

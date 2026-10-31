@@ -65,9 +65,8 @@ class CommandService:
 
     def _producer_trusted(self, command: str, policy: Policy) -> bool:
         origin = self.origins.get(command)
-        return (
-            origin is None
-            or policy.trusted_plugins.get(origin["distribution"]) == origin["version"]
+        return origin is None or policy.trusts(
+            origin["distribution"], origin["version"], origin.get("artifact_sha256")
         )
 
     def execute(

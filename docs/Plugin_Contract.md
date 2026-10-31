@@ -24,6 +24,10 @@ module import must not print, inspect projects, start processes, or perform
 network operations. Installed metadata is discoverable without importing the
 plugin. Activation first checks the entire selection for missing, duplicate, or
 untrusted distributions, then imports only selected, explicitly trusted versions.
+An optional operator wheel pin additionally verifies the archive SHA-256 and
+installed payload before registration. Pins require a normal wheel installation;
+editable development checkouts must use version-only trust. See the
+[trust configuration and limits](../README.md#authorize-commands).
 
 Commands use namespaced IDs such as `example.greet`. Each component starts with
 a lowercase letter and contains lowercase letters, digits, or underscores.

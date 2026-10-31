@@ -1,9 +1,10 @@
 """Discover installed metadata first; load only selected, trusted plugins."""
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from importlib.metadata import EntryPoint, entry_points
 
+from devkit.artifacts import verify_wheel
 from devkit.contracts import EFFECTS, SURFACES, CommandSpec, DevkitError, Specialization
 from devkit.output import capture_output
 from devkit.policy import Policy
@@ -19,6 +20,7 @@ class Candidate:
     distribution: str
     version: str
     entry_point: EntryPoint
+    artifact_sha256: str | None = None
 
 
 def discover() -> tuple[Candidate, ...]:
@@ -86,7 +88,13 @@ def activate(
         if len(matches) != 1:
             raise DevkitError("PLUGIN_SELECTION", f"Expected exactly one installed plugin: {name}")
         candidate = matches[0]
-        if policy.trusted_plugins.get(candidate.distribution) != candidate.version:
+        trust = policy.trusted_plugins.get(candidate.distribution)
+        version = trust.get("version") if isinstance(trust, dict) else trust
+        if version != candidate.version:
             raise DevkitError("UNTRUSTED_PLUGIN", f"Plugin version is not trusted: {name}")
+        if isinstance(trust, dict):
+            candidate = replace(
+                candidate, artifact_sha256=verify_wheel(candidate.entry_point.dist, trust)
+            )
         selected.append(candidate)
     return tuple((_load(candidate), candidate) for candidate in selected)

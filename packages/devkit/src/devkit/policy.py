@@ -11,7 +11,24 @@ POLICY_SCHEMA: JSONObject = {
     "type": "object",
     "additionalProperties": False,
     "properties": {
-        "trusted_plugins": {"type": "object", "additionalProperties": {"type": "string"}},
+        "trusted_plugins": {
+            "type": "object",
+            "additionalProperties": {
+                "oneOf": [
+                    {"type": "string"},
+                    {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["version", "wheel", "sha256"],
+                        "properties": {
+                            "version": {"type": "string"},
+                            "wheel": {"type": "string", "pattern": "^/"},
+                            "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+                        },
+                    },
+                ],
+            },
+        },
         "deny": {"type": "array", "items": {"type": "string"}},
         "commands": {
             "type": "object",
@@ -32,9 +49,15 @@ POLICY_SCHEMA: JSONObject = {
 
 @dataclass(frozen=True)
 class Policy:
-    trusted_plugins: dict[str, str] = field(default_factory=dict)
+    trusted_plugins: JSONObject = field(default_factory=dict)
     commands: JSONObject = field(default_factory=dict)
     deny: tuple[str, ...] = ()
+
+    def trusts(self, name: str, version: str, artifact_sha256: str | None = None) -> bool:
+        trust = self.trusted_plugins.get(name)
+        if isinstance(trust, str):
+            return trust == version
+        return bool(trust and trust["version"] == version and trust["sha256"] == artifact_sha256)
 
     def allows(self, spec: CommandSpec, project: Path, surface: str) -> bool:
         if spec.id in self.deny or surface not in spec.surfaces:
