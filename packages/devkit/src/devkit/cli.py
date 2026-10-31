@@ -8,6 +8,7 @@ from devkit import __version__
 from devkit.app import create_service
 from devkit.contracts import EXIT_CODES, CommandResult, DevkitError, JSONObject
 from devkit.discovery import discover
+from devkit.evidence import redact
 from devkit.runs_cli import add_runs_parser, dispatch_runs
 
 
@@ -58,7 +59,10 @@ def dispatch(args: argparse.Namespace) -> JSONObject:
                 "reason": None,
             }
         }
-    arguments = json.loads(args.args) if args.action == "run" else {}
+    try:
+        arguments = json.loads(args.args) if args.action == "run" else {}
+    except json.JSONDecodeError as exc:
+        raise DevkitError("INVALID_INPUT", "--args must contain a valid JSON object") from exc
     if not isinstance(arguments, dict):
         raise DevkitError("INVALID_INPUT", "Arguments must be a JSON object")
     command = args.command if args.action == "run" else "core.doctor"
@@ -93,7 +97,9 @@ def main() -> int:
             "result": asdict(
                 CommandResult(
                     "error",
-                    "Invalid configuration or arguments",
+                    redact(str(exc)[:2048])
+                    if isinstance(exc, DevkitError)
+                    else "Cannot read project or configuration; check --project and settings files",
                     reason=exc.reason if isinstance(exc, DevkitError) else "INVALID_CONFIG",
                 )
             )

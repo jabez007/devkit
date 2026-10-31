@@ -245,9 +245,21 @@ requirement checks, and additional filesystem scopes remain follow-ups.
 
 Delivery slices: dependency semantics and bounds; representative repositories and
 usability; documented v0.2 packaging and final acceptance. Dependency semantics
-and bounds are implemented; representative CLI fixtures and final acceptance
-are next. See [Odoo validation](Odoo_Validation.md) for the configuration and
+and bounds, representative CLI fixtures, and focused usability improvements are
+implemented. Final versioned packaging and acceptance are next. See [Odoo validation](Odoo_Validation.md) for the configuration and
 result contract.
+
+The fixture corpus covers nine synthetic repository layouts and fifteen CLI
+cases. Both development and independent Odoo-only installations exercise the
+same cases, human output, persisted evidence, and evidence retrieval. MCP tests
+compare complete result objects against CLI and Python for resolved, unknown,
+missing and invalid dependencies, retaining authorization and revocation checks.
+Doctor now states its scope and exposes safe activation diagnostics; CLI errors
+identify configuration files and classify malformed JSON as invalid input.
+These reuse existing summaries and redaction, with no domain branches in core.
+The four CLI regressions were observed failing before their fixes. No new runtime
+dependencies were added. Ruff's complexity limit remains 10; the manifest-only
+B018 exemption permits Odoo's required bare dictionary syntax, not complex code.
 
 ### P1 follow-up slices before integration expansion
 

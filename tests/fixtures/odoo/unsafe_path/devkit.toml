@@ -1,0 +1,7 @@
+plugins = ["odoo"]
+
+[options.odoo]
+addons_paths = ["addons"]
+
+[profiles]
+static = ["odoo.manifests"]

@@ -1,0 +1,202 @@
+[
+  {
+    "fixture": "standalone",
+    "status": "success",
+    "reason": null,
+    "counts": [
+      0,
+      0,
+      2,
+      0
+    ],
+    "arguments": {}
+  },
+  {
+    "fixture": "standalone",
+    "status": "blocked",
+    "reason": "INCOMPLETE_INVENTORY",
+    "counts": [
+      0,
+      0,
+      2,
+      0
+    ],
+    "arguments": {
+      "strict_dependencies": true
+    }
+  },
+  {
+    "fixture": "internal",
+    "status": "success",
+    "reason": null,
+    "counts": [
+      1,
+      0,
+      2,
+      0
+    ],
+    "arguments": {}
+  },
+  {
+    "fixture": "oca",
+    "status": "success",
+    "reason": null,
+    "counts": [
+      1,
+      0,
+      1,
+      0
+    ],
+    "arguments": {}
+  },
+  {
+    "fixture": "oca",
+    "status": "success",
+    "reason": null,
+    "counts": [
+      1,
+      0,
+      0,
+      0
+    ],
+    "arguments": {
+      "module": "acme_audit",
+      "strict_dependencies": true
+    }
+  },
+  {
+    "fixture": "complete",
+    "status": "failed",
+    "reason": "MISSING_DEPENDENCIES",
+    "counts": [
+      1,
+      1,
+      0,
+      0
+    ],
+    "arguments": {}
+  },
+  {
+    "fixture": "complete",
+    "status": "failed",
+    "reason": "MISSING_DEPENDENCIES",
+    "counts": [
+      1,
+      1,
+      0,
+      0
+    ],
+    "arguments": {
+      "strict_dependencies": true
+    }
+  },
+  {
+    "fixture": "duplicates",
+    "status": "failed",
+    "reason": "INVALID_ADDONS",
+    "counts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "arguments": {}
+  },
+  {
+    "fixture": "invalid_manifest",
+    "status": "failed",
+    "reason": "INVALID_MANIFEST",
+    "counts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "arguments": {}
+  },
+  {
+    "fixture": "unsafe_path",
+    "status": "failed",
+    "reason": "INVALID_MANIFEST",
+    "counts": [
+      0,
+      0,
+      1,
+      0
+    ],
+    "arguments": {}
+  },
+  {
+    "fixture": "malformed_dependencies",
+    "status": "failed",
+    "reason": "INVALID_DEPENDENCIES",
+    "counts": [
+      0,
+      0,
+      1,
+      3
+    ],
+    "arguments": {}
+  },
+  {
+    "fixture": "optional",
+    "status": "success",
+    "reason": null,
+    "counts": [
+      0,
+      0,
+      2,
+      0
+    ],
+    "arguments": {}
+  },
+  {
+    "fixture": "optional",
+    "status": "blocked",
+    "reason": "INCOMPLETE_INVENTORY",
+    "counts": [
+      0,
+      0,
+      2,
+      0
+    ],
+    "arguments": {
+      "strict_dependencies": true
+    }
+  },
+  {
+    "fixture": "standalone",
+    "status": "failed",
+    "reason": "INVALID_ADDONS",
+    "counts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "arguments": {
+      "addons_paths": [
+        "../"
+      ]
+    }
+  },
+  {
+    "fixture": "standalone",
+    "status": "blocked",
+    "reason": "MISSING_ADDONS",
+    "counts": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "arguments": {
+      "addons_paths": [
+        "absent"
+      ],
+      "inventory": {
+        "complete": true
+      }
+    }
+  }
+]

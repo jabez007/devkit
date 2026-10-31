@@ -5,6 +5,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import anyio
+import pytest
 from devkit.app import create_service
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -20,9 +21,25 @@ def parameters(project):
     )
 
 
-def test_stdio_parity_and_denials(odoo_project):
-    project, _ = odoo_project
-    python_result = create_service(project).execute("odoo.module.validate")["result"]
+@pytest.mark.parametrize(
+    "mode,arguments,exit_code",
+    [
+        ("unknown", {}, 0),
+        ("unknown", {"strict_dependencies": True}, 2),
+        ("unknown", {"inventory": {"complete": True}}, 1),
+        ("invalid", {}, 1),
+        ("resolved", {"strict_dependencies": True}, 0),
+    ],
+)
+def test_stdio_parity_and_denials(odoo_project, mode, arguments, exit_code):
+    project, module = odoo_project
+    if mode == "invalid":
+        (module / "__manifest__.py").write_text("{'name': 'Bad', 'depends': ['../escape']}")
+    if mode == "resolved":
+        base = project / "addons/base"
+        base.mkdir()
+        (base / "__manifest__.py").write_text("{'name': 'Base', 'depends': []}")
+    python_result = create_service(project).execute("odoo.module.validate", arguments)["result"]
     cli = subprocess.run(
         [
             str(Path(".venv/bin/devkit").resolve()),
@@ -31,11 +48,13 @@ def test_stdio_parity_and_denials(odoo_project):
             "--json",
             "run",
             "odoo.module.validate",
+            "--args",
+            json.dumps(arguments),
         ],
         capture_output=True,
         text=True,
     )
-    assert cli.returncode == 0
+    assert cli.returncode == exit_code
     assert json.loads(cli.stdout)["result"] == python_result
 
     async def exercise():
@@ -47,8 +66,8 @@ def test_stdio_parity_and_denials(odoo_project):
                 assert initialized.protocolVersion == "2025-11-25"
                 tools = await session.list_tools()
                 assert [tool.name for tool in tools.tools] == ["odoo.module.validate"]
-                result = await session.call_tool("odoo.module.validate", {})
-                assert not result.isError
+                result = await session.call_tool("odoo.module.validate", arguments)
+                assert bool(result.isError) == (exit_code != 0)
                 assert result.structuredContent["result"] == python_result
                 malformed = await session.call_tool("odoo.module.validate", {"unknown": True})
                 assert malformed.isError

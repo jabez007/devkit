@@ -14,12 +14,14 @@ from devkit.policy import load_policy
 def doctor(context: Context, arguments: JSONObject) -> CommandResult:
     return CommandResult(
         "success",
-        "Foundation is ready",
+        "Foundation and declared prerequisites are ready. Project checks have not run; "
+        "use commands, then run <command> or check <profile>.",
         {
             "version": __version__,
             "python": platform.python_version(),
             "platform": platform.system(),
             "project_root": str(context.project_root),
+            "not_checked": ["project validation"],
         },
     )
 
@@ -67,8 +69,14 @@ def create_service(
 
         reason = exc.reason if isinstance(exc, DevkitError) else "INVALID_PLUGIN"
 
+        detail = str(exc) if isinstance(exc, DevkitError) else "Plugin activation failed"
+        summary = (
+            f"{detail[:2048]}. Check installed versions with plugins, selection in "
+            "devkit.toml, and trust in the external operator policy.toml."
+        )
+
         def broken(context: Context, arguments: JSONObject) -> CommandResult:
-            return CommandResult("blocked", "Plugin activation failed", reason=reason)
+            return CommandResult("blocked", summary, reason=reason)
 
         commands = [CommandSpec("core.doctor", "Inspect the foundation", broken)]
         checks, environments, prerequisites = [], [], {}

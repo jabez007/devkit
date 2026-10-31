@@ -24,7 +24,9 @@ devkit plugins
 
 Installing a plugin makes it discoverable. It does not activate or authorize it.
 `doctor` checks the activated registry and declared environment prerequisites;
-with no plugins selected, it checks only the foundation.
+with no plugins selected, it checks only the foundation. It does not validate a
+project. Run a command or check profile after doctor succeeds. Activation errors
+identify the affected plugin; configuration errors name the settings file.
 
 To install built distributions in another environment:
 
@@ -163,9 +165,15 @@ including projects whose tests all skip. No toolchain is downloaded automaticall
 Odoo validation parses bounded literal manifests without executing them. It
 checks selected field types, the version format, module names, duplicate addons,
 and declared data/demo paths. Paths must stay inside the project and module.
-Unresolved dependencies are reported; `strict_dependencies=true` makes them
-blocking. Success does not establish runtime, database, XML, asset, or external
-dependency compatibility. The profile follows [this pinned Odoo 19 source](https://github.com/odoo/odoo/blob/005e0a0eb7ef80cd15b0c82b570b2b0843181ba2/odoo/modules/module.py).
+Dependencies are resolved, missing, unknown, or invalid. Inventories are
+incomplete by default: absent `base` or `sale` in a custom-only repository is
+unknown, not a module defect. An explicit `inventory.complete` or
+`inventory.complete_prefixes` claim makes absence a confirmed failure for the
+claimed scope. `strict_dependencies=true` blocks on unknown dependencies;
+confirmed missing and invalid dependencies fail regardless of strict mode.
+Success does not establish runtime, database, XML, asset, or external dependency
+compatibility. See [Odoo validation](docs/Odoo_Validation.md) for multiple addon
+paths, scoped completeness, coverage, bounds, and result-schema compatibility. The profile follows [this pinned Odoo 19 source](https://github.com/odoo/odoo/blob/005e0a0eb7ef80cd15b0c82b570b2b0843181ba2/odoo/modules/module.py).
 
 Profiles list check IDs: `go.tests` and `odoo.manifests`. Every required check
 must succeed. Child runs have their own evidence and share the profile's deadline

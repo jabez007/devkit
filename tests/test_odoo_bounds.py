@@ -54,3 +54,18 @@ def test_symlink_loop_is_an_inventory_failure(odoo_project):
     result = create_service(project).execute("odoo.module.validate")["result"]
     assert result["reason"] == "INVALID_ADDONS"
     assert result["data"]["inventory"]["scan_complete"] is False
+
+
+def test_large_relationship_output_preserves_partial_coverage(odoo_project):
+    project, _ = odoo_project
+    dependencies = [f"external_{i:04d}_" + "a" * 80 for i in range(800)]
+    for index in range(10):
+        module = project / f"addons/bulk_{index}"
+        module.mkdir()
+        (module / "__manifest__.py").write_text(repr({"name": "Bulk", "depends": dependencies}))
+    result = create_service(project).execute("odoo.module.validate")["result"]
+    assert result["status"] == "error"
+    assert result["reason"] == "RESULT_LIMIT"
+    assert result["data"]["inventory"]["scan_complete"]
+    assert not result["data"]["inspection_complete"]
+    assert result["data"]["modules"]

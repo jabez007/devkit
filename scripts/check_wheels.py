@@ -119,7 +119,14 @@ def exercise_odoo(root, wheels, constraints):
     (module / "__manifest__.py").write_text("{'name':'Example'}")
     policy(root, project, ["odoo"], {"odoo.module.validate": ["read_fs"]})
     assert cli(root, project, env, "check", "static")["result"]["status"] == "success"
-    print("PASS: offline Odoo only and profile execution")
+    run(
+        sys.executable,
+        str(ROOT / "scripts/check_odoo_fixtures.py"),
+        str(root / "venv/bin/devkit"),
+        cwd=project,
+        env=env,
+    )
+    print("PASS: offline Odoo only, profile execution and representative CLI repositories")
 
 
 def exercise_template(root, wheels, constraints):

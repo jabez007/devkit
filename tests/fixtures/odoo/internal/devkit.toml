@@ -1,0 +1,9 @@
+plugins = ["odoo"]
+
+[options.odoo]
+addons_paths = ["addons"]
+[options.odoo.inventory]
+complete_prefixes = ["acme_"]
+
+[profiles]
+static = ["odoo.manifests"]

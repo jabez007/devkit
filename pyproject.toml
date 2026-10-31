@@ -32,3 +32,7 @@ name = "Foundation has no optional integrations"
 type = "forbidden"
 source_modules = ["devkit"]
 forbidden_modules = ["devkit_go", "devkit_odoo", "devkit_mcp", "odoo", "mcp", "docker"]
+
+[tool.ruff.lint.per-file-ignores]
+# Odoo manifests are intentionally bare dictionary expressions.
+"tests/fixtures/odoo/**/__manifest__.py" = ["B018"]
