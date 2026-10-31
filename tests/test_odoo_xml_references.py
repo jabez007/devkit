@@ -266,8 +266,11 @@ def test_unseen_reference_stays_unknown_under_complete_module_inventory(odoo_pro
         '<odoo><record id="x" model="x"><field name="p" ref="unseen"/></record></odoo>'
     )
     (module / "__manifest__.py").write_text(
-        repr({"name": "Example", "depends": ["example"], "data": ["views.xml"]})
+        repr({"name": "Example", "depends": ["base"], "data": ["views.xml"]})
     )
+    base = project / "addons/base"
+    base.mkdir()
+    (base / "__manifest__.py").write_text("{'name': 'Base', 'depends': []}")
     result = create_service(project).execute(
         "odoo.module.validate", {"inventory": {"complete": True}, "strict_dependencies": True}
     )["result"]

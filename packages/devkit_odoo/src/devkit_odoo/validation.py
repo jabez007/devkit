@@ -92,6 +92,7 @@ def inspect_module(
         "checked_files": [],
         "path": module.relative_to(context.project_root).as_posix(),
         "dependencies": [],
+        "dependencies_inspected": False,
         "external_dependencies": [],
         **{
             kind: {
@@ -116,6 +117,7 @@ def inspect_module(
     except OSError:
         result["errors"].append("Cannot read __manifest__.py; check file permissions")
         return result
+    result["dependencies_inspected"] = True
     result["version"] = manifest.get("version", "1.0")
     result["auto_install"] = manifest.get("auto_install", False)
     result["dependencies"] = module_dependencies(

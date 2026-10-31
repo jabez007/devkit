@@ -207,6 +207,53 @@ Run the configured lint, format, type, test, import, and complexity checks on ea
 
 ## Later releases
 
+### v0.5 observed dependency-cycle diagnostics design
+
+Reuse `module_dependencies`, the inspected module findings, `Inventory`, the
+existing result envelope and persisted evidence. Add graph analysis inside the
+Odoo dependency module. Its interface accepts findings and inventory names; it
+performs no filesystem reads. The selected-module seam stays unchanged: selecting
+one module does not read the manifests or data files of its dependencies.
+
+Python's standard-library `graphlib.TopologicalSorter.prepare` already detects
+cycles and returns a closed witness through `CycleError`. Use it instead of a new
+graph dependency or handwritten traversal. Report one witness, not every cycle
+or an installation order. Reverse the predecessor-oriented witness so each
+reported step means "this module depends on the next module". Sort and deduplicate
+known edges before analysis. Inventory and findings-size bounds already bound
+this graph; preserve cancellation checkpoints before and after graph analysis.
+
+Specialization data schema 1.4 adds `dependency_graph` with its inspection status,
+node/edge counts, one closed cycle when found, excluded declaration counts and
+uninspected inventory modules. Per-module `dependencies_inspected` distinguishes
+unreadable manifests from valid empty declarations. Only resolved edges between
+inspected manifests enter the graph. Valid edges can prove a cycle even when
+other declarations are invalid or unknown. Never infer missing edges or cycles
+from completeness claims. "No cycle observed" applies only to this graph and is
+not a runtime compatibility guarantee.
+
+A confirmed cycle fails with `DEPENDENCY_CYCLE`, before blocked coverage; existing
+invalid-manifest/dependency, malformed-data and missing-dependency precedence
+stays intact. Those failures still retain any cycle evidence. Strict unknown
+module dependencies continue to block as before. Human output names the cycle
+and directs the developer to the manifests. The generic plugin contract does
+not change. This is static graph inspection, not a transitive dependency solver.
+
+The current complexity gate passes; `_inspect` is 8 and `_outcome` is 7 against
+limit 10. No unrelated cleanup is required. Test self-cycles, asymmetric cycles,
+shared-dependency DAGs, disconnected cycles, duplicate edges, unknown/invalid
+edges, implicit base dependencies, selection, invalid manifests, cancellation,
+output limits and long graphs through the command interface. Then add real
+CLI/evidence and MCP parity fixtures, run the independent-wheel matrix, recheck
+the pinned public OCA snapshots read-only, and update package/docs versions.
+
+Reference: [Python graphlib](https://docs.python.org/3.12/library/graphlib.html)
+and the pinned Odoo [module graph](https://github.com/odoo/odoo/blob/005e0a0eb7ef80cd15b0c82b570b2b0843181ba2/odoo/modules/module_graph.py).
+Odoo skips modules in dependency loops. The first regression run failed all 15
+new cases. It also exposed that cancellation during the new graph phase must
+share the existing validation error handler. Move that handler to encompass both
+inspection phases, avoiding a second handler or a new wrapper.
+
 ### v0.4 bounded CSV identifier inspection design
 
 Extend the existing Odoo command to inspect manifest-declared CSV data/demo files.

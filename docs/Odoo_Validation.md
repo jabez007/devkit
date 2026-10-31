@@ -82,7 +82,7 @@ devkit --project /absolute/project --json run odoo.module.validate --args '{"mod
 
 ## Evidence and coverage
 
-Domain data schema 1.1 introduced these fields, which remain in 1.3:
+Domain data schema 1.1 introduced these fields, which remain in 1.4:
 
 - `inventory`: declared completeness, prefixes, claim basis, scan completion,
   scanned paths and counts, bounds, and the resolution basis `manifest_presence`.
@@ -93,7 +93,7 @@ Domain data schema 1.1 introduced these fields, which remain in 1.3:
 - `dependency_counts`: relationship counts, including repeated dependency names
   used by different addons; `inspection_complete` distinguishes partial results.
 - `not_checked`: runtime, database, XML semantics, assets, external requirements,
-  transitive dependencies and dependency cycles.
+  transitive dependencies and cycles through uninspected manifests or unresolved dependencies.
 
 Existing module fields, including `unresolved_dependencies`, remain available.
 That legacy list contains valid missing **and** unknown module names; consumers
@@ -356,3 +356,57 @@ were unchanged. The public result establishes added CSV coverage and explicit
 reference diagnostics, not a reduction in those projects' unknown XML references.
 Synthetic mixed-format fixtures establish the new cross-format resolution cases.
 Generated model IDs and external modules remain outside the source inventory.
+
+## Dependency cycles in v0.5
+
+`odoo.module.validate` checks dependency edges among the manifests it inspects.
+A confirmed loop fails with `DEPENDENCY_CYCLE`, even when unrelated dependencies
+remain unknown. A self-dependency is also a cycle. Human output shows one closed
+path, for example `acme_sales -> acme_stock -> acme_sales`. Review `depends` in
+those modules' `__manifest__.py` files and remove the circular requirement.
+
+The graph uses the existing resolved dependency relationships, including implicit
+`base` dependencies. It deduplicates repeated declarations for graph analysis;
+the original declaration counts remain unchanged. Missing, unknown and invalid
+edges cannot create a cycle. A completeness claim does not supply any graph edges.
+
+Only inspected manifests enter the graph. Selecting `--args '{"module":"acme_sales"}'`
+still inspects that module alone. A resolved dependency whose manifest was not
+inspected is excluded from graph analysis. Run without the module selector to
+inspect the configured inventory. Neither choice downloads dependencies or
+executes addon code.
+
+Schema 1.4 adds `dependency_graph`:
+
+| Field | Meaning |
+| --- | --- |
+| `status` | `not_checked`, `cycle`, or `no_cycle_observed`. |
+| `scope` | Always `inspected_manifests`. |
+| `cycle` | One closed path in depends-on order, or an empty list. It is not a list of every cycle. |
+| `node_count`, `edge_count` | Inspected manifests and distinct resolved edges included in the analysis. |
+| `uninspected_modules` | Inventory modules whose dependency declarations were not inspected, because of selection or manifest errors. |
+| `excluded_edge_counts` | Declaration counts by `missing`, `unknown`, `invalid`, and `uninspected_target`. |
+
+Counts and uninspected-module names appear after analysis. Early scan or output
+limit failures leave `status=not_checked`; they do not claim graph inspection
+completed. Per-module `dependencies_inspected` records whether literal manifest
+parsing reached dependency inspection. Invalid individual declarations remain in
+the findings and excluded counts. Valid declarations in the same manifest can
+still establish a cycle.
+
+`no_cycle_observed` means no cycle was found in this graph. It does not establish
+that omitted modules, missing sources or the runtime installation are cycle-free.
+Strict dependency checks keep their existing missing/unknown behavior. Existing
+invalid-declaration, manifest, malformed-data and missing-dependency failures take
+precedence over `DEPENDENCY_CYCLE`, while retaining cycle evidence. A confirmed
+cycle takes precedence over blocked data inspection or incomplete inventory.
+
+The existing inventory and findings-size limits bound graph size. Analysis uses
+Python's [standard graph library](https://docs.python.org/3.12/library/graphlib.html)
+and checks cancellation before and after cycle detection. The chosen witness is
+repeatable for the same inputs and Python runtime but is not a stable identifier
+across Python versions. Long cycles remain complete in evidence; human output
+contains a bounded preview. There is no transitive solver or installation-order
+promise. Odoo's pinned [module graph](https://github.com/odoo/odoo/blob/005e0a0eb7ef80cd15b0c82b570b2b0843181ba2/odoo/modules/module_graph.py)
+skips modules in dependency loops, but static validation does not establish
+runtime compatibility.

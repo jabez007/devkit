@@ -68,4 +68,5 @@ def test_large_relationship_output_preserves_partial_coverage(odoo_project):
     assert result["reason"] == "RESULT_LIMIT"
     assert result["data"]["inventory"]["scan_complete"]
     assert not result["data"]["inspection_complete"]
+    assert result["data"]["dependency_graph"]["status"] == "not_checked"
     assert result["data"]["modules"]

@@ -16,6 +16,7 @@ from devkit.schemas import validate
 
 from devkit_odoo.csv_inspection import LIMITS as CSV_LIMITS
 from devkit_odoo.csv_inspection import CSVInspection
+from devkit_odoo.dependencies import analyze_graph
 from devkit_odoo.inventory import Inventory, scan
 from devkit_odoo.validation import checkpoint, inspect_module
 from devkit_odoo.xml_inspection import LIMITS as XML_LIMITS
@@ -74,6 +75,7 @@ OUTPUT_SCHEMA: JSONObject = {
         "modules",
         "inventory",
         "dependency_counts",
+        "dependency_graph",
         "not_checked",
         "inspection_complete",
         "xml_counts",
@@ -82,7 +84,7 @@ OUTPUT_SCHEMA: JSONObject = {
         "csv_reference_counts",
     ],
     "properties": {
-        "validation_schema_version": {"const": "1.3"},
+        "validation_schema_version": {"const": "1.4"},
         "inventory": {
             "type": "object",
             "required": ["complete", "complete_prefixes", "scan_complete", "paths", "module_count"],
@@ -91,8 +93,16 @@ OUTPUT_SCHEMA: JSONObject = {
             "type": "array",
             "items": {
                 "type": "object",
-                "required": ["module", "dependencies", "errors", "xml", "csv"],
+                "required": [
+                    "module",
+                    "dependencies",
+                    "dependencies_inspected",
+                    "errors",
+                    "xml",
+                    "csv",
+                ],
                 "properties": {
+                    "dependencies_inspected": {"type": "boolean"},
                     "xml": DATA_FILE_SCHEMA,
                     "csv": DATA_FILE_SCHEMA,
                     "dependencies": {
@@ -108,6 +118,15 @@ OUTPUT_SCHEMA: JSONObject = {
                 },
             },
         },
+        "dependency_graph": {
+            "type": "object",
+            "required": ["status", "scope", "cycle"],
+            "properties": {
+                "status": {"enum": ["not_checked", "cycle", "no_cycle_observed"]},
+                "scope": {"const": "inspected_manifests"},
+                "cycle": {"type": "array", "items": {"type": "string"}},
+            },
+        },
         "dependency_counts": {
             "type": "object",
             "required": ["resolved", "missing", "unknown", "invalid"],
@@ -120,7 +139,7 @@ OUTPUT_SCHEMA: JSONObject = {
 
 def _data(inventory: Inventory, policy: JSONObject, *, scanned: bool = True) -> JSONObject:
     return {
-        "validation_schema_version": "1.3",
+        "validation_schema_version": "1.4",
         "target_profile": "19.0",
         "validator_version": version("devkit-odoo"),
         "modules": [],
@@ -131,6 +150,7 @@ def _data(inventory: Inventory, policy: JSONObject, *, scanned: bool = True) -> 
             "selected field types",
             "data/demo file paths",
             "direct module dependency presence",
+            "dependency cycles among inspected manifests",
             "declared XML syntax",
             "literal XML/CSV reference ordering",
             "flat CSV structure and identifier declarations",
@@ -144,7 +164,7 @@ def _data(inventory: Inventory, policy: JSONObject, *, scanned: bool = True) -> 
             "assets",
             "external dependencies",
             "transitive dependencies",
-            "dependency cycles",
+            "cycles through uninspected manifests or unresolved dependencies",
         ],
         "csv_counts": dict.fromkeys(("valid", "invalid", "blocked"), 0),
         "csv_limits": CSV_LIMITS,
@@ -153,6 +173,7 @@ def _data(inventory: Inventory, policy: JSONObject, *, scanned: bool = True) -> 
         "xml_limits": XML_LIMITS,
         "xml_parser": {"name": "expat", "version": PARSER_VERSION},
         "xml_reference_counts": {"resolved": 0, "unknown": 0},
+        "dependency_graph": {"status": "not_checked", "scope": "inspected_manifests", "cycle": []},
         "dependency_counts": dict.fromkeys(("resolved", "missing", "unknown", "invalid"), 0),
     }
 
@@ -181,7 +202,10 @@ def check(context: Context, arguments: JSONObject) -> CommandResult:
         return CommandResult(
             "blocked", "No matching addons; check module and addons_paths", data, "MISSING_ADDONS"
         )
-    return _inspect(context, names, inventory, data, options.get("strict_dependencies", False))
+    try:
+        return _inspect(context, names, inventory, data, options.get("strict_dependencies", False))
+    except DevkitError as exc:
+        return _scan_failure(exc, data)
 
 
 def _scan_failure(error: DevkitError, data: JSONObject) -> CommandResult:
@@ -207,18 +231,15 @@ def _inspect(
         "csv": CSVInspection(lambda: checkpoint(context)),
     }
     for name in names:
-        try:
-            checkpoint(context)
-            finding = inspect_module(
-                name,
-                inventory.modules[name],
-                inventory.modules,
-                context,
-                data["inventory"],
-                inspectors,
-            )
-        except DevkitError as exc:
-            return _scan_failure(exc, data)
+        checkpoint(context)
+        finding = inspect_module(
+            name,
+            inventory.modules[name],
+            inventory.modules,
+            context,
+            data["inventory"],
+            inspectors,
+        )
         size += len(json.dumps(finding))
         if size > 600000:
             return CommandResult(
@@ -235,6 +256,9 @@ def _inspect(
                 data[f"{kind}_reference_counts"][status] += count
         for edge in finding["dependencies"]:
             data["dependency_counts"][edge["status"]] += 1
+    data["dependency_graph"] = analyze_graph(
+        data["modules"], inventory.modules, lambda: checkpoint(context)
+    )
     data["inspection_complete"] = True
     return _outcome(data, strict)
 
@@ -252,6 +276,15 @@ def _summary(data: JSONObject, action: str) -> str:
         "XML references: "
         + ", ".join(f"{n} {status}" for status, n in data["xml_reference_counts"].items()),
     ]
+    graph = data["dependency_graph"]
+    lines.append(
+        f"Dependency graph: {graph['status'].replace('_', ' ')} among "
+        f"{graph['node_count']} inspected manifests; "
+        f"{len(graph['uninspected_modules'])} inventory modules uninspected; "
+        f"{sum(graph['excluded_edge_counts'].values())} declarations excluded."
+    )
+    if graph["cycle"]:
+        lines.append("Cycle: " + " -> ".join(graph["cycle"])[:500])
     for finding in data["modules"]:
         issues = list(finding["errors"])
         issues.extend(
@@ -311,6 +344,15 @@ def _outcome(data: JSONObject, strict: bool) -> CommandResult:
             ),
             data,
             "MISSING_DEPENDENCIES",
+        )
+    if data["dependency_graph"]["cycle"]:
+        return CommandResult(
+            "failed",
+            _summary(
+                data, "Remove circular depends declarations in the listed __manifest__.py files."
+            ),
+            data,
+            "DEPENDENCY_CYCLE",
         )
     blocked = next(
         (
