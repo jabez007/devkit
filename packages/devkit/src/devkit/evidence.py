@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from devkit.contracts import JSONObject
+from devkit.runs import run_lock, valid_run_id
 
 SECRET_KEY = re.compile(r"secret|token|password|api[_-]?key|credential", re.I)
 TOKEN = re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})\b")
@@ -65,8 +66,12 @@ def source_identity(root: Path) -> JSONObject:
 
 def write_bundle(state: Path, envelope: JSONObject) -> Path:
     """Unique run directories prevent overwrites and cross-run artifact references."""
-    state.mkdir(parents=True, exist_ok=True, mode=0o700)
-    run = state / "runs" / str(envelope["run_id"])
+    with run_lock(state) as root:
+        return _write_bundle(root, envelope)
+
+
+def _write_bundle(root: Path, envelope: JSONObject) -> Path:
+    run = root / valid_run_id(envelope["run_id"])
     run.mkdir(parents=True, mode=0o700)
     identity = hashlib.sha256(envelope["project_root"].encode()).hexdigest()
     envelope["project_id"] = identity

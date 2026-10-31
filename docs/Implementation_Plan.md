@@ -213,7 +213,12 @@ Run the configured lint, format, type, test, import, and complexity checks on ea
 | --- | --- | --- |
 | Artifact identity | Optional operator-pinned wheel SHA-256 and installed-payload comparison before import; digest in evidence; legacy trust remains supported. | Implemented, with focused tamper tests and an independent installed-wheel scenario. |
 | Reusable operator policy | Reuse complete command grants across exact canonical project paths; scoped denials override grants; repository settings cannot enroll projects. | Implemented, with scope, revocation, denial, and non-combination tests. |
-| Evidence lifecycle | List/show runs, protect explicit references, and preview or apply configured retention. | In progress. |
+| Evidence lifecycle | List/show runs without plugins; pin active-work and other references; preview or apply operator retention while protecting related runs. | Implemented, with real CLI tests for age/count/scope, references, concurrent pruners, unsafe records, and deletion failure. |
+
+October 31 verification: 75 tests and six independent wheel environments passed,
+along with lint, formatting, strict typing, import boundaries, and the configured
+complexity limit of 10. Retention only recognizes locally registered references;
+tracker discovery and crash-atomic family deletion remain outside this increment.
 
 | Increment | Dependency | Deliverable and acceptance gate |
 | --- | --- | --- |

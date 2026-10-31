@@ -101,7 +101,8 @@ This table replaces that distribution's version-only entry. Before importing any
 selected plugin, devkit checks the wheel's actual digest and compares its payload
 with installed files. A mismatch fails activation with `ARTIFACT_MISMATCH`.
 Evidence records `producer.artifact_sha256`; version-only trust records null.
-Changing a pin revokes an existing service's approval until it is recreated.
+Changing the trusted version or digest revokes an existing service's approval
+until it is recreated.
 
 Verification currently supports ordinary wheels installed directly into
 site-packages. Editable installs, `.pth` files, packaged bytecode, relocated
@@ -199,8 +200,8 @@ Known secret environment values and credential patterns are redacted before
 returning or persisting results. Redaction cannot recognize every secret; avoid
 putting secrets into command arguments or output. Handler results and arguments
 are limited to 1 MiB of JSON; subprocess streams to 256 KiB each; captured Python
-diagnostics to 16,384 characters. Arbitrary artifact attachments and automatic
-retention are not implemented. The response adds `evidence_path` after writing
+diagnostics to 16,384 characters. Arbitrary artifact attachments are not implemented.
+The response adds `evidence_path` after writing
 the file. An evidence failure returns `EVIDENCE_WRITE_FAILED` and preserves the
 actual outcome as `observed_result`, without rerunning the command.
 
@@ -210,6 +211,57 @@ Trusted Python handlers must cooperate with cancellation and deadlines; the
 runtime cannot forcibly stop arbitrary in-process code. Invocations serialize
 Python output capture, and the MCP server handles one tool invocation at a time.
 Native file-descriptor writes by plugins are outside Python output capture.
+
+## Inspect and retain evidence
+
+Evidence maintenance works without loading project settings or plugins. Global
+flags still precede the subcommand:
+
+```sh
+devkit --project /absolute/path/to/project --json runs list --limit 50 --offset 0
+devkit --project /absolute/path/to/project --json runs show <run-uuid>
+devkit --project /absolute/path/to/project runs pin <run-uuid> --reference work:active-123
+devkit --project /absolute/path/to/project runs prune
+devkit --project /absolute/path/to/project runs prune --apply
+devkit --project /absolute/path/to/project runs unpin <run-uuid> --reference work:active-123
+```
+
+The default scope is the selected project. Add `--all-projects` after the run
+operation to inspect or maintain the entire local store. Listing supports a
+limit of 1 to 1,000 and an offset. These operator commands do not create new
+run evidence or expose MCP tools. Local filesystem access controls maintenance;
+project command grants do not grant or restrict this operator interface.
+
+`runs prune` previews eligible UUIDs and explains why other runs are protected.
+Only `--apply` deletes evidence. Defaults retain runs from the last 30 days and
+at least the latest 100 completed runs per project. Both conditions must permit
+deletion. Configure `$XDG_CONFIG_HOME/devkit/retention.toml`, default
+`~/.config/devkit/retention.toml`, outside the selected project and with mode `0600`:
+
+```toml
+max_age_days = 30
+keep_last = 100
+```
+
+Operator flags `--older-than-days` and `--keep-last` override these settings.
+Repository `devkit.toml` cannot configure retention. No background job is
+installed; invoke the command from an operator-controlled schedule if needed.
+
+Register a reference with `pin` before publishing a run link or associating it
+with active work. Pins are idempotent, can hold several references, and have no
+automatic expiry. `unpin` removes only the named reference. Any remaining
+reference or embedded `work_item_ref` protects the run. Devkit cannot discover
+links in external trackers yet, so unregistered external links are not protection.
+
+Protection extends through parent/child check families. Families with missing
+or unfinished members are retained, as are directories containing unmanaged
+files. Corrupt evidence, invalid reference metadata, or unsafe symlinks block
+pruning before any deletion. Writers, reference updates, and pruners share a
+Linux filesystem lock; apply recomputes eligibility while holding that lock.
+Cooperating concurrent pruners cannot delete the same run twice. If deletion
+fails, pruning stops and reports completed deletions and the error. An operating
+system interruption can leave partial removal; family deletion is not a filesystem
+transaction. The next attempt preserves unreadable or incomplete evidence.
 
 ## Python and MCP
 

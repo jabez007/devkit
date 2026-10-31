@@ -75,8 +75,19 @@ def absent(root, project, env, names):
 def exercise_foundation(root, wheels, constraints):
     project, env = install(root, wheels, ["devkit"], constraints)
     absent(root, project, env, ["devkit_go", "devkit_odoo", "mcp", "docker", "odoo"])
-    assert cli(root, project, env, "doctor")["result"]["status"] == "success"
+    doctor = cli(root, project, env, "doctor")
+    assert doctor["result"]["status"] == "success"
     assert not cli(root, project, env, "plugins")["result"]["data"]["plugins"]
+    run_id = doctor["run_id"]
+    assert cli(root, project, env, "runs", "list")["result"]["data"]["total"] == 1
+    assert (
+        cli(root, project, env, "runs", "show", run_id)["result"]["data"]["run"]["run_id"] == run_id
+    )
+    cli(root, project, env, "runs", "pin", run_id, "--reference", "work:active")
+    pruning = ("runs", "prune", "--older-than-days", "0", "--keep-last", "0", "--apply")
+    assert not cli(root, project, env, *pruning)["result"]["data"]["deleted"]
+    cli(root, project, env, "runs", "unpin", run_id, "--reference", "work:active")
+    assert cli(root, project, env, *pruning)["result"]["data"]["deleted"] == [run_id]
     print("PASS: foundation only")
 
 

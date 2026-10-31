@@ -8,6 +8,7 @@ from devkit import __version__
 from devkit.app import create_service
 from devkit.contracts import EXIT_CODES, CommandResult, DevkitError, JSONObject
 from devkit.discovery import discover
+from devkit.runs_cli import add_runs_parser, dispatch_runs
 
 
 def parser() -> argparse.ArgumentParser:
@@ -19,6 +20,7 @@ def parser() -> argparse.ArgumentParser:
     sub = result.add_subparsers(dest="action", required=True)
     sub.add_parser("doctor")
     sub.add_parser("commands")
+    add_runs_parser(sub.add_parser("runs"))
     check = sub.add_parser("check")
     check.add_argument("profile")
     plugins = sub.add_parser("plugins")
@@ -30,6 +32,8 @@ def parser() -> argparse.ArgumentParser:
 
 
 def dispatch(args: argparse.Namespace) -> JSONObject:
+    if args.action == "runs":
+        return dispatch_runs(args)
     if args.action == "plugins" and args.operation == "list":
         return {
             "result": {
@@ -74,6 +78,8 @@ def render(envelope: JSONObject, action: str) -> None:
         print(f"  {plugin['id']} ({plugin['distribution']} {plugin['version']})")
     if envelope.get("evidence_path"):
         print(f"Evidence: {envelope['evidence_path']}")
+    if action == "runs":
+        print(json.dumps(result["data"], indent=2))
 
 
 def main() -> int:
