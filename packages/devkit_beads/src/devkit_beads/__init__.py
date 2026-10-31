@@ -14,7 +14,9 @@ from devkit.contracts import (
 from devkit_beads.client import Beads, BeadsError, items, local_id
 from devkit_beads.evidence import associate
 
-READ_EFFECTS = frozenset({"read_fs", "execute_process", "network_read"})
+# Reads do not change work-item data, but Beads embedded Dolt rewrites internal
+# files with unchanged bytes. Declare that observed filesystem effect honestly.
+READ_EFFECTS = frozenset({"read_fs", "write_fs", "execute_process", "network_read"})
 REFERENCE = {"type": "string", "pattern": r"^beads:[0-9a-f-]{36}:[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"}
 
 
@@ -111,7 +113,7 @@ def register() -> Specialization:
                 "required": ["ref", "run_id"],
                 "additionalProperties": False,
             },
-            effects=READ_EFFECTS | {"write_fs"},
+            effects=READ_EFFECTS,
         )
     )
     return Specialization(

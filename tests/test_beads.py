@@ -45,7 +45,7 @@ def test_read_commands_and_persisted_evidence(beads_project):
         ({"context": {"repo_root": "/another/project"}}, "WORKSPACE_MISMATCH"),
         ({"show": {}}, "INVALID_TOOL_OUTPUT"),
         ({"show": [{"id": "--help"}]}, "INVALID_TOOL_OUTPUT"),
-        ({"show": []}, "INVALID_TOOL_OUTPUT"),
+        ({"show": []}, "BEADS_ITEM_UNAVAILABLE"),
     ],
 )
 def test_unavailable_or_untrusted_responses(beads_project, settings, reason):
@@ -134,5 +134,19 @@ def test_cli_python_mcp_parity(beads_project):
                 assert result.structuredContent["result"] == expected
                 bad = await session.call_tool("beads.item.show", {"ref": "demo-1"})
                 assert bad.structuredContent["result"]["reason"] == "INVALID_INPUT"
+
+                before_denial = (beads_project / "calls.jsonl").read_bytes()
+                policy = Path(os.environ["XDG_CONFIG_HOME"]) / "devkit/policy.toml"
+                policy.write_text('[trusted_plugins]\ndevkit-beads="0.1.0"\n')
+                denied = await session.call_tool("beads.item.show", {"ref": REF})
+                assert denied.structuredContent["result"]["reason"] == "DENIED"
+                python_denied = create_service(beads_project).execute(
+                    "beads.item.show", {"ref": REF}
+                )
+                assert python_denied["result"] == denied.structuredContent["result"]
+                cli_denied = subprocess.run(cli.args, capture_output=True, text=True)
+                assert cli_denied.returncode == 2
+                assert json.loads(cli_denied.stdout)["result"] == python_denied["result"]
+                assert (beads_project / "calls.jsonl").read_bytes() == before_denial
 
     anyio.run(check)

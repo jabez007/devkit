@@ -736,7 +736,7 @@ tracker discovery and crash-atomic family deletion remain outside this increment
 | Increment | Dependency | Deliverable and acceptance gate |
 | --- | --- | --- |
 | Isolated Odoo runtime checks | First release and an agreed Odoo test environment | Add install, test, and upgrade commands for a pinned Odoo 19 edition and image. Use disposable databases, explicit target authorization, and resource ownership. Prove cancellation and cleanup. Odoo 17 requires its own tested profile. Select a maintained client or a narrow transport adapter only when a concrete operation needs RPC. |
-| Optional Beads adapter | First release and a pinned Beads release | Use documented machine-readable CLI operations. Test references, create, ready, claim, and close against a real isolated ledger. Prove the supported concurrent mode and conflict behavior. Do not access internal Dolt tables or initialize a user's project implicitly. |
+| Optional Beads adapter | v0.6 read-only profile implemented | Beads 1.3.2 embedded workspace inspection, ready/show/dependencies, and explicit local evidence references. Creation, claim, close, server and concurrent modes remain separately scoped. |
 | Odoo Project import | Beads adapter and a scoped Odoo connection | Implement one-way import and reference linking with connector-owned mappings and checkpoints. Test replay, outages, concurrent attempts, and a crash between issue creation and checkpoint persistence. Preserve external field authority. |
 | Task-source independence | Beads adapter | Link an Odoo Project task to non-Odoo development and a GitHub issue reference to Odoo development. Manual GitHub reference linking is sufficient initially. A full GitHub sync connector requires separate scope. |
 | Optional orchestration | Stable domain commands and the integrations the pack actually needs | Build one Gas City pack that invokes existing commands. Verify equivalent evidence for manual and orchestrated execution. Keep scheduling and agent sessions outside the foundation. |
@@ -760,7 +760,8 @@ Prioritize the next practical milestone as follows:
    v0.4 CSV inspection and v0.5 observed-cycle diagnostics are implemented; neither
    establishes runtime record existence or global dependency completeness.
 3. Schedule live runtime validation only with an explicitly agreed disposable
-   Odoo environment. Beads and orchestration remain separately scoped proposals.
+   Odoo environment. The v0.6 Beads read adapter is implemented; task mutations
+   and orchestration remain separately scoped proposals.
 
 No public package publication or external tracker mutation has been performed.
 
@@ -770,12 +771,14 @@ No public package publication or external tracker mutation has been performed.
 The optional `devkit-beads` adapter will use the existing specialization entry
 point, command registry, policy checks, invocation service, process supervisor,
 and `RunStore.reference`/`show` interfaces. Beads remains the authority for work
-items and readiness. No task database, scheduler, or Beads writes are introduced.
+items and readiness. No task database, scheduler, or Beads work-item writes are introduced.
 
 The tested upstream interface is Beads 1.3.2, commit
-`9b65b9e198acbcc98e7fd3a87a5d55baa065a572`. Disposable probes of `context`,
-`show`, `ready`, and `dep list` with `--readonly --sandbox --json` left the
-workspace files unchanged. Explicit read-only mode disables maintenance and
+`9b65b9e198acbcc98e7fd3a87a5d55baa065a572`. An initial content-only probe of `context`,
+`show`, `ready`, and `dep list` left workspace contents unchanged when showing
+the already last-touched item. Subsequent acceptance exposed `show` marker
+writes and Dolt timestamp updates; the findings and final contract are recorded
+below. Explicit read-only mode disables maintenance and
 server auto-start; `BD_DISABLE_METRICS=1` disables telemetry initialization.
 Initial support is an embedded Dolt workspace at the project root. Other
 versions, redirects, worktrees, and server backends require separate validation.
@@ -830,4 +833,37 @@ Slice 3 uses `RunStore` references directly. Association accepts completed runs
 of any outcome and reports that outcome without changing it. Missing, incomplete,
 and foreign-project runs cannot be linked. Tests cover idempotence, retained
 original evidence, pruning protection, missing work items, reference-write failure,
-and evidence-write failure after a successful pin. Beads receives no writes.
+and evidence-write failure after a successful pin. Beads work items receive no writes.
+
+Installed-wheel testing exposed a Beads prerequisite that the controlled CLI
+fixture did not establish: `bd init` succeeds outside Git, but `bd context` cannot
+resolve that workspace. Real acceptance now initializes disposable Git repositories
+before their Beads ledgers, and the integration guide states the requirement.
+The adapter already reports this unavailable context as blocked.
+
+Real acceptance also caught a Beads 1.3.2 `show` side effect: it writes
+`.beads/last-touched` even with `--readonly`. The initial same-item/content-only
+probe did not detect this. Item retrieval now uses supported `list --id` with
+explicit inclusion flags and a two-row bound, validating the exact returned ID.
+Acceptance compares contents and mtimes, including the isolated user home. No
+upstream patch, copied database, or compensating workspace write is needed.
+
+The timestamp check exposed an additional upstream limitation: embedded Dolt
+reads rewrite internal database files with identical bytes. The adapter now
+conservatively declares `write_fs` for read commands as well as association.
+Acceptance requires unchanged workspace file contents and all non-database
+mtimes, plus an unchanged isolated home during Beads queries; it reports internal timestamp updates
+explicitly. Logical work-item read-only behavior is established, but strict
+filesystem read-only operation remains unverified/unsupported. This is a stated
+milestone limitation, not an assertion that `--readonly` prevents every write.
+No broad storage workaround or upstream patch is introduced.
+
+Real installed acceptance now passes in both Go and Odoo repositories, including
+CLI/Python/MCP association parity, repeated references, protected aggregate runs,
+and copied evidence read by foundation-only environments. The original run bytes,
+Beads work-item contents, last-touched marker, and Beads-query user-home state
+remain unchanged. Go's separately authorized cache writes are measured outside
+the Beads preservation interval. Ruff measurement reports maximum complexity 7
+for the changed process helper and Beads runtime, and 4 for the independent
+README example, below the configured threshold 10. No complexity suppression or
+new third-party Python dependency was introduced.

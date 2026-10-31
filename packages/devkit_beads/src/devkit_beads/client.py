@@ -166,7 +166,31 @@ class Beads:
 
     def show(self, reference: str, workspace: JSONObject) -> JSONObject:
         identifier = local_id(reference, workspace)
-        result = items(self.query("show", identifier), workspace["project_id"])
+        # Beads 1.3.2 `show` updates last-touched even with --readonly. The
+        # supported exact-ID list query avoids that write, including for closed
+        # and normally hidden item types. Check identity rather than accepting a
+        # prefix match or a truncated result.
+        result = items(
+            self.query(
+                "list",
+                "--id",
+                identifier,
+                "--all",
+                "--limit",
+                "2",
+                "--max-rows",
+                "2",
+                "--include-infra",
+                "--include-gates",
+                "--include-templates",
+                "--include-ephemeral",
+            ),
+            workspace["project_id"],
+        )
+        if not result:
+            raise BeadsError(
+                "blocked", "BEADS_ITEM_UNAVAILABLE", "No live Beads item matches this reference"
+            )
         if len(result) != 1 or result[0]["ref"] != reference:
             raise invalid("Beads did not return the requested issue")
         return result[0]

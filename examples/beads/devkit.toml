@@ -1,0 +1,6 @@
+# Select an existing Beads 1.3.2 embedded workspace; Devkit never initializes it.
+plugins = ["beads", "go"]
+timeout = 90
+
+[profiles]
+verify = ["go.tests"]

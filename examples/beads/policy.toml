@@ -1,0 +1,32 @@
+# Merge into the operator policy OUTSIDE the project, mode 0600.
+# Replace the path with the canonical project path. Include only needed surfaces.
+[trusted_plugins]
+devkit-beads = "0.1.0"
+devkit-go = "0.1.0"
+
+[profiles.beads]
+projects = ["/absolute/path/to/project"]
+
+[profiles.beads.commands."beads.workspace"]
+effects = ["read_fs", "write_fs", "execute_process", "network_read"]
+surfaces = ["cli", "python", "mcp"]
+
+[profiles.beads.commands."beads.item.show"]
+effects = ["read_fs", "write_fs", "execute_process", "network_read"]
+surfaces = ["cli", "python", "mcp"]
+
+[profiles.beads.commands."beads.ready"]
+effects = ["read_fs", "write_fs", "execute_process", "network_read"]
+surfaces = ["cli", "python", "mcp"]
+
+[profiles.beads.commands."beads.dependencies"]
+effects = ["read_fs", "write_fs", "execute_process", "network_read"]
+surfaces = ["cli", "python", "mcp"]
+
+[profiles.beads.commands."beads.evidence.associate"]
+effects = ["read_fs", "write_fs", "execute_process", "network_read"]
+surfaces = ["cli", "python", "mcp"]
+
+[profiles.beads.commands."go.test"]
+effects = ["read_fs", "write_fs", "execute_process", "network_read", "network_write"]
+surfaces = ["cli", "python", "mcp"]

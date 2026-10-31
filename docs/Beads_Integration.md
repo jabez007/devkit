@@ -1,0 +1,173 @@
+# Beads work items and verification evidence
+
+`devkit-beads` 0.1.0 is an optional specialization requiring foundation 0.1.2.
+It reads Beads work items and explicitly associates existing Devkit evidence with
+them. Beads owns readiness, dependencies, and task status. Devkit stores local
+verification results and references; it does not create, claim, close, comment
+on, or approve work items.
+
+## Supported environment
+
+The initial profile is Linux with Python 3.12+ and **Beads 1.3.2**, using an
+initialized embedded Dolt workspace in the selected Git repository's `.beads`
+directory. Beads `context` requires a Git repository root, even when `bd init`
+can create a ledger outside Git.
+The tested upstream revision is
+[`9b65b9e198acbcc98e7fd3a87a5d55baa065a572`](https://github.com/gastownhall/beads/tree/9b65b9e198acbcc98e7fd3a87a5d55baa065a572).
+Other versions, server modes, redirects, worktrees, and symlinked workspace roots
+are blocked pending separate acceptance testing. There is no automatic
+installation, initialization, upgrade, or server startup.
+
+Install the foundation and adapter wheels from this checkout into your chosen
+environment. Install the official [Beads 1.3.2 release](https://github.com/gastownhall/beads/releases/tag/v1.3.2)
+separately and make its `bd` executable available on PATH. The Python adapter does
+not download tools or require Odoo, Go, Docker, or an agent.
+
+```sh
+uv build --all-packages
+uv pip install --python /path/to/venv/bin/python \
+  dist/devkit-0.1.2-py3-none-any.whl dist/devkit_beads-0.1.0-py3-none-any.whl
+```
+
+Select `beads` in `devkit.toml`, alongside the specialization whose checks you
+need. [The Go example](../examples/beads/devkit.toml) selects `go.tests` as its
+verification profile. For Odoo, select `odoo` and `odoo.manifests` instead. This
+integration adds no domain checks and does not change what a verification proves.
+
+Merge [the policy example](../examples/beads/policy.toml) into the external
+operator policy. Replace the project path, retain only needed surfaces, and set
+mode `0600`. Exact distribution trust and command grants are separate; existing
+wheel-hash pinning also applies. Every item command needs the `beads.workspace`
+prerequisite grant on the same invocation surface. `doctor` checks that
+prerequisite through the existing registry.
+
+Read commands declare `read_fs`, `write_fs`, `execute_process`, and conservatively
+`network_read`. The `write_fs` grant covers observed embedded Dolt bookkeeping:
+its reads rewrite internal files with identical bytes and changed mtimes, even
+under Beads `--readonly`. Work-item data, workspace configuration, and the
+last-touched marker remain unchanged in acceptance tests. Strict filesystem
+read-only operation is **not established** for this upstream profile.
+`network_read` is declared because Beads configuration can select a remote
+backend before the adapter can inspect and reject that mode. Association also
+uses `write_fs` for the Devkit reference store. All invocations produce Devkit
+evidence as usual.
+Beads itself receives only `--readonly --sandbox --json` queries. Item lookup
+uses `list --id` with inclusion flags and a two-row limit, then validates the
+exact returned ID. It deliberately avoids Beads 1.3.2 `show`, which writes the
+last-touched marker even in read-only mode. The child environment selects the project's workspace and disables metrics with
+`BD_DISABLE_METRICS=1`. Policy grants and Beads flags do not isolate arbitrary
+third-party executable code; use trusted tool installations.
+
+## Commands
+
+| Command | Arguments | Successful data |
+| --- | --- | --- |
+| `beads.workspace` | None | Workspace project UUID, tool version, backend and mode. |
+| `beads.item.show` | `ref` | Workspace and item with qualified reference, title, description, status, type and priority. |
+| `beads.ready` | Optional `limit`, 1–100, default 20 | Workspace, ready items, limit and `possibly_truncated`. Beads defines readiness and default filtering. |
+| `beads.dependencies` | `ref` | Direct outgoing relationships with qualified references and dependency types. This is not a transitive dependency solver. |
+| `beads.evidence.associate` | `ref`, `run_id` | Existing run ID, reference set, workspace and original verification status. |
+
+References are `beads:<project UUID>:<issue ID>`. The project UUID comes from
+`bd context --json`, not from an absolute filesystem path or issue prefix. Copy a
+reference from `beads.ready` or construct it using `beads.workspace`. A reference
+from another project is rejected, even when its issue ID exists locally. Copying
+a Beads workspace preserves its identity; Devkit does not mint an independent
+identity for a copied work graph.
+
+```sh
+devkit --project /path/to/project --json doctor
+devkit --project /path/to/project --json run beads.workspace
+devkit --project /path/to/project --json run beads.ready --args '{"limit":10}'
+devkit --project /path/to/project --json run beads.item.show \
+  --args '{"ref":"beads:<project UUID>:<issue ID>"}'
+devkit --project /path/to/project --json check verify
+# Use the existing verification run_id from the preceding envelope:
+devkit --project /path/to/project --json run beads.evidence.associate \
+  --args '{"ref":"beads:<project UUID>:<issue ID>","run_id":"<run UUID>"}'
+devkit --project /path/to/project --json runs show '<run UUID>'
+```
+
+Python uses `create_service(Path(project)).execute(command, arguments)`. The
+optional MCP adapter exposes these same commands when authorized. Both preserve
+CLI authorization, validation, cancellation and result semantics.
+
+## Association, retention, and portability
+
+Association checks a completed run in the selected project and retrieves the
+live Beads item before adding its qualified reference with `RunStore.reference`.
+Runs with failed, blocked, or error outcomes may be associated; the returned
+`verification_status` preserves that outcome. Association success means that the
+local link was recorded. It does not mean the verification passed or the task
+was approved. The original `result.json` remains unchanged, including the reserved
+`work_item_ref: null` field. References live in the existing `references.json`.
+Plugin API 1.0 and evidence envelope 1.0 are unchanged.
+
+Repeat the same request safely: references form a set. A missing item, missing
+run, inaccessible store, or foreign-project run cannot produce a successful link.
+Concurrent pruning can remove an unpinned run before association; reference
+creation revalidates under the store lock and then fails explicitly. Retry after
+resolving the reported error. If invocation evidence fails *after* the reference
+is saved, `EVIDENCE_WRITE_FAILED` includes the `observed_result`; inspect the run
+or retry the same association. No external comment or duplicate Beads record is
+created in either case. Cancellation near persistence can leave the local
+reference saved; inspect it before deciding whether to retry or remove it.
+
+Existing retention protects referenced runs and related aggregate evidence.
+Retrieve references with `runs show` or `runs list`, even after deactivating or
+uninstalling the Beads adapter. References remain until an operator explicitly
+removes them with `runs unpin RUN_ID --reference REF`. Closing or deleting a Beads
+issue does not automatically remove its evidence protection.
+
+For portable evidence, copy the run directories under the Devkit state root's
+`runs/`, including `result.json`, `references.json`, and related parent/child runs.
+Read copies with `runs show RUN_ID --all-projects` in a foundation-only install;
+original project paths and UUIDs remain intact. Local pins cannot control a CI
+provider's artifact expiry. Evidence contains project and work-item information:
+choose the destination and its retention policy deliberately. There is no new
+archive format, remote evidence service, or live synchronization mechanism.
+
+## Diagnostics and limits
+
+`MISSING_TOOL`, `BEADS_NOT_INITIALIZED`, `UNSUPPORTED_BEADS_VERSION`,
+`UNSUPPORTED_BEADS_WORKSPACE`, `BEADS_ITEM_UNAVAILABLE`, and
+`WORKSPACE_MISMATCH` explain unavailable
+coverage. Nonzero Beads exits return blocked `BEADS_UNAVAILABLE`; this adapter
+does not guess whether an item is missing, the database is locked, or access was
+denied from unstable stderr text. Malformed JSON or invalid records return error
+`INVALID_TOOL_OUTPUT`; excessive output returns error `OUTPUT_LIMIT`. Each stream
+is bounded to 256 KiB. Deadlines and cancellation use the foundation supervisor.
+Raw stdout/stderr are not copied into evidence. No Beads writes are used to repair
+an unavailable workspace.
+
+An environment prerequisite failure appears under the parent result's
+`data.checks`, with separate child evidence and its specific reason. `doctor`
+reports prerequisites, not a successful software verification. Issue data reflects
+the time it was retrieved; associations do not continually refresh task status.
+Concurrent Beads writers, remote servers, redirected worktrees, and other Beads
+versions are unverified. Static Odoo validation remains distinct from runtime
+installation or compatibility.
+
+## Reproduce acceptance
+
+The wheel matrix requires an explicit test-tool path. It creates and deletes
+only disposable synthetic workspaces and never initializes this repository.
+Download the official Linux amd64 release into a temporary directory, check the
+archive SHA-256 below, and extract its `bd` member:
+
+```text
+c6ea3281f6ff82628351b2d0967c9eb85862c8a0ec0ebc24e63e645c8b02462e
+```
+
+Then run:
+
+```sh
+DEVKIT_BEADS_BINARY=/absolute/temporary/path/bd uv run python scripts/check_wheels.py
+```
+
+[CI](../.github/workflows/checks.yml) records the exact download and checksum
+commands. The matrix uses real Beads 1.3.2 with Go and Odoo, checks unchanged workspace contents and non-database timestamps, association on CLI/Python/MCP, idempotent repetition,
+retention protection, and foundation-only retrieval of copied evidence. The
+unit/integration suite adds controlled missing-tool, malformed-output,
+policy-denial, cancellation, and partial-failure cases. Synthetic fixtures do not
+establish production deployment or concurrent-writer compatibility.

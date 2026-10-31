@@ -30,7 +30,7 @@ def test_association_is_idempotent_and_protects_evidence(beads_project):
         json.loads(line)["argv"][3]
         for line in (beads_project / "calls.jsonl").read_text().splitlines()
     ]
-    assert set(calls) <= {"version", "context", "show"}
+    assert set(calls) <= {"version", "context", "list"}
 
 
 def test_reference_failure_and_evidence_failure_retries(beads_project, monkeypatch):
@@ -73,7 +73,7 @@ def test_association_requires_existing_item_and_same_project_run(beads_project):
     configure(beads_project, show=[])
     assert (
         service.execute("beads.evidence.associate", args)["result"]["reason"]
-        == "INVALID_TOOL_OUTPUT"
+        == "BEADS_ITEM_UNAVAILABLE"
     )
     assert (
         RunStore(service.settings.state_root).show(target["run_id"], beads_project)["references"]

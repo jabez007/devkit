@@ -20,6 +20,7 @@ assert os.environ["BD_DISABLE_METRICS"] == "1"
 assert os.environ["BEADS_DIR"] == str(root / ".beads")
 assert "TEST_SECRET" not in os.environ
 command = sys.argv[4]
+assert command != "show", "bd show writes last-touched even in readonly mode"
 mode = settings.get("mode")
 if mode == "sleep":
     time.sleep(30)
@@ -37,7 +38,10 @@ elif command == "context":
               "beads_dir":str(root / ".beads"),"repo_root":str(root),
               "is_redirected":False,"is_worktree":False,"project_id":settings["scope"]}
     result.update(settings.get("context", {}))
-elif command == "show":
+elif command == "list":
+    assert sys.argv[5:] == ["--id", "demo-1", "--all", "--limit", "2", "--max-rows", "2",
+                           "--include-infra", "--include-gates",
+                           "--include-templates", "--include-ephemeral"]
     result = settings.get("show", [item])
 elif command == "dep":
     result = [{**item, "id":"demo-2", "dependency_type":"blocks"}]
