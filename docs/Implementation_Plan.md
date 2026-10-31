@@ -207,6 +207,45 @@ Run the configured lint, format, type, test, import, and complexity checks on ea
 
 ## Later releases
 
+### v0.2 practical validation milestone
+
+Assessment before implementation: all 75 existing tests and six independent wheel
+scenarios passed, as did Ruff, formatting, strict mypy, import boundaries, and
+the complexity limit of 10. The P1 fixes have regression coverage in
+`test_artifact_trust.py`, `test_policy_profiles.py`, and `test_runs.py`; no
+regression was observed. Their documented limits remain unchanged.
+
+The Odoo implementation currently merges every absent dependency into one
+unresolved list, accepts malformed dependency identifiers, and sorts an unbounded
+directory listing before applying its module limit. Manifest errors lose field
+context. `doctor` checks activation but declares no Odoo environment prerequisites;
+its successful foundation check does not validate addon paths or manifests.
+
+Design: extend `devkit_odoo` using the existing literal parser, contained paths,
+JSON Schema validation, `CommandResult`, check profiles, and `CommandService`.
+Add `inventory.complete` and `inventory.complete_prefixes`, both empty/false by
+default. Absence means unknown unless an explicit applicable completeness claim
+makes it missing. Report resolved/missing/unknown/invalid relationships, inventory
+coverage, and unchecked external requirements. Missing or invalid dependencies
+fail; strict unknown dependencies block. Keep legacy result fields and document
+the changed strict reason codes. Bound directory entries, module counts, parsing,
+and output. External addon checkouts remain inside the selected workspace root.
+
+Verification: synthetic repository fixtures through the real CLI and persisted
+evidence, Python/CLI/MCP parity for dependency statuses, installed-wheel acceptance,
+and a read-only public OCA snapshot evaluation. No server or dependencies are
+downloaded by the validator. Reuse existing mechanisms; add no runtime packages,
+plugin-contract extensions, scheduler, task tracker, or dependency solver.
+
+Risks: completeness is a caller assertion, module presence does not prove runtime
+compatibility, and malformed/unavailable inventories must never yield missing
+classifications. Required improvements are dependency semantics, bounded scanning,
+and actionable diagnostics. Transitive solving, cycle analysis, live external
+requirement checks, and additional filesystem scopes remain follow-ups.
+
+Delivery slices: dependency semantics and bounds; representative repositories and
+usability; documented v0.2 packaging and final acceptance. All are pending.
+
 ### P1 follow-up slices before integration expansion
 
 | Slice | Behavior | State |
