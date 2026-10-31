@@ -244,7 +244,10 @@ and actionable diagnostics. Transitive solving, cycle analysis, live external
 requirement checks, and additional filesystem scopes remain follow-ups.
 
 Delivery slices: dependency semantics and bounds; representative repositories and
-usability; documented v0.2 packaging and final acceptance. All are pending.
+usability; documented v0.2 packaging and final acceptance. Dependency semantics
+and bounds are implemented; representative CLI fixtures and final acceptance
+are next. See [Odoo validation](Odoo_Validation.md) for the configuration and
+result contract.
 
 ### P1 follow-up slices before integration expansion
 
