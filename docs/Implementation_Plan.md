@@ -295,8 +295,8 @@ suite and wheel matrix.
 provided a read-only evaluation of 133 modules and 299 XML files. Ordinary
 validation succeeded; strict module-dependency checks blocked on incomplete
 inventory. Both checkouts remained clean, and CLI results matched saved evidence
-and `runs show`. Reference diagnostics reported 104 earlier local definitions and
-439 unknown references, with unsupported operations and non-XML files explicitly
+and `runs show`. Reference diagnostics reported 104 resolved references to earlier local
+definitions and 439 unknown references, with unsupported operations and non-XML files explicitly
 recorded. These counts establish static inspection coverage, not runtime Odoo
 compatibility.
 
