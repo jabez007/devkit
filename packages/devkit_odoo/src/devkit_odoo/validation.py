@@ -8,6 +8,7 @@ from typing import cast
 from devkit.contracts import Context, DevkitError, JSONObject
 from devkit.schemas import validate
 
+from devkit_odoo.csv_inspection import CSVInspection
 from devkit_odoo.data_references import analyze_references
 from devkit_odoo.dependencies import external_dependencies, module_dependencies
 from devkit_odoo.xml_inspection import XMLInspection
@@ -82,7 +83,7 @@ def inspect_module(
     available: dict[str, Path],
     context: Context,
     policy: JSONObject,
-    xml: XMLInspection,
+    inspectors: dict[str, XMLInspection | CSVInspection],
 ) -> JSONObject:
     result: JSONObject = {
         "module": name,
@@ -92,13 +93,16 @@ def inspect_module(
         "path": module.relative_to(context.project_root).as_posix(),
         "dependencies": [],
         "external_dependencies": [],
-        "xml": {
-            "files": [],
-            "skipped_files": [],
-            "complete": False,
-            "reference_counts": {"resolved": 0, "unknown": 0},
+        **{
+            kind: {
+                "files": [],
+                "complete": False,
+                "reference_counts": {"resolved": 0, "unknown": 0},
+            }
+            for kind in inspectors
         },
     }
+    result["xml"]["skipped_files"] = []
     try:
         manifest = read_manifest(module)
     except (SyntaxError, ValueError, TypeError, RecursionError) as exc:
@@ -131,8 +135,8 @@ def inspect_module(
         if item["status"] == "invalid"
     )
     _check_triggers(manifest, result)
-    _check_files(module, manifest, context, result, xml)
-    analyze_references(name, result["xml"])
+    _check_files(module, manifest, context, result, inspectors)
+    analyze_references(name, {kind: result[kind] for kind in inspectors})
     return result
 
 
@@ -144,17 +148,22 @@ def _check_triggers(manifest: JSONObject, result: JSONObject) -> None:
 
 
 def _check_files(
-    module: Path, manifest: JSONObject, context: Context, result: JSONObject, xml: XMLInspection
+    module: Path,
+    manifest: JSONObject,
+    context: Context,
+    result: JSONObject,
+    inspectors: dict[str, XMLInspection | CSVInspection],
 ) -> None:
     load_index = 0
     for phase in ("data", "demo"):
         for filename in manifest.get(phase, []):
             entry = {"path": filename, "phase": phase, "load_index": load_index}
             load_index += 1
-            _check_file(module, entry, context, result, xml)
-    result["xml"]["complete"] = not result["errors"] and all(
-        item["status"] == "valid" for item in result["xml"]["files"]
-    )
+            _check_file(module, entry, context, result, inspectors)
+    for kind in inspectors:
+        result[kind]["complete"] = not result["errors"] and all(
+            item["status"] == "valid" for item in result[kind]["files"]
+        )
 
 
 def _check_file(
@@ -162,7 +171,7 @@ def _check_file(
     entry: JSONObject,
     context: Context,
     result: JSONObject,
-    xml: XMLInspection,
+    inspectors: dict[str, XMLInspection | CSVInspection],
 ) -> None:
     filename, phase = entry["path"], entry["phase"]
     checkpoint(context)
@@ -171,8 +180,15 @@ def _check_file(
         if not path.is_file():
             raise ValueError("Missing file")
         result["checked_files"].append(filename)
-        if Path(filename).suffix.lower() == ".xml":
-            result["xml"]["files"].append({**xml.inspect(path, filename, phase), **entry})
+        kind = Path(filename).suffix.lower().lstrip(".")
+        if kind in inspectors:
+            result[kind]["files"].append(
+                {
+                    **inspectors[kind].inspect(path, filename, phase),
+                    **entry,
+                    "format": kind,
+                }
+            )
         else:
             result["xml"]["skipped_files"].append({**entry, "reason": "non_xml"})
     except (OSError, ValueError, RuntimeError):

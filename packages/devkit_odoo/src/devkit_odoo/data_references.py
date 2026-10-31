@@ -99,10 +99,13 @@ def _identifier(module: str, event: JSONObject) -> str | None:
     return value if "." in value else f"{module}.{value}"
 
 
-def analyze_references(module: str, xml: JSONObject) -> None:
-    files = sorted(xml["files"] + xml["skipped_files"], key=lambda item: item["load_index"])
+def analyze_references(module: str, sections: dict[str, JSONObject]) -> None:
+    inspected = [file for section in sections.values() for file in section["files"]]
+    files = sorted(
+        inspected + sections["xml"]["skipped_files"], key=lambda item: item["load_index"]
+    )
     definitions: dict[str, list[JSONObject]] = {}
-    for file in xml["files"]:
+    for file in inspected:
         for index, event in enumerate(file.get("events", [])):
             name = _identifier(module, event)
             if event["kind"] == "definition" and name and name.startswith(module + "."):
@@ -110,13 +113,13 @@ def analyze_references(module: str, xml: JSONObject) -> None:
                     {**event, "phase": file["phase"], "position": (file["load_index"], index)}
                 )
     known: dict[str, JSONObject] = {}
-    counts = {"resolved": 0, "unknown": 0}
     for file in files:
         if file.get("status") != "valid":
             known.clear()
+        counts = sections[file.get("format", "xml")]["reference_counts"]
         _analyze_file(module, file, definitions, known, counts)
-    xml["reference_counts"] = counts
-    xml["reference_basis"] = "earlier_same_module_literal_definition"
+    for section in sections.values():
+        section["reference_basis"] = "earlier_same_module_literal_definition"
 
 
 def _analyze_file(
@@ -141,7 +144,13 @@ def _analyze_file(
             )
         else:
             reference = _resolve(
-                module, name, file["phase"], definitions, known, (file["load_index"], index)
+                module,
+                name,
+                file["phase"],
+                definitions,
+                known,
+                (file["load_index"], index),
+                file.get("format", "xml"),
             )
             reference.update(location, value=event["value"], attribute=event["attribute"])
             file["references"].append(reference)
@@ -155,6 +164,7 @@ def _resolve(
     definitions: dict[str, list[JSONObject]],
     known: dict[str, JSONObject],
     position: tuple[int, int],
+    source_format: str,
 ) -> JSONObject:
     result: JSONObject = {"xml_id": name, "status": "unknown", "target": None}
     if name is None:
@@ -179,6 +189,6 @@ def _resolve(
         else:
             reason = "unverified_effects"
     else:
-        reason = "not_in_scanned_xml"
+        reason = "not_in_scanned_xml" if source_format == "xml" else "not_in_scanned_data"
     result["reason"] = reason
     return result

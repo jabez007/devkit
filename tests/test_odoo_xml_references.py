@@ -115,7 +115,7 @@ def test_dynamic_operations_interrupt_resolution(odoo_project, operation):
     assert xml["files"][0]["unexamined"]
 
 
-def test_csv_between_xml_files_interrupts_resolution(odoo_project):
+def test_csv_update_between_xml_files_supplies_latest_literal_definition(odoo_project):
     _, xml = inspect(
         odoo_project,
         {
@@ -128,8 +128,9 @@ def test_csv_between_xml_files_interrupts_resolution(odoo_project):
 </odoo>""",
         },
     )
-    assert references(xml)[0]["status"] == "unknown"
-    assert xml["skipped_files"][0]["path"] == "data.csv"
+    assert references(xml)[0]["status"] == "resolved"
+    assert references(xml)[0]["target"]["path"] == "data.csv"
+    assert not xml["skipped_files"]
 
 
 def test_template_content_is_not_mistaken_for_loader_operations(odoo_project):

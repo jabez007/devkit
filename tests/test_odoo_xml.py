@@ -126,14 +126,23 @@ def test_unreadable_xml_blocks_without_claiming_a_defect(odoo_project, monkeypat
     assert result["reason"] == "XML_UNAVAILABLE"
 
 
-def test_cancellation_after_xml_read_does_not_claim_inspection_complete(odoo_project, monkeypatch):
+@pytest.mark.parametrize(
+    "filename,content",
+    [
+        ("views.xml", b"<odoo/>"),
+        ("res.partner.csv", b"id,name\nitem,Name\n"),
+    ],
+)
+def test_cancellation_after_data_read_does_not_claim_inspection_complete(
+    odoo_project, monkeypatch, filename, content
+):
     from io import BytesIO
     from threading import Event
 
     project, module = odoo_project
-    target = module / "views.xml"
-    target.write_text("<odoo/>")
-    (module / "__manifest__.py").write_text(repr({"name": "Example", "data": ["views.xml"]}))
+    target = module / filename
+    target.write_bytes(content)
+    (module / "__manifest__.py").write_text(repr({"name": "Example", "data": [filename]}))
     cancelled = Event()
     original = Path.open
 
@@ -144,7 +153,7 @@ def test_cancellation_after_xml_read_does_not_claim_inspection_complete(odoo_pro
             return content
 
     def open_xml(path, *args, **kwargs):
-        return CancelOnRead(b"<odoo/>") if path == target else original(path, *args, **kwargs)
+        return CancelOnRead(content) if path == target else original(path, *args, **kwargs)
 
     monkeypatch.setattr(Path, "open", open_xml)
     envelope = create_service(project).execute("odoo.module.validate", cancellation=cancelled)

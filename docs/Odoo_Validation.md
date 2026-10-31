@@ -268,3 +268,67 @@ To reproduce after configuring plugin trust and an exact project grant:
 devkit --project /absolute/path/to/checkout --json run odoo.module.validate --args '{"addons_paths":["."]}'
 devkit --project /absolute/path/to/checkout --json run odoo.module.validate --args '{"addons_paths":["."],"strict_dependencies":true}'
 ```
+
+## CSV inspection in v0.4
+
+Manifest-declared CSV files now receive bounded inspection through
+`odoo.module.validate`. CSV and XML declarations share the existing literal
+reference resolver and preserve manifest file order, row order and data/demo
+separation. No new command, configuration flag, runtime dependency or generic
+plugin interface is required.
+
+The supported CSV subset uses UTF-8, commas and double quotes. It supports flat
+fields, `id` declarations, and direct `field:id` or `field/id` references. Quoted
+commas, escaped quotes and multiline values are supported. Translation columns
+containing `@` are ignored as in the pinned Odoo loader. Empty rows and rows with
+only translation values are ignored before width checks. Empty IDs create no
+inferred identity; repeated IDs remain possible updates.
+
+The inspector does not execute cells or return ordinary record values. It records
+headers, nonempty row count, source locations and XML-ID findings. CSV reference
+locations use a one-based physical start line and field index, not a character
+column. The model name comes from the filename, following the loader convention;
+model existence and field types are not verified.
+
+Earlier same-module CSV declarations can resolve later XML references. CSV
+references can use earlier XML declarations or CSV rows. Definitions become
+available after the row's references. Foreign IDs, forward references and
+ambiguous values remain unknown. A quoted comma-separated reference value is not
+split without relational field metadata. Successful source inspection does not
+establish database record existence, permissions or successful import.
+
+| Finding | Result |
+| --- | --- |
+| Empty file without a header, or bytes invalid as UTF-8 | `failed / INVALID_CSV`, matching the pinned loader's input requirements. |
+| Duplicate/aliased headers, nested import paths, nonempty irregular rows or UTF-8 BOM | `blocked / CSV_UNSUPPORTED`. |
+| Quoting rejected by strict CSV inspection | `blocked / CSV_UNSUPPORTED`; Odoo uses a permissive reader, so rejection is not a confirmed import defect. |
+| Unreadable file | `blocked / CSV_UNAVAILABLE`. |
+| File, byte, row, field, column or reference-event limit | `blocked / CSV_LIMIT`. |
+| Unknown literal reference | Advisory finding; does not fail or block by itself. |
+
+A file that fails or blocks contributes no partial definitions or references.
+Later files cannot resolve IDs from that file. Other findings remain available.
+Confirmed defects take precedence over incomplete coverage in the command status.
+Strict module-dependency validation retains its existing meaning; module inventory
+completeness does not imply XML-ID completeness.
+
+CSV has its own invocation budget: 256 files, 16 MiB total bytes, 10,000 data rows
+including ignored rows, and 4,000 reference events. Each file is limited to 1 MiB,
+128 columns and 65,536 characters per field. The existing result-size limit also
+applies. The inspector leaves Python's process-global CSV field-size limit
+unchanged; a lower ambient parser limit can also block inspection. Cancellation
+and deadlines use the shared foundation contract.
+
+Specialization data schema 1.3 adds `modules[].csv`, `csv_counts`,
+`csv_reference_counts` and `csv_limits`. CSV file results contain `headers`,
+`row_count`, `model`, definitions, references and diagnostics. Existing XML fields
+remain; their reference targets can now point to CSV declarations. The legacy
+`xml.skipped_files` location contains files neither inspector examines. CSV files
+no longer appear there. XML's existing `not_in_scanned_xml` reason remains for
+compatibility; it does not assert absence from runtime data. New CSV findings use
+`not_in_scanned_data` for references absent from the inspected source inventory.
+
+The [pinned CSV loader](https://github.com/odoo/odoo/blob/005e0a0eb7ef80cd15b0c82b570b2b0843181ba2/odoo/tools/convert.py)
+and [field-path importer](https://github.com/odoo/odoo/blob/005e0a0eb7ef80cd15b0c82b570b2b0843181ba2/odoo/orm/models.py)
+define this subset. Nested imports, relational cardinality, runtime conversions,
+model metadata and hooks remain outside coverage.

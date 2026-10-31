@@ -308,11 +308,9 @@
       "blocked": 0
     },
     "xml_reference_counts": {
-      "resolved": 0,
-      "unknown": 1
+      "resolved": 1,
+      "unknown": 0
     },
-    "reference_reasons": [
-      "unverified_effects"
-    ]
+    "reference_reasons": []
   }
 ]
