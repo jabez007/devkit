@@ -32,6 +32,9 @@ Installing a plugin makes it discoverable. It does not activate or authorize it.
 with no plugins selected, it checks only the foundation. It does not validate a
 project. Run a command or check profile after doctor succeeds. Activation errors
 identify the affected plugin; configuration errors name the settings file.
+Text output from `doctor` and `check` includes each returned child check's status,
+diagnostic reason and a project-qualified `runs show` command. Use `--json` for
+the complete structured result, including nested prerequisite evidence.
 
 To install built distributions in another environment:
 

@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import shlex
 from pathlib import Path
 
 from devkit import __version__
@@ -71,6 +72,19 @@ def dispatch(args: argparse.Namespace) -> JSONObject:
     return service.execute(command, arguments, surface="cli")
 
 
+def render_checks(envelope: JSONObject, action: str) -> None:
+    """Expose existing core aggregate diagnostics without interpreting plugin data."""
+    if action not in {"doctor", "check"}:
+        return
+    for check in envelope["result"]["data"].get("checks", []):
+        result = check["result"]
+        print(f"  {check['check']}: {result['status']}: {result['summary']}")
+        if result.get("reason"):
+            print(f"    Reason: {result['reason']}")
+        project = shlex.quote(envelope["project_root"])
+        print(f"    Inspect: devkit --project {project} runs show {check['run_id']}")
+
+
 def render(envelope: JSONObject, action: str) -> None:
     result = envelope["result"]
     print(f"{result['status']}: {result['summary']}")
@@ -80,6 +94,7 @@ def render(envelope: JSONObject, action: str) -> None:
         print(f"  {command}")
     for plugin in result["data"].get("plugins", []) if action == "plugins" else []:
         print(f"  {plugin['id']} ({plugin['distribution']} {plugin['version']})")
+    render_checks(envelope, action)
     if envelope.get("evidence_path"):
         print(f"Evidence: {envelope['evidence_path']}")
     if action == "runs":
