@@ -974,3 +974,34 @@ refusal, guarded update conflict, comment through MCP, verification, repeated
 association, blocked closure, successful closure and retention. Beads recorded
 exactly one explicit comment; evidence association added none. The shared
 invocation extraction separately passed 22 regressions before lifecycle code.
+
+
+### Writable integration final verification
+
+Executed October 31, 2026 after implementing the lifecycle commands:
+
+| Command | Observed result |
+| --- | --- |
+| `.venv/bin/ruff check .` | Passed, including complexity limit 10. Changed Beads functions measure at most 6. |
+| `.venv/bin/ruff format --check .` | Passed; 136 Python files formatted. |
+| `.venv/bin/mypy` | Passed; 30 runtime source files checked strictly. |
+| `.venv/bin/lint-imports` | Passed; foundation remains independent of Beads. |
+| `.venv/bin/pytest -q` | 289 passed in 87.14 seconds. All five mutations have successful invocation and denial coverage across CLI, Python and MCP. |
+| `DEVKIT_BEADS_BINARY=/tmp/devkit-beads-1.3.2/bd .venv/bin/python scripts/check_wheels.py` | Passed across 12 installed environments, including writable Beads lifecycle workflows with real Go and Odoo verification, existing association retries, native conflicts, and foundation-only portable evidence retrieval. |
+
+The five initial lifecycle tests failed before implementation. The first full
+suite passed 288 tests; final coverage adds an interrupted-write timeout case.
+The focused suite also verifies cancellation after process start, malformed and
+oversized write responses, foreign references, flag-like literal input, and
+successful mutations followed by evidence-storage failure. No new dependencies,
+foundation logic, generic permissions or orchestration abstractions were added.
+
+Supported deployment remains Beads 1.3.2 embedded Git workspaces on Linux. Beads
+owns native claim and guard behavior; simultaneous embedded writers and server
+mode are not certified. Unknown write outcomes require inspection before a manual
+retry. Creation and commenting do not acquire an exactly-once guarantee. Evidence
+association retains its tested idempotent reference behavior. Normal lifecycle
+access and restricted inspection use the same existing operator policy with
+separate command grants. Operators must renew exact-version or wheel trust for
+`devkit-beads` 0.2.0. The next useful step is a selected repository pilot; strict
+filesystem read-only operation is no longer a roadmap prerequisite.
