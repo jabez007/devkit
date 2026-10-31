@@ -913,3 +913,52 @@ read-only access, via a verified upstream fix or separately tested supported mod
 review evidence retention and diagnostics; (3) expand the Beads compatibility
 matrix only when that usage identifies a concrete need. Task writes and agent
 orchestration remain separately scoped.
+
+
+## Writable Beads integration design
+
+The v0.6 read-only scope was an initial delivery choice, not an architectural
+constraint. Normal development now needs explicit create, claim, update, comment,
+and close commands. Beads remains authoritative for identity, transitions,
+conflicts, dependencies and closure rules. Inspection remains an optional
+restricted policy configuration, with no task mutations granted.
+
+Reuse `Beads.workspace`, qualified references, the shared subprocess supervisor,
+`CommandSpec` input schemas, exact-command policy grants and invocation evidence.
+Evidence association continues to use `RunStore.reference` unchanged. No core
+lifecycle logic, permission framework, issue cache, retry database or orchestration
+is needed. The adapter's CLI seam will distinguish queries from explicit writes.
+A small extraction of supervised invocation prevents duplicated process handling;
+it is verified and committed separately before adding mutation behavior.
+
+Expose `beads.item.create`, `beads.item.claim`, `beads.item.update`,
+`beads.item.comment`, and `beads.item.close`. Require an explicit audit actor for
+writes. Limit updates to ordinary fields and non-closed standard statuses, with
+optional native Beads compare-and-set guards. Closing has its own command grant.
+No force, delete, purge, migration, arbitrary argv, automatic next-task selection,
+or administrative command is exposed. Writes use Beads 1.3.2's supported CLI,
+retain `--sandbox` to suppress automatic Dolt pushes, and declare all existing
+effects conservatively because native writes can run configured maintenance/hooks.
+Actor is an audit label, not a new authorization identity. Operator policy grants
+remain the authority for trusted users and agents.
+
+Use one policy example with separately listed command grants. Omitting the five
+mutation grants retains the restricted configuration. Effects alone do not grant
+commands. No additional profile or repository-controlled permission switch is
+needed. Bump only devkit-beads to 0.2.0 so exact-version trust must be renewed.
+
+Evidence association remains idempotent and never completes a task. Other writes
+are issued once, with no automatic replay. Beads owns atomic claiming and guarded
+updates. Creation may supply an explicit qualified reference for reconciliation.
+Comments and generated-ID creation can duplicate on manual retry after an unknown
+outcome; report uncertainty rather than invent exactly-once semantics. Validate
+successful response identity and shape before claiming success. Cancellation,
+timeout, nonzero exit and malformed replies may follow a committed write.
+
+Tests will cover actual CLI writes in disposable Go and Odoo Git repositories,
+native claim/guard conflicts, closure blockers, audit actors, literal flag-like
+text, denied writes before process execution, all invocation interfaces, restricted
+configuration, interrupted/malformed writes, and existing association retries.
+Run the full lint, format, strict typing, import, pytest and installed-wheel gates.
+Baseline complexity passes at threshold 10. The current query function measures
+7; extraction keeps process policy local. No unrelated cleanup is required.

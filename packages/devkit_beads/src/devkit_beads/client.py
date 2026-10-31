@@ -8,7 +8,7 @@ from pathlib import Path
 from uuid import UUID
 
 from devkit.contracts import Context, JSONObject, Status
-from devkit.processes import run_process
+from devkit.processes import ProcessResult, run_process
 
 SUPPORTED_VERSION = "1.3.2"
 ISSUE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\Z")
@@ -93,16 +93,19 @@ class Beads:
             BEADS_DIR=str(self.directory), BD_DISABLE_METRICS="1", DO_NOT_TRACK="1"
         )
 
-    def query(self, *arguments: str) -> object:
+    def _invoke(self, arguments: list[str]) -> ProcessResult:
         if self.context.cancellation.is_set():
             raise BeadsError("cancelled", "CANCELLED", "Beads inspection cancelled")
         if time.monotonic() >= self.context.deadline:
             raise BeadsError("error", "TIMEOUT", "Beads inspection deadline exceeded")
-        result = run_process(
-            ["bd", "--readonly", "--sandbox", "--json", *arguments],
+        return run_process(
+            arguments,
             self.context,
             environment=self.environment,
         )
+
+    def query(self, *arguments: str) -> object:
+        result = self._invoke(["bd", "--readonly", "--sandbox", "--json", *arguments])
         if result.reason:
             statuses: dict[str, Status] = {"MISSING_TOOL": "blocked", "CANCELLED": "cancelled"}
             status = statuses.get(result.reason, "error")
