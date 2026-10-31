@@ -112,10 +112,28 @@ It does not verify signatures, dependencies, import-path shadowing, cached code,
 or modifications after activation. Continue to use trusted installation and
 runtime isolation; this is a content check, not execution isolation.
 
-Command grants bind a command to one project, declared effects, and surfaces.
+Legacy command grants bind a command to one project, declared effects, and surfaces.
 The top-level `deny = ["command.id"]` list overrides grants. Policy is checked
 again on each invocation; changing repository settings cannot grant permission.
-Only one project grant per command is supported by the current policy format.
+For several repositories, define reusable profiles in the operator policy:
+
+```toml
+[profiles.odoo_static]
+projects = ["/absolute/path/to/repo-one", "/absolute/path/to/repo-two"]
+
+[profiles.odoo_static.commands."odoo.module.validate"]
+effects = ["read_fs"]
+surfaces = ["cli", "python", "mcp"]
+```
+
+Each project must be an explicitly listed, canonical absolute path. There are no
+wildcards or implicit descendant scopes. Adding a project to this external
+operator file is the approval step; repository configuration cannot enroll itself.
+A profile may contain `deny = ["command.id"]` beside `projects`. Any applicable
+denial wins over other profiles and legacy grants. One complete grant must allow
+the command's effects and requested surface; fragments from different profiles
+are never combined. Plugin trust remains separate. Profiles in `devkit.toml`
+still select checks and cannot define operator grants.
 
 Go tests execute repository code and require all five effects: `read_fs`,
 `write_fs`, `execute_process`, `network_read`, and `network_write`. Grant MCP

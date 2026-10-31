@@ -332,7 +332,7 @@ strict_dependencies = false
 verify = ["go.tests", "odoo.manifests"]
 ```
 
-Operator grants live outside the project at `$XDG_CONFIG_HOME/devkit/policy.toml`, default `~/.config/devkit/policy.toml`. The file must not be group/world writable. `[trusted_plugins]` maps normalized distribution names to exact versions; `[commands."command.id"]` supplies an absolute `project`, allowed `effects`, and `surfaces`. Top-level `deny` overrides grants. One project grant per command is supported. Neither project configuration nor an ordinary flag can widen permissions. See the [policy example](../examples/policy.toml).
+Operator grants live outside the project at `$XDG_CONFIG_HOME/devkit/policy.toml`, default `~/.config/devkit/policy.toml`. The file must not be group/world writable. `[trusted_plugins]` maps normalized distribution names to exact versions or approved wheel pins. Legacy `[commands."command.id"]` supplies an absolute `project`, allowed `effects`, and `surfaces`. Reusable `[profiles.name]` tables list canonical absolute `projects` and their command grants. Adding an exact path to the operator profile is the enrollment approval; repositories cannot select operator profiles. Top-level and applicable profile denials override all grants. Permissions from separate grants are never combined into a broader grant. See the [policy example](../examples/policy.toml).
 
 Do not run package installation as part of ordinary command execution. A working tree without `devkit.toml` may run generic `doctor`; plugin checks require selection through project or user settings. User settings live at `$XDG_CONFIG_HOME/devkit/settings.toml`. State uses `$XDG_STATE_HOME/devkit`, default `~/.local/state/devkit`, with no upstream state imports.
 

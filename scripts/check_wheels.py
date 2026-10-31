@@ -117,6 +117,21 @@ def exercise_template(root, wheels, constraints):
     policy(root, project, ["example"], {"example.greet": []})
     result = cli(root, project, env, "run", "example.greet", "--args", '{"name":"Dev"}')
     assert result["result"]["data"] == {"greeting": "Hello, Dev"}
+    second = root / "second-project"
+    second.mkdir()
+    (second / "devkit.toml").write_text('plugins=["example"]')
+    (root / "config/devkit/policy.toml").write_text(
+        '[trusted_plugins]\ndevkit-example="0.1.0"\n[profiles.shared]\n'
+        f"projects={json.dumps([str(project), str(second)])}\n"
+        '[profiles.shared.commands."example.greet"]\neffects=[]\nsurfaces=["cli"]\n'
+    )
+    for selected in (project, second):
+        assert (
+            cli(root, selected, env, "run", "example.greet", "--args", '{"name":"Dev"}')["result"][
+                "status"
+            ]
+            == "success"
+        )
     print("PASS: independently built plugin template")
 
 

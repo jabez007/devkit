@@ -14,3 +14,10 @@ surfaces = ["cli", "python"]
 project = "/absolute/path/to/project"
 effects = ["read_fs"]
 surfaces = ["cli", "python", "mcp"]
+
+# Alternative to repeating a command grant for several projects:
+# [profiles.odoo_static]
+# projects = ["/absolute/path/to/repo-one", "/absolute/path/to/repo-two"]
+# [profiles.odoo_static.commands."odoo.module.validate"]
+# effects = ["read_fs"]
+# surfaces = ["cli", "python", "mcp"]

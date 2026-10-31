@@ -7,6 +7,11 @@ from devkit.config import config_root, read_toml
 from devkit.contracts import EFFECTS, SURFACES, CommandSpec, DevkitError, JSONObject
 from devkit.schemas import validate
 
+GRANT_PROPERTIES: JSONObject = {
+    "effects": {"type": "array", "items": {"enum": sorted(EFFECTS)}},
+    "surfaces": {"type": "array", "items": {"enum": sorted(SURFACES)}},
+}
+
 POLICY_SCHEMA: JSONObject = {
     "type": "object",
     "additionalProperties": False,
@@ -38,8 +43,33 @@ POLICY_SCHEMA: JSONObject = {
                 "required": ["project", "effects", "surfaces"],
                 "properties": {
                     "project": {"type": "string"},
-                    "effects": {"type": "array", "items": {"enum": sorted(EFFECTS)}},
-                    "surfaces": {"type": "array", "items": {"enum": sorted(SURFACES)}},
+                    **GRANT_PROPERTIES,
+                },
+            },
+        },
+        "profiles": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["projects", "commands"],
+                "properties": {
+                    "projects": {
+                        "type": "array",
+                        "minItems": 1,
+                        "uniqueItems": True,
+                        "items": {"type": "string", "pattern": "^/"},
+                    },
+                    "deny": {"type": "array", "items": {"type": "string"}},
+                    "commands": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "object",
+                            "additionalProperties": False,
+                            "required": ["effects", "surfaces"],
+                            "properties": GRANT_PROPERTIES,
+                        },
+                    },
                 },
             },
         },
@@ -52,6 +82,7 @@ class Policy:
     trusted_plugins: JSONObject = field(default_factory=dict)
     commands: JSONObject = field(default_factory=dict)
     deny: tuple[str, ...] = ()
+    profiles: JSONObject = field(default_factory=dict)
 
     def trusts(self, name: str, version: str, artifact_sha256: str | None = None) -> bool:
         trust = self.trusted_plugins.get(name)
@@ -60,18 +91,28 @@ class Policy:
         return bool(trust and trust["version"] == version and trust["sha256"] == artifact_sha256)
 
     def allows(self, spec: CommandSpec, project: Path, surface: str) -> bool:
-        if spec.id in self.deny or surface not in spec.surfaces:
+        scoped = [p for p in self.profiles.values() if str(project) in p["projects"]]
+        denied = spec.id in self.deny or any(spec.id in p.get("deny", []) for p in scoped)
+        if denied or surface not in spec.surfaces:
             return False
         if spec.id in {"core.doctor", "core.check"} and surface != "mcp":
             return True
         grant = self.commands.get(spec.id)
-        return bool(
+        legacy = bool(
             grant
             and Path(grant["project"]).is_absolute()
             and Path(grant["project"]).resolve() == project
             and spec.effects <= set(grant["effects"])
             and surface in grant["surfaces"]
         )
+        return legacy or any(
+            _covers(profile["commands"].get(spec.id), spec, surface) for profile in scoped
+        )
+
+
+def _covers(grant: JSONObject | None, spec: CommandSpec, surface: str) -> bool:
+    # One complete grant must authorize a call; never union fragments from different profiles.
+    return bool(grant and spec.effects <= set(grant["effects"]) and surface in grant["surfaces"])
 
 
 def load_policy(project: Path) -> Policy:
@@ -83,8 +124,15 @@ def load_policy(project: Path) -> Policy:
     data = read_toml(path)
     try:
         validate(data, POLICY_SCHEMA)
+        for profile in data.get("profiles", {}).values():
+            for scope in profile["projects"]:
+                if str(Path(scope).resolve()) != scope:
+                    raise ValueError("Profile projects must be canonical absolute paths")
     except Exception as exc:
         raise DevkitError("INVALID_POLICY", "Invalid operator policy") from exc
     return Policy(
-        data.get("trusted_plugins", {}), data.get("commands", {}), tuple(data.get("deny", []))
+        data.get("trusted_plugins", {}),
+        data.get("commands", {}),
+        tuple(data.get("deny", [])),
+        data.get("profiles", {}),
     )
