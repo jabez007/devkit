@@ -40,8 +40,12 @@ persisted evidence and `runs show`. All fixture invocations remain offline.
 | csv_empty | Empty-file failure matching the loader's header requirement. |
 | csv_unsupported | Nested import layout blocks without partial declarations. |
 | csv_quotes | Commas, multiline values, repeated/empty IDs and inert code-like text. |
+| cycle_custom | Three custom addons in a loop, with an unknown standard dependency and selected-module variants. |
+| cycle_self | A module depends on itself. |
+| cycle_dag | Shared dependencies and duplicate declarations form an acyclic graph. |
+| cycle_external | A loop crosses custom and external addon paths. |
 
-The corpus now has twenty layouts and twenty-six CLI scenarios.
+The corpus now has twenty-four layouts and thirty-three CLI scenarios.
 
 Additional cases use arguments to select one module, require certainty, request
 an unsafe addons path, or assert completeness over an unavailable path. Python

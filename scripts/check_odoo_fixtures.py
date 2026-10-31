@@ -66,7 +66,13 @@ def exercise_case(binary, root, case):
 
 
 def _assert_domain_details(case, data):
-    for key in ("xml_counts", "xml_reference_counts", "csv_counts", "csv_reference_counts"):
+    for key in (
+        "xml_counts",
+        "xml_reference_counts",
+        "csv_counts",
+        "csv_reference_counts",
+        "dependency_graph",
+    ):
         if key in case:
             assert data[key] == case[key], data
     for kind in ("xml", "csv"):

@@ -6,7 +6,7 @@ timeout = 90
 target_version = "19.0"
 addons_paths = ["addons"]
 strict_dependencies = false
-# Declared XML and CSV data/demo files are inspected automatically.
+# Declared XML/CSV files and dependency cycles among inspected manifests are checked.
 
 # A successful scan does not imply a complete inventory. Unknown dependencies
 # remain unverified; strict_dependencies=true blocks when certainty is needed.

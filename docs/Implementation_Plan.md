@@ -254,6 +254,62 @@ new cases. It also exposed that cancellation during the new graph phase must
 share the existing validation error handler. Move that handler to encompass both
 inspection phases, avoiding a second handler or a new wrapper.
 
+### v0.5 completion evidence
+
+Completed in two tested slices: cycle analysis with coverage and cancellation;
+representative acceptance, public evaluation and versioned documentation.
+devkit-odoo is 0.5.0 with specialization data schema 1.4. The foundation remains
+0.1.1 and Go/MCP remain 0.1.0. There are no dependency or generic contract changes.
+Update exact plugin trust and approved wheel digests when upgrading Odoo.
+
+The feature slice passed 225 tests and all six independent wheel scenarios. The
+new tests were observed failing before implementation. Cancellation during graph
+analysis initially became an error; sharing the existing validation handler
+fixed that regression. An older XML test used a self-dependency to simulate a
+complete inventory. It now uses a separate synthetic base addon so its original
+XML-ID coverage assertion remains intact without an invalid dependency loop.
+
+Final commands executed October 31, 2026:
+
+| Command | Observed result |
+| --- | --- |
+| `.venv/bin/ruff check .` | Passed, including complexity limit 10. |
+| `.venv/bin/ruff format --check .` | Passed; 120 Python files formatted. |
+| `.venv/bin/mypy` | Passed; 26 source files under strict checking. |
+| `.venv/bin/lint-imports` | Passed; foundation optional-import boundary kept. |
+| `.venv/bin/pytest -q` | 234 passed in 62.01 seconds. |
+| `.venv/bin/python scripts/check_wheels.py` | All six independent installation scenarios passed, including 33 Odoo CLI cases. |
+| `.venv/bin/python scripts/check_odoo_fixtures.py .venv/bin/devkit` | 33 cases passed with persisted evidence, retrieval and text diagnostics. |
+
+A separate Ruff measurement found a maximum of 8 in changed runtime code and
+the fixture assertion helper. `_inspect` decreased from 8 to 7; `_outcome`
+increased from 7 to 8 to classify confirmed cycles. No complexity suppressions
+were added. Graph behavior stays in the existing dependency module. No additional
+cleanup or new abstraction was needed. Process/MCP and wheel tests ran on the
+host because restricted sandbox stdio cannot complete them. No required gate was
+skipped. Local links in all five edited Markdown documents were checked.
+
+The fixture corpus has 24 layouts and 33 CLI scenarios. Seven new cycle scenarios
+cover self-dependency, three-module loops with unknown dependencies, selected
+modules, shared-dependency DAGs and loops across addon paths. MCP parity adds a
+confirmed cycle failure and a selected-module success with explicit graph gaps.
+Tests preserve P1 artifact trust, policy profiles, evidence retention, Go
+independence and foundation-only operation. A 500-module cycle retains its full
+closed witness in evidence while bounding the human summary.
+
+[Public evaluation](Odoo_Validation.md#v05-public-repository-evaluation) examined
+133 manifests and 19 known edges in two pinned OCA repositories. No cycles were
+observed. The 156 unknown dependency declarations were excluded explicitly;
+ordinary validation succeeded and strict validation blocked on incomplete
+inventory. Evidence and retrieval matched, and both checkouts remained clean.
+These snapshots establish correct coverage reporting, while synthetic fixtures
+establish cycle detection.
+
+One witness does not enumerate every cycle. Uninspected manifests, unresolved
+edges and runtime effects remain outside graph coverage. A selected-module check
+retains its existing read scope. No installation order, full solver or runtime
+compatibility guarantee was introduced.
+
 ### v0.4 bounded CSV identifier inspection design
 
 Extend the existing Odoo command to inspect manifest-declared CSV data/demo files.
@@ -596,11 +652,12 @@ The fresh-build direction and first-release scope are confirmed and implemented.
 
 Prioritize the next practical milestone as follows:
 
-1. Use v0.3's unknown-reference evidence to select one useful additional static
-   check. Literal CSV XML-ID declarations are a candidate, but parsing them must
-   preserve load ordering and cannot establish runtime record existence.
-2. Evaluate direct dependency cycle diagnostics against representative projects
-   before committing to a solver or broader graph infrastructure.
+1. Pilot the existing checks in a development CI workflow. Document installation,
+   exact operator trust, exit-status handling and evidence retrieval/retention for
+   both Go and offline Odoo, without a new adapter or framework.
+2. Use that adoption feedback to select the next static check or output improvement.
+   v0.4 CSV inspection and v0.5 observed-cycle diagnostics are implemented; neither
+   establishes runtime record existence or global dependency completeness.
 3. Schedule live runtime validation only with an explicitly agreed disposable
    Odoo environment. Beads and orchestration remain separately scoped proposals.
 

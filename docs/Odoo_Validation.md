@@ -135,7 +135,7 @@ upgrade behavior or database correctness.
 
 The [synthetic repositories](../tests/fixtures/odoo/README.md) cover custom-only,
 internal, external OCA-style, complete, duplicate, invalid, unsafe and optional
-addon cases, plus the XML and CSV scenarios below. Twenty-six CLI scenarios assert
+addon cases, plus XML, CSV and cycle scenarios below. Thirty-three CLI scenarios assert
 statuses and relationships, text output,
 persisted evidence and `runs show`. The same script runs against a separately
 installed Odoo-only wheel. Python/CLI/MCP parity tests also cover successful,
@@ -359,6 +359,12 @@ Generated model IDs and external modules remain outside the source inventory.
 
 ## Dependency cycles in v0.5
 
+This milestone ships devkit-odoo 0.5.0 with specialization data schema 1.4. Update
+exact plugin trust and any approved wheel digest when upgrading. The foundation,
+Go and MCP versions and generic result envelope are unchanged. Existing data
+fields remain; consumers matching exact specialization versions must accept 1.4.
+Previously accepted self-dependencies or longer cycles now fail intentionally.
+
 `odoo.module.validate` checks dependency edges among the manifests it inspects.
 A confirmed loop fails with `DEPENDENCY_CYCLE`, even when unrelated dependencies
 remain unknown. A self-dependency is also a cycle. Human output shows one closed
@@ -410,3 +416,20 @@ contains a bounded preview. There is no transitive solver or installation-order
 promise. Odoo's pinned [module graph](https://github.com/odoo/odoo/blob/005e0a0eb7ef80cd15b0c82b570b2b0843181ba2/odoo/modules/module_graph.py)
 skips modules in dependency loops, but static validation does not establish
 runtime compatibility.
+
+### v0.5 public repository evaluation
+
+On October 31, 2026, devkit-odoo 0.5.0 rechecked the same pinned public snapshots
+without modifying their files or executing addon code:
+
+| Snapshot | Inspected manifests | Included edges | Unknown declarations excluded | Graph result |
+| --- | --- | --- | --- | --- |
+| [OCA/server-tools](https://github.com/OCA/server-tools/tree/389daeb98a8e21fe11594bdddef873bb07d0cb61) | 30 | 2 | 30 | No cycle observed. |
+| [OCA/sale-workflow](https://github.com/OCA/sale-workflow/tree/b2cb74591c66882b91264106abc5229e200f5bff) | 103 | 17 | 126 | No cycle observed. |
+
+All inventory manifests were inspected, but the unknown dependencies prevent any
+claim about cycles through unavailable modules. Ordinary validation succeeded;
+strict validation still blocked with `INCOMPLETE_INVENTORY`. XML and CSV findings
+were unchanged from v0.4. CLI results matched persisted evidence and `runs show`,
+and both checkouts remained clean. These snapshots validate coverage reporting;
+synthetic fixtures establish the cycle-failure behavior.

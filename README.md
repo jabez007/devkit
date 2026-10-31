@@ -5,12 +5,12 @@ plugins for a project, and authorize their commands through an operator policy.
 The CLI, Python API, and optional local MCP server share validation, authorization,
 and evidence handling.
 
-The v0.4 milestone adds bounded CSV identifier inspection to offline Odoo 19
-validation. XML and CSV share literal reference resolution in manifest order,
-alongside explicit module-dependency coverage and Go checks.
+The v0.5 milestone adds dependency-cycle diagnostics to offline Odoo 19
+validation. It reports confirmed loops among inspected manifests alongside bounded
+XML/CSV inspection, explicit dependency coverage and Go checks.
 It needs no Odoo server, Docker, Beads, or model credentials. Package names and
 the plugin API remain provisional; these distributions have not been published.
-Packages version independently: Odoo is 0.4.0, the foundation diagnostic patch is
+Packages version independently: Odoo is 0.5.0, the foundation diagnostic patch is
 0.1.1, and unchanged Go/MCP distributions remain 0.1.0. Update exact operator
 trust and any wheel digest when upgrading Odoo. The generic plugin contract and
 evidence envelope retain their existing versions.
@@ -42,7 +42,7 @@ uv venv /tmp/devkit-install --python 3.12
 uv pip install --python /tmp/devkit-install/bin/python dist/devkit-0.1.1-py3-none-any.whl
 # Add only the plugins and adapters you need:
 uv pip install --python /tmp/devkit-install/bin/python dist/devkit_go-0.1.0-py3-none-any.whl
-uv pip install --python /tmp/devkit-install/bin/python dist/devkit_odoo-0.4.0-py3-none-any.whl
+uv pip install --python /tmp/devkit-install/bin/python dist/devkit_odoo-0.5.0-py3-none-any.whl
 uv pip install --python /tmp/devkit-install/bin/python dist/devkit_mcp-0.1.0-py3-none-any.whl
 ```
 
@@ -85,7 +85,7 @@ replace the example project paths with the project's absolute path.
 
 ```toml
 [trusted_plugins]
-devkit-odoo = "0.4.0"
+devkit-odoo = "0.5.0"
 
 [commands."odoo.module.validate"]
 project = "/absolute/path/to/project"
@@ -100,8 +100,8 @@ trusted build or download process:
 
 ```toml
 [trusted_plugins.devkit-odoo]
-version = "0.4.0"
-wheel = "/absolute/operator/path/devkit_odoo-0.4.0-py3-none-any.whl"
+version = "0.5.0"
+wheel = "/absolute/operator/path/devkit_odoo-0.5.0-py3-none-any.whl"
 sha256 = "<64 lowercase hexadecimal characters>"
 ```
 
@@ -187,6 +187,10 @@ Declared CSV is also inspected for flat structure, UTF-8, IDs and direct relatio
 references. XML can use earlier CSV declarations and CSV can use earlier XML or
 CSV declarations. Unsupported layouts block coverage; empty files and invalid
 UTF-8 fail. Ordinary cell values are never executed or returned in evidence.
+Dependency cycles among inspected manifests fail with a closed path to review.
+Unknown dependencies and uninspected manifests remain explicit gaps; selecting
+one module does not inspect its dependencies' manifests. No cycle observed is
+not a claim that the runtime installation is cycle-free.
 See [Odoo validation](docs/Odoo_Validation.md) for multiple addon
 paths, scoped completeness, coverage, bounds, and result-schema compatibility. The profile follows [this pinned Odoo 19 source](https://github.com/odoo/odoo/blob/005e0a0eb7ef80cd15b0c82b570b2b0843181ba2/odoo/modules/module.py).
 
@@ -331,7 +335,7 @@ action releases. Ruff includes a maximum cyclomatic complexity of 10;
 strict typing covers the runtime packages. The wheel matrix builds packages and
 tests six fresh environments: foundation, Go, offline Odoo, plugin template,
 artifact-pinned installation, and combined plugins with MCP. The Odoo-only
-environment also runs all 26 representative CLI fixture cases and evidence
+environment also runs all 33 representative CLI fixture cases and evidence
 retrieval. Stdio/process tests require a host runtime that
 supports child process communication; they do not complete in this agent's
 restricted execution sandbox.

@@ -29,6 +29,8 @@ def parameters(project):
         ("unknown", {"strict_dependencies": True}, 2),
         ("unknown", {"inventory": {"complete": True}}, 1),
         ("invalid", {}, 1),
+        ("cycle", {}, 1),
+        ("cycle", {"module": "example", "strict_dependencies": True}, 0),
         ("resolved", {"strict_dependencies": True}, 0),
         ("xml_valid", {}, 0),
         ("xml_malformed", {}, 1),
@@ -42,10 +44,12 @@ def test_stdio_parity_and_denials(odoo_project, mode, arguments, exit_code):
     project, module = odoo_project
     if mode == "invalid":
         (module / "__manifest__.py").write_text("{'name': 'Bad', 'depends': ['../escape']}")
-    if mode == "resolved":
+    if mode in {"resolved", "cycle"}:
         base = project / "addons/base"
         base.mkdir()
-        (base / "__manifest__.py").write_text("{'name': 'Base', 'depends': []}")
+        (base / "__manifest__.py").write_text(
+            repr({"name": "Base", "depends": ["example"] if mode == "cycle" else []})
+        )
     if mode.startswith(("xml_", "csv_")):
         addon = "acme_csv" if mode.startswith("csv_") else "acme_xml"
         fixture = Path("tests/fixtures/odoo") / mode / "addons" / addon

@@ -1,0 +1,4 @@
+plugins = ["odoo"]
+
+[options.odoo]
+addons_paths = ["addons", "vendor/oca"]

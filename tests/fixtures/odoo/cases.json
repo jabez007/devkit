@@ -513,5 +513,219 @@
     },
     "reference_reasons": [],
     "csv_reference_reasons": []
+  },
+  {
+    "fixture": "cycle_custom",
+    "status": "failed",
+    "reason": "DEPENDENCY_CYCLE",
+    "counts": [
+      3,
+      0,
+      1,
+      0
+    ],
+    "arguments": {},
+    "dependency_graph": {
+      "status": "cycle",
+      "scope": "inspected_manifests",
+      "node_count": 3,
+      "edge_count": 3,
+      "cycle": [
+        "acme_rules",
+        "acme_sales",
+        "acme_stock",
+        "acme_rules"
+      ],
+      "uninspected_modules": [],
+      "excluded_edge_counts": {
+        "missing": 0,
+        "unknown": 1,
+        "invalid": 0,
+        "uninspected_target": 0
+      }
+    }
+  },
+  {
+    "fixture": "cycle_custom",
+    "status": "failed",
+    "reason": "DEPENDENCY_CYCLE",
+    "counts": [
+      3,
+      0,
+      1,
+      0
+    ],
+    "arguments": {
+      "strict_dependencies": true
+    },
+    "dependency_graph": {
+      "status": "cycle",
+      "scope": "inspected_manifests",
+      "node_count": 3,
+      "edge_count": 3,
+      "cycle": [
+        "acme_rules",
+        "acme_sales",
+        "acme_stock",
+        "acme_rules"
+      ],
+      "uninspected_modules": [],
+      "excluded_edge_counts": {
+        "missing": 0,
+        "unknown": 1,
+        "invalid": 0,
+        "uninspected_target": 0
+      }
+    }
+  },
+  {
+    "fixture": "cycle_custom",
+    "status": "success",
+    "reason": null,
+    "counts": [
+      1,
+      0,
+      1,
+      0
+    ],
+    "arguments": {
+      "module": "acme_sales"
+    },
+    "dependency_graph": {
+      "status": "no_cycle_observed",
+      "scope": "inspected_manifests",
+      "node_count": 1,
+      "edge_count": 0,
+      "cycle": [],
+      "uninspected_modules": [
+        "acme_rules",
+        "acme_stock"
+      ],
+      "excluded_edge_counts": {
+        "missing": 0,
+        "unknown": 1,
+        "invalid": 0,
+        "uninspected_target": 1
+      }
+    }
+  },
+  {
+    "fixture": "cycle_custom",
+    "status": "blocked",
+    "reason": "INCOMPLETE_INVENTORY",
+    "counts": [
+      1,
+      0,
+      1,
+      0
+    ],
+    "arguments": {
+      "module": "acme_sales",
+      "strict_dependencies": true
+    },
+    "dependency_graph": {
+      "status": "no_cycle_observed",
+      "scope": "inspected_manifests",
+      "node_count": 1,
+      "edge_count": 0,
+      "cycle": [],
+      "uninspected_modules": [
+        "acme_rules",
+        "acme_stock"
+      ],
+      "excluded_edge_counts": {
+        "missing": 0,
+        "unknown": 1,
+        "invalid": 0,
+        "uninspected_target": 1
+      }
+    }
+  },
+  {
+    "fixture": "cycle_self",
+    "status": "failed",
+    "reason": "DEPENDENCY_CYCLE",
+    "counts": [
+      1,
+      0,
+      0,
+      0
+    ],
+    "arguments": {},
+    "dependency_graph": {
+      "status": "cycle",
+      "scope": "inspected_manifests",
+      "node_count": 1,
+      "edge_count": 1,
+      "cycle": [
+        "acme_self",
+        "acme_self"
+      ],
+      "uninspected_modules": [],
+      "excluded_edge_counts": {
+        "missing": 0,
+        "unknown": 0,
+        "invalid": 0,
+        "uninspected_target": 0
+      }
+    }
+  },
+  {
+    "fixture": "cycle_dag",
+    "status": "success",
+    "reason": null,
+    "counts": [
+      5,
+      0,
+      0,
+      0
+    ],
+    "arguments": {
+      "strict_dependencies": true
+    },
+    "dependency_graph": {
+      "status": "no_cycle_observed",
+      "scope": "inspected_manifests",
+      "node_count": 4,
+      "edge_count": 4,
+      "cycle": [],
+      "uninspected_modules": [],
+      "excluded_edge_counts": {
+        "missing": 0,
+        "unknown": 0,
+        "invalid": 0,
+        "uninspected_target": 0
+      }
+    }
+  },
+  {
+    "fixture": "cycle_external",
+    "status": "failed",
+    "reason": "DEPENDENCY_CYCLE",
+    "counts": [
+      2,
+      0,
+      0,
+      0
+    ],
+    "arguments": {},
+    "dependency_graph": {
+      "status": "cycle",
+      "scope": "inspected_manifests",
+      "node_count": 2,
+      "edge_count": 2,
+      "cycle": [
+        "acme_sales",
+        "vendor_module",
+        "acme_sales"
+      ],
+      "uninspected_modules": [],
+      "excluded_edge_counts": {
+        "missing": 0,
+        "unknown": 0,
+        "invalid": 0,
+        "uninspected_target": 0
+      }
+    }
   }
 ]

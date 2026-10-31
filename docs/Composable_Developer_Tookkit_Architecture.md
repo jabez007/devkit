@@ -145,7 +145,7 @@ Use Python wheels and `importlib.metadata.entry_points()`; do **not** build a ne
 # Current Odoo plugin registration
 [project]
 name = "devkit-odoo"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = ["devkit>=0.1,<0.2"]
 
 [project.entry-points."devkit.specializations.v1"]
@@ -484,6 +484,7 @@ State formats belong to this project. Future changes to persisted devkit state w
 - D9. v0.2 deepens the existing offline specialization. Dependency presence and inventory completeness are distinct; strict incomplete coverage blocks instead of asserting a module defect. Completeness claims remain explicit and visible in evidence. No generic solver or plugin-contract expansion is needed.
 - D10. v0.3 extends the same command with bounded XML syntax and conservative literal reference diagnostics. XML-ID coverage is independent of module-inventory completeness. Unknown references remain advisory; malformed XML fails and unsupported inspection blocks. The specialization uses the standard-library parser and additive data schema 1.2, without a new plugin contract or runtime solver.
 - D11. v0.4 adds bounded CSV identifiers to the same source-order resolver. Direct literal references share XML/CSV ordering, while runtime model metadata and relational cardinality remain unverified. Strict CSV parser rejection is missing coverage because Odoo's reader is permissive. Data schema 1.3 adds CSV evidence without a generic contract change or new dependency.
+- D12. v0.5 checks known dependency edges among already inspected manifests, using the standard-library graph implementation. A confirmed cycle fails, while absent evidence never establishes global acyclicity. Selecting a module retains its existing read scope. Schema 1.4 adds one cycle witness and explicit graph coverage; there is no transitive solver or generic contract change.
 
 **Proposed decisions (approve or amend):**
 
