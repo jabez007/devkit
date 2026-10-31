@@ -79,7 +79,9 @@ def absent(root, project, env, names):
 
 def exercise_foundation(root, wheels, constraints):
     project, env = install(root, wheels, ["devkit"], constraints)
-    absent(root, project, env, ["devkit_go", "devkit_odoo", "mcp", "docker", "odoo"])
+    absent(
+        root, project, env, ["devkit_go", "devkit_odoo", "devkit_beads", "mcp", "docker", "odoo"]
+    )
     doctor = cli(root, project, env, "doctor")
     assert doctor["result"]["status"] == "success"
     assert not cli(root, project, env, "plugins")["result"]["data"]["plugins"]
@@ -98,7 +100,7 @@ def exercise_foundation(root, wheels, constraints):
 
 def exercise_go(root, wheels, constraints):
     project, env = install(root, wheels, ["devkit", "devkit_go"], constraints)
-    absent(root, project, env, ["devkit_odoo", "mcp", "odoo"])
+    absent(root, project, env, ["devkit_odoo", "devkit_beads", "mcp", "odoo"])
     (project / "devkit.toml").write_text('plugins=["go"]\ntimeout=90\n')
     (project / "go.mod").write_text("module example.test/wheel\ngo 1.22\n")
     test = project / "sample_test.go"
@@ -117,7 +119,7 @@ def exercise_go(root, wheels, constraints):
 
 def exercise_odoo(root, wheels, constraints):
     project, env = install(root, wheels, ["devkit", "devkit_odoo"], constraints)
-    absent(root, project, env, ["devkit_go", "mcp", "odoo", "docker"])
+    absent(root, project, env, ["devkit_go", "devkit_beads", "mcp", "odoo", "docker"])
     (project / "devkit.toml").write_text('plugins=["odoo"]\n[profiles]\nstatic=["odoo.manifests"]')
     module = project / "addons/example"
     module.mkdir(parents=True)
@@ -265,6 +267,14 @@ def main():
             target = root / exercise.__name__
             target.mkdir()
             exercise(target, wheels, constraints)
+        for script in ("check_third_party.py", "check_beads_wheels.py"):
+            run(
+                sys.executable,
+                str(ROOT / "scripts" / script),
+                str(root / script.removesuffix(".py")),
+                str(wheels),
+                str(constraints),
+            )
 
 
 if __name__ == "__main__":

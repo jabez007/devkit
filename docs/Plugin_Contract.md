@@ -115,3 +115,35 @@ metadata-only discovery and real stdio invocation from independent installations
 `devkit plugins validate` checks activation and environment prerequisites; it
 cannot prove a third-party handler's behavior or CLI/MCP equivalence. Keep those
 behavioral checks in the plugin's own automated suite.
+
+
+## Build an independent specialization from the template
+
+The [README whitespace specialization](../examples/readme_specialization.py)
+provides a second example with filesystem access, bounded inspection, actionable
+failure data, and blocked prerequisites. It depends only on `devkit.contracts`.
+To create it outside this checkout:
+
+1. Copy `examples/plugin` to a new directory.
+2. Change `devkit-example` to `devkit-textcheck`, `devkit_example` to
+   `devkit_textcheck`, and the entry-point name `example` to `textcheck` in
+   `pyproject.toml`. Also update the explicit Hatch wheel package path.
+3. Rename `src/devkit_example` and replace its `__init__.py` with
+   `examples/readme_specialization.py`. Its specialization, command and check IDs
+   already use the `textcheck` namespace.
+4. Build in that independent directory with `uv build`. Install its wheel with
+   the local foundation wheel into an isolated environment. The example does not
+   depend on this repository's workspace, test helpers, or optional packages.
+5. Select `plugins=["textcheck"]`, trust `devkit-textcheck="0.1.0"` in the external
+   policy, and grant `textcheck.readme` with `effects=["read_fs"]` on the desired
+   surfaces. Run it against a repository containing a UTF-8 `README.md`.
+6. Remove `textcheck` from project selection before uninstalling the wheel.
+   Leaving an uninstalled plugin selected produces an explicit activation error;
+   it is not silently ignored. Existing evidence remains readable after removal.
+
+[`check_third_party.py`](../scripts/check_third_party.py) performs these steps in
+a directory outside the checkout, builds and installs the resulting distribution,
+and checks discovery, trust, authorization, successful and failed CLI/Python/MCP
+results, persisted evidence, deactivation and uninstall. Another independent
+plugin remains usable throughout removal. The full wheel matrix invokes this
+acceptance test. This example requires no testing SDK or new plugin abstraction.

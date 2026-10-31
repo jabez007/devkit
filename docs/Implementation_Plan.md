@@ -1,7 +1,7 @@
 # Devkit implementation plan
 
-Status: First-release implementation complete; public publication is pending.\
-Date: October 30, 2026.\
+Status: v0.6 capabilities implemented; strict filesystem read-only Beads access remains an upstream limitation. Public publication is pending.\
+Date: October 31, 2026.\
 Scope: Build a new toolkit inspired by Crpaxton4/devcontainer-features.\
 First release: Go checks and offline Odoo validation, as selected by the project owner.
 
@@ -867,3 +867,49 @@ the Beads preservation interval. Ruff measurement reports maximum complexity 7
 for the changed process helper and Beads runtime, and 4 for the independent
 README example, below the configured threshold 10. No complexity suppression or
 new third-party Python dependency was introduced.
+
+
+### v0.6 verification and remaining limitation
+
+Executed October 31, 2026 using the locked workspace environment:
+
+| Command | Observed result |
+| --- | --- |
+| `.venv/bin/ruff check .` | Passed, including complexity maximum 10. |
+| `.venv/bin/ruff format --check .` | Passed; 133 Python files formatted. |
+| `.venv/bin/mypy` | Passed; 29 runtime source files checked strictly. |
+| `.venv/bin/lint-imports` | Passed; foundation cannot import the Beads or other optional packages. |
+| `.venv/bin/pytest -q` | 258 passed in 69.99 seconds. Includes the existing P1 regressions and Beads failures, cancellation, parity, revocation and retries. |
+| `DEVKIT_BEADS_BINARY=/tmp/devkit-beads-1.3.2/bd .venv/bin/python scripts/check_wheels.py` | Passed in 12 independent installed environments. Includes 33 Odoo CLI fixtures, seven CI recipe scenarios, a renamed third-party package, real Beads Go/Odoo workflows, and two foundation-only portable evidence readers. |
+
+The first wheel attempt caught the missing Git prerequisite. The next real
+acceptance attempt caught `show` changing the last-touched marker. After the
+exact-ID list correction, stronger timestamp checks identified identical-byte
+embedded Dolt rewrites. The final checks retain content and non-database marker
+preservation assertions and explicitly report this upstream limitation. No tests
+or complexity warnings were suppressed. Current Beads queries are logically
+read-only, but a strict no-filesystem-writes interpretation of the requested
+read-only criterion remains unmet. It should not be represented as established.
+
+The third-party exercise copies the existing template outside this checkout,
+renames its packaging and namespace, supplies the bounded README check, and
+builds a normal wheel. Its valid/failed results match on CLI, Python and MCP;
+non-regular input blocks without hanging. Discovery, trust, policy denial,
+evidence, deactivation and uninstall are exercised with an unrelated plugin
+remaining usable. Documentation now makes the Hatch package-path rename and
+uninstall/deactivation order explicit. No new plugin framework or testing SDK
+was necessary.
+
+Remaining scope: Beads 1.3.2 embedded Git repositories only; no concurrent-writer,
+server, worktree, redirect or other-version guarantee. Associations are local
+references with explicit operator removal, not continuously synchronized links.
+No Odoo validator, task lifecycle, orchestration, or public registry publication
+was added. The independent package versions are foundation 0.1.2, Beads 0.1.0,
+Go/MCP 0.1.0 and Odoo 0.5.0; plugin/evidence schemas remain 1.0.
+
+Next priorities: (1) establish a Beads profile that guarantees strict storage
+read-only access, via a verified upstream fix or separately tested supported mode;
+(2) adopt the existing integration in one selected development repository and
+review evidence retention and diagnostics; (3) expand the Beads compatibility
+matrix only when that usage identifies a concrete need. Task writes and agent
+orchestration remain separately scoped.

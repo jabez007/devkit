@@ -5,15 +5,13 @@ plugins for a project, and authorize their commands through an operator policy.
 The CLI, Python API, and optional local MCP server share validation, authorization,
 and evidence handling.
 
-The v0.5 milestone adds dependency-cycle diagnostics to offline Odoo 19
-validation. It reports confirmed loops among inspected manifests alongside bounded
-XML/CSV inspection, explicit dependency coverage and Go checks.
-It needs no Odoo server, Docker, Beads, or model credentials. Package names and
-the plugin API remain provisional; these distributions have not been published.
-Packages version independently: Odoo is 0.5.0, the foundation diagnostic patch is
-0.1.2, and unchanged Go/MCP distributions remain 0.1.0. Update exact operator
-trust and any wheel digest when upgrading Odoo. The generic plugin contract and
-evidence envelope retain their existing versions.
+The v0.6 milestone adds an optional [Beads integration](docs/Beads_Integration.md):
+inspect work items and explicitly associate verification evidence without changing
+task status. Go checks and offline Odoo 19 validation remain independently usable.
+The foundation requires no Beads, Odoo server, Docker, or model credentials.
+Package names and the plugin API remain provisional; nothing is published to a
+public package registry. Versions are foundation 0.1.2, Beads/Go/MCP 0.1.0, and
+Odoo 0.5.0. Plugin API 1.0 and evidence envelope 1.0 are unchanged.
 
 ## Set up a development checkout
 
@@ -44,6 +42,7 @@ uv pip install --python /tmp/devkit-install/bin/python dist/devkit-0.1.2-py3-non
 uv pip install --python /tmp/devkit-install/bin/python dist/devkit_go-0.1.0-py3-none-any.whl
 uv pip install --python /tmp/devkit-install/bin/python dist/devkit_odoo-0.5.0-py3-none-any.whl
 uv pip install --python /tmp/devkit-install/bin/python dist/devkit_mcp-0.1.0-py3-none-any.whl
+uv pip install --python /tmp/devkit-install/bin/python dist/devkit_beads-0.1.0-py3-none-any.whl
 ```
 
 Use the supplied foundation wheel, since the working distribution name is not an
@@ -335,14 +334,18 @@ uv run ruff format --check .
 uv run mypy
 uv run lint-imports
 uv run pytest
-uv run python scripts/check_wheels.py
+DEVKIT_BEADS_BINARY=/absolute/path/to/bd-1.3.2/bd uv run python scripts/check_wheels.py
 ```
 
 [CI](.github/workflows/checks.yml) runs these checks on Ubuntu 24.04 using Node 24
 action releases. Ruff includes a maximum cyclomatic complexity of 10;
 strict typing covers the runtime packages. The wheel matrix builds packages and
-tests seven fresh environments: foundation, Go, offline Odoo, plugin template,
-artifact-pinned installation, combined plugins with MCP, and the CI adoption pilot. The Odoo-only
+tests the original seven environments (foundation, Go, offline Odoo, template,
+artifact trust, MCP composition, and CI pilot), plus a renamed third-party plugin,
+real Beads with Go and Odoo, and two foundation-only portable-evidence readers.
+The Beads matrix needs the explicitly selected 1.3.2 test binary; see the
+[download/checksum and compatibility instructions](docs/Beads_Integration.md#reproduce-acceptance).
+Runtime users install only the optional tools they need. The Odoo-only
 environment also runs all 33 representative CLI fixture cases and evidence
 retrieval. Stdio/process tests require a host runtime that
 supports child process communication; they do not complete in this agent's
@@ -350,5 +353,5 @@ restricted execution sandbox.
 
 See the [architecture](docs/Composable_Developer_Tookkit_Architecture.md) and
 [implementation plan](docs/Implementation_Plan.md) for the fresh-build decisions
-and later increments. Live Odoo, Beads, tracker imports, and orchestration remain
-future work with separate integration prerequisites.
+and later increments. Live Odoo, tracker imports, Beads mutation/server modes,
+and orchestration remain future work with separate integration prerequisites.

@@ -1,7 +1,7 @@
 # Composable Developer Toolkit — Architectural Specification
 
-**Status:** Draft 0.3. First-release implementation complete; public names and plugin API remain provisional.\
-**Date:** October 30, 2026\
+**Status:** Draft 0.6. Foundation, static validation and read-only Beads integration implemented; public names and plugin API remain provisional.\
+**Date:** October 31, 2026\
 **Working project name:** `devkit` (placeholder, not a proposed public package name)\
 **Design inspiration:** [Crpaxton4/devcontainer-features](https://github.com/Crpaxton4/devcontainer-features) and its [ADR-006](https://github.com/Crpaxton4/devcontainer-features/blob/main/docs/design/adr/ADR-006-workspace-three-layers-state-root.md)\
 **First-release specializations:** Go checks and offline Odoo validation\
@@ -13,7 +13,7 @@ Build a small, framework-agnostic developer-tool foundation from scratch in this
 
 Specialized behaviors are installed as **versioned Python packages** and activated per project. The first release proves the plugin contract with Go checks and offline Odoo 19 manifest validation. Live Odoo testing is a later increment. The later Odoo Project connector is a separate package. Development commands do not depend on it.
 
-Use Beads as the preferred development work graph when task integration is added after the first release. Beads owns issue identity, statuses, dependencies, readiness, and synchronization. External trackers connect through scoped bridge packages. The core does not maintain a second task database or edit Dolt tables. Agent execution and scheduling belong to existing harnesses and optional orchestrators such as **Gas City**. Gas City packs consume installed domain capabilities; they are not the domain plugin format itself.
+The optional `devkit-beads` specialization reads Beads work items and associates existing verification evidence in v0.6. Beads owns issue identity, statuses, dependencies, readiness, and synchronization. External trackers connect through scoped bridge packages. The core does not maintain a second task database or edit Dolt tables. Agent execution and scheduling belong to existing harnesses and optional orchestrators such as **Gas City**. Gas City packs consume installed domain capabilities; they are not the domain plugin format itself.
 
 The upstream repository supplies design lessons. This project has its own implementation, package layout, tests, configuration, and release lifecycle. Compatibility with upstream commands, state, SDKs, and deployments is outside scope. The [implementation plan](Implementation_Plan.md) defines the delivery slices and their acceptance gates.
 
@@ -60,7 +60,7 @@ N8. Migrate upstream state, preserve upstream command compatibility, or replace 
 
 The first release includes the foundation, CLI, Python invocation interface, independently installable Go and offline Odoo plugins, evidence bundles, and an optional local stdio MCP adapter. It must work without Beads, live Odoo, PostgreSQL, Docker, an orchestrator, or paid model credentials.
 
-Live Odoo install and upgrade tests, Odoo 17 support, Beads integration, tracker connectors, Gas City packs, native harness packages, a TUI, a web UI, and Dev Container packaging are later increments. Their inclusion below describes the intended extension points, not first-release requirements.
+Live Odoo install and upgrade tests, Odoo 17 support, Beads mutation/server support, tracker connectors, Gas City packs, native harness packages, a TUI, a web UI, and Dev Container packaging are later increments. Their inclusion below describes the intended extension points, not first-release requirements.
 
 ## 4. Architecture principles
 
@@ -131,7 +131,7 @@ docs/
 
 These are working names, pending public namespace selection. `CommandService` is the shared invocation module. CLI and MCP adapters call its interface, while plugins depend on the public contract. The foundation discovers plugins through metadata and does not import a specialization by name.
 
-Add Beads and tracker connector distributions when implementing those integrations. A later Odoo capability may use a maintained client or a narrow transport adapter when a concrete operation needs RPC. The offline plugin requires neither an SDK nor a server. The Odoo Project connector may depend on the Beads adapter and an Odoo client, but the Odoo development plugin must not depend on the connector.
+The optional `devkit-beads` distribution implements the v0.6 read-only profile. Add tracker connector distributions only when separately implementing those integrations. A later Odoo capability may use a maintained client or a narrow transport adapter when a concrete operation needs RPC. The offline plugin requires neither an SDK nor a server. The Odoo Project connector may depend on the Beads adapter and an Odoo client, but the Odoo development plugin must not depend on the connector.
 
 The default CLI exposes basic operations such as `plugins`, `doctor`, `commands`, and `check`. Task commands become available when Beads integration is installed and configured.
 
@@ -205,7 +205,7 @@ class CommandResult:
     reason: str | None
 ```
 
-`CheckSpec` contains an ID, command ID, and fixed arguments. Context contains the resolved project root, run ID, monotonic deadline, cancellation event, plugin settings, and invocation surface. Inputs and results must be bounded JSON objects. External schema references are rejected. Every result is validated; successful data also satisfies its command's output schema.
+`CheckSpec` contains an ID, command ID, and fixed arguments. Context contains the resolved project root, run ID, monotonic deadline, cancellation event, plugin settings, invocation surface, and (since foundation 0.1.2) the resolved evidence state root. Inputs and results must be bounded JSON objects. External schema references are rejected. Every result is validated; successful data also satisfies its command's output schema.
 
 Profiles aggregate required checks through the same invocation path, with independent child evidence and inherited deadlines. All children must succeed. Mixed statuses use the priority cancelled, error, failed, blocked, success; an empty profile is blocked. Environment checks are prerequisites for the plugin's other commands and `doctor`, without recursively applying those prerequisites to themselves.
 
@@ -227,11 +227,11 @@ Multiple specializations may be active for one repository (e.g., Odoo + Python +
 
 ### 7.5 Third-party developer experience
 
-The [plugin template](../examples/plugin) builds independently, and [contract-test helpers](../tests/contract_helpers.py) stay in the repository. The Go plugin is the first non-Odoo reference implementation. `devkit plugins validate` checks activation and runs declared environment prerequisites through `doctor`. Behavioral equivalence and error handling require automated tests; the command does not certify arbitrary plugin code. CI runs without an Odoo server, Beads, Gas City, or paid model credentials.
+The [plugin template](../examples/plugin) builds independently, and [contract-test helpers](../tests/contract_helpers.py) stay in the repository. The Go plugin is the first non-Odoo reference implementation. `devkit plugins validate` checks activation and runs declared environment prerequisites through `doctor`. Behavioral equivalence and error handling require automated tests; the command does not certify arbitrary plugin code. Core and domain-only acceptance runs without Beads installed. Adapter acceptance uses a pinned Beads executable in disposable repositories. Neither requires an Odoo server, Gas City, or paid model credentials.
 
 ## 8. Beads task integration
 
-This section describes a later increment. It does not require adopting Beads as this project's task ledger or installing it for the first release.
+The v0.6 read-only profile is implemented in section 8.2. Later write, server, and bridge designs remain proposals. No part requires adopting Beads as this project's task ledger or installing it for foundation-only use.
 
 ### 8.1 Decision
 
@@ -239,13 +239,41 @@ Use Beads as the **default development work graph** for task-enabled workflows; 
 
 The foundation stores only references (e.g. `beads:<repository-scope>:<issue-id>`) and execution evidence links. It does not mirror the canonical issue lifecycle into SQLite. Where Beads capabilities vary by release, the adapter detects supported behavior and reports missing features rather than assuming them.
 
-### 8.2 Single-writer and concurrent-writer modes
+### 8.2 Implemented v0.6 adapter
+
+`devkit-beads` 0.1.0 uses Beads 1.3.2 at revision
+`9b65b9e198acbcc98e7fd3a87a5d55baa065a572`, with a local embedded workspace.
+It supports workspace diagnostics, item retrieval, ready items and direct
+outgoing dependencies through supported JSON CLI queries. All queries use
+`--readonly --sandbox`; a filtered explicit environment disables metrics and
+selects the project's workspace. Exact-ID `list` avoids `show`'s last-touched
+write. Embedded Dolt still rewrites internal files with identical bytes, so read
+commands conservatively declare `write_fs`; strict filesystem read-only operation
+is not established. Work-item data and non-database markers remain unchanged.
+Unsupported versions and modes block. The
+[adapter guide](Beads_Integration.md) defines commands, effects and limitations.
+
+Explicit evidence association validates the selected run and item, then calls
+existing `RunStore.reference`. Identity is `beads:<project UUID>:<issue ID>`.
+No Beads work-item writes, lifecycle mirroring or second task database are involved.
+References are idempotent local pins and remain inspectable without the adapter;
+original result envelopes are immutable. Existing reference/retention locking
+and invocation evidence-failure semantics handle retries and partial failures.
+
+Foundation 0.1.2 adds `Context.state_root` and an optional explicit environment
+for supervised processes. These seams avoid configuration re-resolution and a
+second process supervisor. Plugin API 1.0, envelope 1.0, policy, and registry
+remain unchanged. Real Go/Odoo acceptance and foundation-only evidence relocation
+establish domain independence. Other Beads versions, server modes and concurrent
+writers remain unverified; the following sections are future integration designs.
+
+### 8.3 Future single-writer and concurrent-writer modes
 
 For a solo user, embedded Dolt is sufficient. For multiple independent writers (agents, containers, daemon), use Beads' supported Dolt server mode, with a single intended authority for work graph changes. Verify actual version-specific behavior in integration tests. Do not rely on filesystem sharing to grant concurrency safety. Beads claims do not replace per-worktree, per-database, or privileged-resource leases.
 
 Treat Dolt push/pull, backups, and recovery as Beads concerns. A derived JSONL export is not an authoritative backup.
 
-### 8.3 External tracker bridge
+### 8.4 Future external tracker bridge
 
 Odoo Project and GitHub issues can be linked to Beads, but they must not be forcibly made identical. Use a stable mapping tuple: `(provider, organization_or_instance, project_scope, external_id) ↔ beads_issue_ref`. The sync bridge persists only mapping, checkpoints, and idempotency keys in its own connector-owned state.
 
@@ -261,7 +289,7 @@ Default field ownership:
 
 The connector MUST define direction per field, deduplicate repeated events, tolerate temporary outages, keep a reconciliation log, protect credentials, and require explicit authorization before writing chatter or changing external task state. The connector's first release should ship one-way import and reference linking. Publishing updates is a later, opt-in capability.
 
-### 8.4 Lifecycle example
+### 8.5 Future lifecycle example
 
 A customer Odoo Project task describes a warehouse barcode enhancement. The connector links it to a Beads epic, which decomposes into independent design, code, regression, and acceptance-check issues. A human or external orchestrator chooses ready work. The Odoo specialization performs module-oriented checks. Evidence is linked to the Beads issue and draft PR. Closing the development issue does not close the customer task or claim the warehouse outcome has been achieved.
 
@@ -485,6 +513,7 @@ State formats belong to this project. Future changes to persisted devkit state w
 - D10. v0.3 extends the same command with bounded XML syntax and conservative literal reference diagnostics. XML-ID coverage is independent of module-inventory completeness. Unknown references remain advisory; malformed XML fails and unsupported inspection blocks. The specialization uses the standard-library parser and additive data schema 1.2, without a new plugin contract or runtime solver.
 - D11. v0.4 adds bounded CSV identifiers to the same source-order resolver. Direct literal references share XML/CSV ordering, while runtime model metadata and relational cardinality remain unverified. Strict CSV parser rejection is missing coverage because Odoo's reader is permissive. Data schema 1.3 adds CSV evidence without a generic contract change or new dependency.
 - D12. v0.5 checks known dependency edges among already inspected manifests, using the standard-library graph implementation. A confirmed cycle fails, while absent evidence never establishes global acyclicity. Selecting a module retains its existing read scope. Schema 1.4 adds one cycle witness and explicit graph coverage; there is no transitive solver or generic contract change.
+- D14. v0.6 implements a separately installed, read-only Beads adapter using existing command and evidence-reference mechanisms. Foundation additions are limited to resolved evidence context and explicit child environments. No task mutations, new issue framework, or schema migration are introduced.
 - D13. The CI adoption pilot composes existing profiles, exact operator grants, wheel identity checks and evidence maintenance. Provider artifact retention stays separate from local pin/prune rules. The pilot introduces no runtime adapter, package version or schema change.
 
 **Proposed decisions (approve or amend):**
@@ -499,7 +528,7 @@ State formats belong to this project. Future changes to persisted devkit state w
 **Open questions:**
 
 1. Which public distribution names and entry-point namespace can the project use? Review the provisional API before publication.
-2. Which pinned Beads release and supported interface should the later adapter target, and what concurrency configuration does it actually support?
+2. Which additional Beads versions or server/concurrent configurations merit acceptance testing after the 1.3.2 embedded read-only profile?
 3. Which Odoo runtime environments and editions will support later isolated CI? Odoo 17 requires a separately tested profile.
 
 The implementation selected Python 3.12/Linux, the result and check contracts in section 7, and external operator grants in section 11. These are tested implementation defaults; broader platform and public compatibility promises remain separate decisions.
@@ -512,7 +541,7 @@ The first-release implementation is complete. Follow the [README](../README.md) 
 
 ## 19. References and verification notes
 
-The design draws on public upstream documentation reviewed October 30, 2026. First-release behavior is supported by local and installed-wheel tests. Later Beads, connector, and orchestration sections remain proposals; verify their supported interfaces at implementation time. Public package names are not reserved or published.
+The design draws on public upstream documentation reviewed October 30, 2026. First-release behavior is supported by local and installed-wheel tests. The v0.6 read-only Beads profile is tested against the pinned release. Beads mutation/server, connector, and orchestration sections remain proposals; verify their supported interfaces at implementation time. Public package names are not reserved or published.
 
 - Implemented contracts: [Plugin_Contract.md](Plugin_Contract.md)
 - Tested dependency versions: [uv.lock](../uv.lock)
