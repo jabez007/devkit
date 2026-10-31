@@ -207,6 +207,56 @@ Run the configured lint, format, type, test, import, and complexity checks on ea
 
 ## Later releases
 
+### v0.4 bounded CSV identifier inspection design
+
+Extend the existing Odoo command to inspect manifest-declared CSV data/demo files.
+Reuse contained paths, manifest ordering, cancellation, status/evidence handling
+and the literal reference resolver. The public v0.3 corpus has 33 declared CSV
+files and 107 nonempty rows, all using flat access-control headers.
+
+The resolver is currently named for XML despite its format-independent events.
+Rename that internal module and extract the declared-file inspection seam in a
+behavior-preserving commit before adding the second format. Extract the existing
+bounded file read into a shared FileBudget to avoid duplicating byte/file limits
+and cancellation across the two inspectors. Each format keeps its own budget.
+Keep concrete XML
+and CSV inspectors; no general-purpose parser registry or generic plugin change.
+The configured complexity check passes, with a maximum of 8 in changed runtime
+functions. No unrelated cleanup is required.
+
+Use the standard-library csv reader with explicit comma/double-quote settings,
+UTF-8 decoding and bounded bytes, files, rows, columns, fields and retained events.
+Do not change the process-global CSV field-size limit. The pinned Odoo loader uses
+a permissive CSV reader, so rejection by strict CSV parsing establishes unsupported
+inspection, not necessarily a broken import. Empty files and invalid UTF-8 are
+confirmed violations of that loader's requirements. Ambiguous headers, irregular
+rows, nested paths, BOMs and inspection limits block coverage without inventing a
+runtime defect. Ignore translation columns as the pinned loader does.
+
+Support literal id declarations and single literal values in direct field:id or
+field/id columns. Do not infer relational cardinality or split ambiguous comma
+lists. Normalize names through the existing resolver, preserve data/demo and row
+order, and allow repeated IDs. Empty IDs create no inferred identity. Cross-module,
+forward and unsupported references remain unknown, never definitely missing.
+XML-ID completeness is separate from module inventory claims. Runtime model and
+field validity, conversions, permissions and hooks remain unchecked.
+
+Add csv file findings/counts beside existing xml data in specialization schema
+1.3. Preserve XML fields and reason vocabulary for existing consumers. Reuse the
+legacy xml.skipped_files location for files neither inspector examines, avoiding
+duplicate evidence; document this compatibility choice. Generic contracts and
+strict module-dependency semantics stay unchanged.
+
+Deliver bounded CSV inspection and shared resolution, then representative CLI/MCP
+and installed-wheel acceptance, public evaluation and documentation. Test quoted
+and multiline fields, translations, empty/repeated/foreign IDs, mixed file order,
+data/demo separation, malformed and unsupported input, bounds, cancellation and
+no execution of cell contents. Retain all earlier quality gates and P1 regressions.
+
+Sources: pinned Odoo [CSV loader](https://github.com/odoo/odoo/blob/005e0a0eb7ef80cd15b0c82b570b2b0843181ba2/odoo/tools/convert.py)
+and [importer](https://github.com/odoo/odoo/blob/005e0a0eb7ef80cd15b0c82b570b2b0843181ba2/odoo/orm/models.py),
+and the [Python CSV interface](https://docs.python.org/3.12/library/csv.html).
+
 ### v0.3 offline XML validation design
 
 Reuse the Odoo command, literal manifests, contained-path checks, cancellation

@@ -8,9 +8,9 @@ from typing import cast
 from devkit.contracts import Context, DevkitError, JSONObject
 from devkit.schemas import validate
 
+from devkit_odoo.data_references import analyze_references
 from devkit_odoo.dependencies import external_dependencies, module_dependencies
 from devkit_odoo.xml_inspection import XMLInspection
-from devkit_odoo.xml_references import analyze_references
 
 STRINGS: JSONObject = {"type": "array", "items": {"type": "string", "minLength": 1}}
 MANIFEST_SCHEMA: JSONObject = {
@@ -151,19 +151,30 @@ def _check_files(
         for filename in manifest.get(phase, []):
             entry = {"path": filename, "phase": phase, "load_index": load_index}
             load_index += 1
-            checkpoint(context)
-            try:
-                path = contained(module, filename)
-                if not path.is_file():
-                    raise ValueError("Missing file")
-                result["checked_files"].append(filename)
-                if Path(filename).suffix.lower() == ".xml":
-                    result["xml"]["files"].append({**xml.inspect(path, filename, phase), **entry})
-                else:
-                    result["xml"]["skipped_files"].append({**entry, "reason": "non_xml"})
-            except (OSError, ValueError, RuntimeError):
-                result["errors"].append(f"Missing or unsafe declared file: {filename}")
-                result["xml"]["skipped_files"].append({**entry, "reason": "unavailable_file"})
+            _check_file(module, entry, context, result, xml)
     result["xml"]["complete"] = not result["errors"] and all(
         item["status"] == "valid" for item in result["xml"]["files"]
     )
+
+
+def _check_file(
+    module: Path,
+    entry: JSONObject,
+    context: Context,
+    result: JSONObject,
+    xml: XMLInspection,
+) -> None:
+    filename, phase = entry["path"], entry["phase"]
+    checkpoint(context)
+    try:
+        path = contained(module, filename)
+        if not path.is_file():
+            raise ValueError("Missing file")
+        result["checked_files"].append(filename)
+        if Path(filename).suffix.lower() == ".xml":
+            result["xml"]["files"].append({**xml.inspect(path, filename, phase), **entry})
+        else:
+            result["xml"]["skipped_files"].append({**entry, "reason": "non_xml"})
+    except (OSError, ValueError, RuntimeError):
+        result["errors"].append(f"Missing or unsafe declared file: {filename}")
+        result["xml"]["skipped_files"].append({**entry, "reason": "unavailable_file"})

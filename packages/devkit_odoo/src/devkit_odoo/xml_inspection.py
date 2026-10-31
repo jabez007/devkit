@@ -7,7 +7,8 @@ from xml.parsers import expat
 
 from devkit.contracts import DevkitError, JSONObject
 
-from devkit_odoo.xml_references import LiteralReferences
+from devkit_odoo.data_references import LiteralReferences
+from devkit_odoo.file_inspection import FileBudget
 
 PARSER_VERSION = expat.EXPAT_VERSION
 
@@ -26,8 +27,7 @@ class XMLInspection:
 
     def __init__(self, checkpoint: Callable[[], None]) -> None:
         self.checkpoint = checkpoint
-        self.files = 0
-        self.bytes = 0
+        self.budget = FileBudget("XML", LIMITS, checkpoint)
         self.elements = 0
         self.events = 0
 
@@ -44,7 +44,7 @@ class XMLInspection:
             "events": [],
         }
         try:
-            document.parse(self._read(path))
+            document.parse(self.budget.read(path))
             result["events"] = document.references.events
         except expat.ExpatError as exc:
             result.update(
@@ -75,18 +75,6 @@ class XMLInspection:
             raise DevkitError(
                 "XML_LIMIT", "XML reference event limit exceeded; select fewer modules"
             )
-
-    def _read(self, path: Path) -> bytes:
-        self.checkpoint()
-        self.files += 1
-        if self.files > LIMITS["files"] or self.bytes >= LIMITS["total_bytes"]:
-            raise DevkitError("XML_LIMIT", "XML invocation budget exhausted; select fewer modules")
-        with path.open("rb") as stream:
-            content = stream.read(LIMITS["file_bytes"] + 1)
-        self.bytes += len(content)
-        if len(content) > LIMITS["file_bytes"] or self.bytes > LIMITS["total_bytes"]:
-            raise DevkitError("XML_LIMIT", "XML byte limit exceeded; narrow the inspection")
-        return content
 
 
 class _Document:
