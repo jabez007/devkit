@@ -1,0 +1,86 @@
+name: CI pilot
+run-name: CI pilot (${{ inputs.scenario || 'passing' }})
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: Synthetic scenario; non-passing choices intentionally fail the job
+        type: choice
+        default: passing
+        options:
+          - passing
+          - go-failure
+          - odoo-blocked
+          - invalid-profile
+permissions:
+  contents: read
+jobs:
+  pilot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GOPROXY: "off"
+    steps:
+      - name: Set isolated paths
+        shell: bash
+        run: |
+          printf '%s\n' \
+            "DEVKIT_BIN=$RUNNER_TEMP/devkit-pilot/venv/bin/devkit" \
+            "DEVKIT_PROJECT=$GITHUB_WORKSPACE/examples/ci/project" \
+            "DEVKIT_REPORTS=$RUNNER_TEMP/devkit-pilot/reports" \
+            "XDG_CONFIG_HOME=$RUNNER_TEMP/devkit-pilot/config" \
+            "GOCACHE=$RUNNER_TEMP/devkit-pilot/go-cache" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.24.4"
+          cache: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.9.5"
+          enable-cache: false
+      - name: Build and install selected wheels
+        shell: bash
+        run: |
+          pilot_root="$RUNNER_TEMP/devkit-pilot"
+          uv python install 3.12
+          uv build --package devkit --out-dir "$pilot_root/wheels"
+          uv build --package devkit-go --out-dir "$pilot_root/wheels"
+          uv build --package devkit-odoo --out-dir "$pilot_root/wheels"
+          uv export --all-packages --no-dev --no-emit-workspace --no-hashes --frozen \
+            --output-file "$pilot_root/constraints.txt"
+          uv venv --python 3.12 "$pilot_root/venv"
+          uv pip install --python "$pilot_root/venv/bin/python" \
+            --constraint "$pilot_root/constraints.txt" "$pilot_root"/wheels/*.whl
+      - name: Configure operator trust and synthetic scenario
+        shell: bash
+        env:
+          SCENARIO: ${{ inputs.scenario || 'passing' }}
+        run: |
+          "$RUNNER_TEMP/devkit-pilot/venv/bin/python" examples/ci/prepare_policy.py \
+            "$DEVKIT_PROJECT" "$RUNNER_TEMP/devkit-pilot/wheels"
+          case "$SCENARIO" in
+            passing) ;;
+            go-failure)
+              sed -i 's/got != 10/got != 11/' "$DEVKIT_PROJECT/total_test.go" ;;
+            odoo-blocked)
+              sed -i 's/strict_dependencies = false/strict_dependencies = true/' "$DEVKIT_PROJECT/devkit.toml" ;;
+            invalid-profile)
+              sed -i 's/"go.tests", "odoo.manifests"/"missing.check"/' "$DEVKIT_PROJECT/devkit.toml" ;;
+            *) exit 3 ;;
+          esac
+      - name: Run required checks and retain evidence
+        shell: bash
+        run: bash examples/ci/check.sh
+      - name: Upload reports even when checks fail
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: devkit-pilot-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.DEVKIT_REPORTS }}
+          if-no-files-found: error
+          retention-days: 7

@@ -251,6 +251,9 @@ measure at most 2 against the limit of 10. No runtime cleanup is required.
 GitHub artifact retention and Devkit local retention are separate lifecycles.
 Cancelling or forcibly terminating a job can prevent its final upload. The pilot
 does not change branch protection, publish packages or touch another project.
+The three opt-in fixture mutations appear in both the Bash workflow and Python
+acceptance code. Keep that small duplication: sharing it would add a scenario
+runner to an example whose purpose is to demonstrate ordinary CI commands.
 
 ### v0.5 observed dependency-cycle diagnostics design
 

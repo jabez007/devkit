@@ -16,8 +16,11 @@ pilot_root=$(mktemp -d /tmp/devkit-ci.XXXXXXXX)
 uv build --package devkit --out-dir "$pilot_root/wheels"
 uv build --package devkit-go --out-dir "$pilot_root/wheels"
 uv build --package devkit-odoo --out-dir "$pilot_root/wheels"
+uv export --all-packages --no-dev --no-emit-workspace --no-hashes --frozen \
+  --output-file "$pilot_root/constraints.txt"
 uv venv --python 3.12 "$pilot_root/venv"
-uv pip install --python "$pilot_root/venv/bin/python" "$pilot_root"/wheels/*.whl
+uv pip install --python "$pilot_root/venv/bin/python" \
+  --constraint "$pilot_root/constraints.txt" "$pilot_root"/wheels/*.whl
 export DEVKIT_BIN="$pilot_root/venv/bin/devkit"
 export DEVKIT_PROJECT="$PWD/examples/ci/project"
 export DEVKIT_REPORTS="$pilot_root/reports"
@@ -44,6 +47,51 @@ incomplete inventory. Ordinary validation succeeds while reporting that gap. To
 require certainty, configure dependency sources and set `strict_dependencies=true`.
 With the shipped inventory, strict validation blocks. Do not set `complete=true`
 just to change the result; it is a claim about the available source inventory.
+
+## Run the GitHub Actions pilot
+
+The [CI pilot workflow](../.github/workflows/ci-pilot.yml) runs on pushes and pull
+requests. It builds the selected wheels, constrains installed dependencies using
+`uv.lock`, and invokes the same recipe in a fresh environment. The synthetic
+project stays inside the checkout so evidence records the source revision.
+Operator configuration, wheels and reports live under the runner's temporary
+directory. The job has a ten-minute timeout, read-only repository permissions and
+no persisted checkout credentials. It does not publish packages or change branch
+protection.
+
+Open **Actions**, select **CI pilot**, then download the `devkit-pilot-…` artifact
+from a completed run. The upload step runs after failed checks too. Reports expire
+after seven days, subject to repository retention limits. A local Devkit pin does
+not prevent GitHub from expiring an artifact.
+
+To test failure reporting, manually dispatch one of the synthetic scenarios:
+
+```sh
+gh workflow run ci-pilot.yml --ref main -f scenario=go-failure
+gh workflow run ci-pilot.yml --ref main -f scenario=odoo-blocked
+gh workflow run ci-pilot.yml --ref main -f scenario=invalid-profile
+```
+
+These choices intentionally produce failed GitHub jobs with CLI exits 1, 2 and 3,
+respectively. They change only the synthetic project in that disposable checkout;
+its evidence correctly reports a dirty source tree. The default `passing` scenario
+leaves those files unchanged. To download a report with the GitHub CLI:
+
+```sh
+gh run download <workflow-run-id> --dir /absolute/path/to/download
+```
+
+With one artifact, `gh run download` creates a subdirectory named after that
+artifact. Set `XDG_STATE_HOME` to its `state` directory when retrieving evidence.
+Use an isolated development runner without deployment secrets for project tests.
+Devkit policy authorizes command effects; it does not isolate arbitrary Go code.
+Review the workflow and operator policy as trusted CI code before adopting them
+for another repository. Keep PR execution separate from privileged release jobs.
+
+See GitHub's [artifact guide](https://docs.github.com/en/actions/tutorials/store-and-share-data)
+and the pinned [upload action](https://github.com/actions/upload-artifact/tree/v7.0.2)
+for retention and upload behavior. Forced job termination may prevent upload even
+with `if: always()`.
 
 ## Interpret the result
 
