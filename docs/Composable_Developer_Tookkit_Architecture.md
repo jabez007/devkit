@@ -145,7 +145,7 @@ Use Python wheels and `importlib.metadata.entry_points()`; do **not** build a ne
 # Current Odoo plugin registration
 [project]
 name = "devkit-odoo"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = ["devkit>=0.1,<0.2"]
 
 [project.entry-points."devkit.specializations.v1"]
@@ -279,7 +279,12 @@ and invalid declarations fail, while strict checks with unknown dependencies
 block. Duplicate module names fail without path-order precedence. Results record
 relationships, scan completion and coverage using the specialization's additive
 schema 1.1; the generic command/result contract is unchanged. External Python and
-binary requirements remain unverified. See [Odoo validation](Odoo_Validation.md).
+binary requirements remain unverified. v0.3 additionally parses manifest-declared
+XML with explicit limits and reports literal references in load order. Earlier
+same-module definitions support static resolution; forward, external, conditional
+and dynamic references remain unknown. DTDs and external entity resolution are
+unsupported. Neither XML syntax nor literal ID presence establishes runtime
+compatibility. See [Odoo validation](Odoo_Validation.md).
 
 
 Live Odoo testing and Odoo 17 support require separate tested profiles in later increments. Do not require Odoo Enterprise modules in generic tooling. Runtime checks must distinguish Community, Enterprise, optional OCA dependencies, and installed custom modules.
@@ -475,6 +480,7 @@ State formats belong to this project. Future changes to persisted devkit state w
 - D7. Build devkit from scratch. Use the upstream repository as design inspiration without extraction, state migration, or compatibility obligations.
 - D8. The first usable release provides Go checks and offline Odoo validation. Live Odoo testing, work tracking, and orchestration follow later.
 - D9. v0.2 deepens the existing offline specialization. Dependency presence and inventory completeness are distinct; strict incomplete coverage blocks instead of asserting a module defect. Completeness claims remain explicit and visible in evidence. No generic solver or plugin-contract expansion is needed.
+- D10. v0.3 extends the same command with bounded XML syntax and conservative literal reference diagnostics. XML-ID coverage is independent of module-inventory completeness. Unknown references remain advisory; malformed XML fails and unsupported inspection blocks. The specialization uses the standard-library parser and additive data schema 1.2, without a new plugin contract or runtime solver.
 
 **Proposed decisions (approve or amend):**
 

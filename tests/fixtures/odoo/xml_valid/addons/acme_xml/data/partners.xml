@@ -1,0 +1,5 @@
+<odoo>
+  <record id="company" model="res.partner"><field name="name">Acme</field></record>
+  <record id="contact" model="res.partner"><field name="parent_id" ref="company"/></record>
+  <record id="company" model="res.partner"><field name="name">Acme Updated</field></record>
+</odoo>

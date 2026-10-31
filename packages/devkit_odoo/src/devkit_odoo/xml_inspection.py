@@ -1,5 +1,6 @@
 """Bounded XML syntax inspection with no resource resolution or code evaluation."""
 
+from codecs import BOM_UTF32_BE, BOM_UTF32_LE
 from collections.abc import Callable
 from pathlib import Path
 from xml.parsers import expat
@@ -7,6 +8,8 @@ from xml.parsers import expat
 from devkit.contracts import DevkitError, JSONObject
 
 from devkit_odoo.xml_references import LiteralReferences
+
+PARSER_VERSION = expat.EXPAT_VERSION
 
 LIMITS = {
     "file_bytes": 1_048_576,
@@ -99,6 +102,13 @@ class _Document:
         self.parser.SetParamEntityParsing(expat.XML_PARAM_ENTITY_PARSING_NEVER)
 
     def parse(self, content: bytes) -> None:
+        # Expat can report valid UTF-32 as an invalid token; keep this a coverage gap.
+        if (
+            content.startswith((BOM_UTF32_BE, BOM_UTF32_LE))
+            or content[:3] == b"\x00\x00\x00"
+            or content[1:4] == b"\x00\x00\x00"
+        ):
+            raise DevkitError("XML_UNSUPPORTED", "UTF-32 XML is not supported by this inspector")
         # Chunks allow cooperative cancellation; the input is capped before parsing.
         for start in range(0, len(content), 65_536):
             self.inspection.checkpoint()

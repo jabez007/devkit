@@ -29,6 +29,13 @@ persisted evidence and `runs show`. All fixture invocations remain offline.
 | unsafe_path | Declared data path traverses outside its addon. |
 | malformed_dependencies | Paths, dotted names and nonstrings are invalid declarations. |
 | optional | Auto-install bridge plus unresolved module, Python and binary dependencies. |
+| xml_valid | Ordered records, repeated IDs, template inheritance and demo references. |
+| xml_ordering | Forward, external and demo-only references remain unknown. |
+| xml_malformed | Syntax failure with a file and source location. |
+| xml_dtd | DTD inspection blocks without fetching the external resource. |
+| xml_dynamic | CSV interrupts reference certainty; Python expressions are never executed. |
+
+The corpus now has fourteen layouts and twenty CLI scenarios.
 
 Additional cases use arguments to select one module, require certainty, request
 an unsafe addons path, or assert completeness over an unavailable path. Python

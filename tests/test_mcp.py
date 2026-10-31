@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import subprocess
 from datetime import timedelta
 from pathlib import Path
@@ -29,6 +30,9 @@ def parameters(project):
         ("unknown", {"inventory": {"complete": True}}, 1),
         ("invalid", {}, 1),
         ("resolved", {"strict_dependencies": True}, 0),
+        ("xml_valid", {}, 0),
+        ("xml_malformed", {}, 1),
+        ("xml_dtd", {}, 2),
     ],
 )
 def test_stdio_parity_and_denials(odoo_project, mode, arguments, exit_code):
@@ -39,6 +43,9 @@ def test_stdio_parity_and_denials(odoo_project, mode, arguments, exit_code):
         base = project / "addons/base"
         base.mkdir()
         (base / "__manifest__.py").write_text("{'name': 'Base', 'depends': []}")
+    if mode.startswith("xml_"):
+        fixture = Path("tests/fixtures/odoo") / mode / "addons/acme_xml"
+        shutil.copytree(fixture, module, dirs_exist_ok=True)
     python_result = create_service(project).execute("odoo.module.validate", arguments)["result"]
     cli = subprocess.run(
         [

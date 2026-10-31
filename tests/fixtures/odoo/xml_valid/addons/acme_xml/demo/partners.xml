@@ -1,0 +1,1 @@
+<odoo><record id="demo_contact" model="res.partner"><field name="parent_id" ref="company"/></record></odoo>

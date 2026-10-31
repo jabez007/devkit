@@ -59,11 +59,24 @@ def exercise_case(binary, root, case):
     assert result["summary"] in text
     assert "Evidence:" in text
     assert not (project / "manifest-executed").exists()
+    assert not (project / "xml-executed").exists()
     _assert_domain_details(case, result["data"])
     return envelope
 
 
 def _assert_domain_details(case, data):
+    for key in ("xml_counts", "xml_reference_counts"):
+        if key in case:
+            assert data[key] == case[key], data
+    if "reference_reasons" in case:
+        reasons = [
+            ref["reason"]
+            for module in data["modules"]
+            for file in module["xml"]["files"]
+            for ref in file["references"]
+            if ref["status"] == "unknown"
+        ]
+        assert reasons == case["reference_reasons"], reasons
     if case["fixture"] == "optional":
         external = data["modules"][0]["external_dependencies"]
         assert {edge["kind"] for edge in external} == {"python", "bin"}

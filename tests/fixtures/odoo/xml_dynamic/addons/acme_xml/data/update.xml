@@ -1,0 +1,4 @@
+<odoo><record id="contact" model="res.partner">
+    <field name="parent_id" ref="company"/>
+    <field name="comment" eval="__import__('pathlib').Path('xml-executed').touch()"/>
+  </record></odoo>

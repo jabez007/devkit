@@ -1,0 +1,3 @@
+plugins = ["odoo"]
+[profiles]
+static = ["odoo.manifests"]

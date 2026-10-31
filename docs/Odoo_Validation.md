@@ -82,7 +82,7 @@ devkit --project /absolute/project --json run odoo.module.validate --args '{"mod
 
 ## Evidence and coverage
 
-Domain data schema `validation_schema_version = "1.1"` adds:
+Domain data schema 1.1 introduced these fields, which remain in 1.2:
 
 - `inventory`: declared completeness, prefixes, claim basis, scan completion,
   scanned paths and counts, bounds, and the resolution basis `manifest_presence`.
@@ -115,7 +115,8 @@ modules, 256 KiB and 10,000 AST nodes per manifest, and a bounded findings paylo
 Cancellation and deadline checks occur during scanning and inspection. Limit
 errors retain partial coverage without claiming complete inspection. Narrow
 `addons_paths` or select one module when necessary. Data/demo references are
-checked for containment and file presence, not XML validity. Manifest expressions
+checked for containment and file presence. In v0.3, declared XML also receives
+the bounded syntax and reference inspection described below. Manifest expressions
 are never executed, and addon Python files are never imported.
 
 Retrieve saved evidence without loading a plugin:
@@ -134,7 +135,8 @@ upgrade behavior or database correctness.
 
 The [synthetic repositories](../tests/fixtures/odoo/README.md) cover custom-only,
 internal, external OCA-style, complete, duplicate, invalid, unsafe and optional
-addon cases. Fifteen CLI scenarios assert statuses and relationships, text output,
+addon cases, plus the v0.3 XML scenarios below. Twenty CLI scenarios assert
+statuses and relationships, text output,
 persisted evidence and `runs show`. The same script runs against a separately
 installed Odoo-only wheel. Python/CLI/MCP parity tests also cover successful,
 blocked and failed dependency results and policy revocation.
@@ -176,18 +178,24 @@ runtime validity.
 DTD declarations, unsupported encodings, unreadable XML and exhausted inspection
 limits block coverage. A DTD is unsupported, not automatically malformed XML.
 The parser does not load external entities or resources. UTF-8, UTF-16 and
-Latin-1 have acceptance coverage. CSV and other declared file types retain path
+Latin-1 have acceptance coverage. UTF-32 is explicitly unsupported and blocks
+inspection rather than producing a malformed-XML finding. CSV and other declared file types retain path
 checks without XML parsing.
 
-The additive specialization data schema is 1.2. Each module has `xml.files`, with
+devkit-odoo 0.3.0 uses additive specialization data schema 1.2. Update the exact
+plugin trust version and any approved wheel digest when upgrading. Previously
+passing projects with malformed XML now fail by design. Each module has `xml.files`, with
 path, data/demo phase, status, reason and diagnostic location, plus `xml.complete`.
-Top-level `xml_counts` totals valid, invalid and blocked files. Earlier dependency
+Top-level `xml_counts` totals valid, invalid and blocked files. `xml_parser`
+records the linked Expat version. Earlier dependency
 fields and strict-dependency behavior remain unchanged. A confirmed defect takes
 precedence over blocked coverage, but both findings remain in evidence.
 
 Limits apply to each invocation: 256 XML files, 16 MiB total XML bytes and 100,000
 elements. Each file is capped at 1 MiB and nesting at 128 elements. Cancellation
-and deadlines are checked between parse chunks and elements. The overall findings
+and deadlines are checked between parse chunks and elements. Cancellation and
+deadline expiry use the foundation's standard result, which does not retain partial
+domain findings. The overall findings
 size limit still applies. These restrictions do not replace maintaining Python
 and its linked Expat library. See the [Python XML guidance](https://docs.python.org/3.12/library/xml.html).
 
@@ -229,3 +237,34 @@ reference counts. `xml.complete` describes file inspection, not complete runtime
 reference verification. Reference collection is limited to 4,000 events per
 invocation; exceeding the limit blocks inspection and discards partial events
 from the affected file.
+
+### v0.3 public repository evaluation
+
+On October 31, 2026, devkit-odoo 0.3.0 evaluated two public 19.0 snapshots with
+`addons_paths=["."]`, both with ordinary and strict module-dependency validation.
+The CLI results matched persisted evidence and `runs show`. Both checkouts
+remained clean. No addon code, Odoo server or private repository was used.
+
+| Snapshot | Modules | XML files valid | XML references resolved / unknown | Unexamined operations | Skipped non-XML files |
+| --- | --- | --- | --- | --- | --- |
+| [OCA/server-tools](https://github.com/OCA/server-tools/tree/389daeb98a8e21fe11594bdddef873bb07d0cb61) | 30 | 62 | 52 / 76 | 28 | 8 |
+| [OCA/sale-workflow](https://github.com/OCA/sale-workflow/tree/b2cb74591c66882b91264106abc5229e200f5bff) | 103 | 237 | 52 / 363 | 99 | 25 |
+
+Neither snapshot produced malformed or blocked XML findings. Ordinary validation
+succeeded; strict dependency validation blocked with `INCOMPLETE_INVENTORY`.
+Their module dependencies respectively contained 30 and 126 unknown relationships.
+Unknown XML references included external modules, IDs not present in scanned XML,
+conditional definitions and lookups after unverified operations. These are
+coverage findings, not demonstrated defects in the public projects.
+
+The local parser reported `expat_2.6.3`. This records the tested environment and
+does not certify that parser version against every vulnerability. Keep the
+runtime maintained. The fixture suite also proves malformed XML fails and DTD
+inspection blocks, so successful public runs are not the only acceptance evidence.
+
+To reproduce after configuring plugin trust and an exact project grant:
+
+```sh
+devkit --project /absolute/path/to/checkout --json run odoo.module.validate --args '{"addons_paths":["."]}'
+devkit --project /absolute/path/to/checkout --json run odoo.module.validate --args '{"addons_paths":["."],"strict_dependencies":true}'
+```

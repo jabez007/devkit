@@ -1,0 +1,4 @@
+<odoo>
+  <template id="layout"><div id="html_only">Example</div></template>
+  <template id="extension" inherit_id="layout"><xpath expr="//div" position="inside"><span>Extension</span></xpath></template>
+</odoo>

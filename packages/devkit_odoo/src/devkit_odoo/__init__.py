@@ -17,7 +17,7 @@ from devkit.schemas import validate
 from devkit_odoo.inventory import Inventory, scan
 from devkit_odoo.validation import checkpoint, inspect_module
 from devkit_odoo.xml_inspection import LIMITS as XML_LIMITS
-from devkit_odoo.xml_inspection import XMLInspection
+from devkit_odoo.xml_inspection import PARSER_VERSION, XMLInspection
 
 INPUT_SCHEMA: JSONObject = {
     "type": "object",
@@ -142,6 +142,7 @@ def _data(inventory: Inventory, policy: JSONObject, *, scanned: bool = True) -> 
         ],
         "xml_counts": dict.fromkeys(("valid", "invalid", "blocked"), 0),
         "xml_limits": XML_LIMITS,
+        "xml_parser": {"name": "expat", "version": PARSER_VERSION},
         "xml_reference_counts": {"resolved": 0, "unknown": 0},
         "dependency_counts": dict.fromkeys(("resolved", "missing", "unknown", "invalid"), 0),
     }

@@ -198,5 +198,121 @@
         "complete": true
       }
     }
+  },
+  {
+    "fixture": "xml_valid",
+    "status": "success",
+    "reason": null,
+    "counts": [
+      0,
+      0,
+      1,
+      0
+    ],
+    "arguments": {},
+    "xml_counts": {
+      "valid": 3,
+      "invalid": 0,
+      "blocked": 0
+    },
+    "xml_reference_counts": {
+      "resolved": 3,
+      "unknown": 0
+    },
+    "reference_reasons": []
+  },
+  {
+    "fixture": "xml_ordering",
+    "status": "success",
+    "reason": null,
+    "counts": [
+      0,
+      0,
+      1,
+      0
+    ],
+    "arguments": {},
+    "xml_counts": {
+      "valid": 3,
+      "invalid": 0,
+      "blocked": 0
+    },
+    "xml_reference_counts": {
+      "resolved": 0,
+      "unknown": 3
+    },
+    "reference_reasons": [
+      "forward_definition",
+      "external_module",
+      "demo_only_definition"
+    ]
+  },
+  {
+    "fixture": "xml_malformed",
+    "status": "failed",
+    "reason": "INVALID_XML",
+    "counts": [
+      0,
+      0,
+      1,
+      0
+    ],
+    "arguments": {},
+    "xml_counts": {
+      "valid": 0,
+      "invalid": 1,
+      "blocked": 0
+    },
+    "xml_reference_counts": {
+      "resolved": 0,
+      "unknown": 0
+    },
+    "reference_reasons": []
+  },
+  {
+    "fixture": "xml_dtd",
+    "status": "blocked",
+    "reason": "XML_UNSUPPORTED",
+    "counts": [
+      0,
+      0,
+      1,
+      0
+    ],
+    "arguments": {},
+    "xml_counts": {
+      "valid": 0,
+      "invalid": 0,
+      "blocked": 1
+    },
+    "xml_reference_counts": {
+      "resolved": 0,
+      "unknown": 0
+    },
+    "reference_reasons": []
+  },
+  {
+    "fixture": "xml_dynamic",
+    "status": "success",
+    "reason": null,
+    "counts": [
+      0,
+      0,
+      1,
+      0
+    ],
+    "arguments": {},
+    "xml_counts": {
+      "valid": 2,
+      "invalid": 0,
+      "blocked": 0
+    },
+    "xml_reference_counts": {
+      "resolved": 0,
+      "unknown": 1
+    },
+    "reference_reasons": [
+      "unverified_effects"
+    ]
   }
 ]

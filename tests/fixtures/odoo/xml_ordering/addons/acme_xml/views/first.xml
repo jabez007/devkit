@@ -1,0 +1,4 @@
+<odoo><record id="first" model="res.partner">
+    <field name="parent_id" ref="later"/><field name="other" ref="base.main_partner"/>
+    <field name="demo" ref="demo_only"/>
+  </record></odoo>

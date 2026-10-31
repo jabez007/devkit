@@ -124,3 +124,41 @@ def test_unreadable_xml_blocks_without_claiming_a_defect(odoo_project, monkeypat
     result = create_service(project).execute("odoo.module.validate")["result"]
     assert result["status"] == "blocked"
     assert result["reason"] == "XML_UNAVAILABLE"
+
+
+def test_cancellation_after_xml_read_does_not_claim_inspection_complete(odoo_project, monkeypatch):
+    from io import BytesIO
+    from threading import Event
+
+    project, module = odoo_project
+    target = module / "views.xml"
+    target.write_text("<odoo/>")
+    (module / "__manifest__.py").write_text(repr({"name": "Example", "data": ["views.xml"]}))
+    cancelled = Event()
+    original = Path.open
+
+    class CancelOnRead(BytesIO):
+        def read(self, *args):
+            content = super().read(*args)
+            cancelled.set()
+            return content
+
+    def open_xml(path, *args, **kwargs):
+        return CancelOnRead(b"<odoo/>") if path == target else original(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", open_xml)
+    envelope = create_service(project).execute("odoo.module.validate", cancellation=cancelled)
+    result = envelope["result"]
+    assert result["status"] == "cancelled"
+    assert result["reason"] == "CANCELLED"
+    assert result["data"] == {}
+    assert json.loads(Path(envelope["evidence_path"]).read_text())["result"] == result
+
+
+@pytest.mark.parametrize("encoding", ["utf-32", "utf-32-le", "utf-32-be"])
+def test_unsupported_utf32_is_blocked_not_reported_as_malformed(odoo_project, encoding):
+    result = validate_xml(
+        odoo_project, '<?xml version="1.0" encoding="utf-32"?><odoo/>'.encode(encoding)
+    )
+    assert result["status"] == "blocked"
+    assert result["reason"] == "XML_UNSUPPORTED"

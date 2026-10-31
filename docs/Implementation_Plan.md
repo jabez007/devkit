@@ -238,7 +238,7 @@ classification and strict-dependency behavior remain unchanged. New XML results
 must explain examined files, unsupported forms and runtime limits. Syntax errors
 may make previously passing projects fail; document this intended behavior.
 
-Implement and commit three tested slices: bounded XML syntax diagnostics; literal
+Delivery uses three tested slices: bounded XML syntax diagnostics; literal
 reference diagnostics; representative CLI/wheel fixtures, public evaluation and
 versioned documentation. Test through CommandService, CLI evidence and MCP,
 including malformed and hostile XML, encodings, bounds, file order, data/demo
@@ -252,6 +252,59 @@ References checked before implementation: the pinned Odoo 19
 [Python XML limits](https://docs.python.org/3.12/library/xml.html).
 Parser bounds and feature restrictions do not replace maintaining the Python
 runtime and its linked Expat library.
+
+### v0.3 completion evidence
+
+All three slices are implemented. devkit-odoo is 0.3.0; the foundation remains
+0.1.1 and Go/MCP remain 0.1.0. The specialization data schema is 1.2, with no new
+runtime dependencies or generic plugin-contract changes. Update exact operator
+trust and any pinned wheel when installing the new specialization.
+
+The existing suite passed 119 tests before implementation. The syntax and
+reference slices passed 141 and 157 tests respectively, each with the independent
+wheel matrix. New regressions were observed failing before implementation,
+including malformed XML passing validation and valid UTF-32 being mislabeled as
+malformed. UTF-32 now blocks as unsupported. Cancellation follows the existing
+foundation contract and persists a cancelled result without claiming partial
+inspection completed.
+
+Final commands executed October 31, 2026:
+
+| Command | Observed result |
+| --- | --- |
+| `.venv/bin/ruff check .` | Passed, including complexity limit 10. |
+| `.venv/bin/ruff format --check .` | Passed; 84 Python files formatted. |
+| `.venv/bin/mypy` | Passed; 24 source files under strict checking. |
+| `.venv/bin/lint-imports` | Passed; foundation optional-import boundary kept. |
+| `.venv/bin/pytest -q` | 169 passed in 42.97 seconds. |
+| `.venv/bin/python scripts/check_wheels.py` | Six independent installations passed, including all twenty Odoo CLI fixture cases. |
+| `.venv/bin/python scripts/check_odoo_fixtures.py .venv/bin/devkit` | Twenty cases passed, with persisted evidence, retrieval and human output. |
+
+The highest measured complexity in the changed specialization is 8, in
+`read_manifest` and `_resolve`. No complexity suppression was added. Process/MCP
+and wheel checks ran on the host because restricted sandbox stdio cannot complete
+those checks. No required gate was skipped.
+
+The corpus now contains fourteen synthetic layouts. MCP parity includes XML
+success, syntax failure and blocked DTD inspection, alongside the existing module
+dependency and authorization cases. All prior artifact-trust, operator-profile,
+evidence-retention, Go independence and foundation-only regressions remain in the
+suite and wheel matrix.
+
+[Two public OCA snapshots](Odoo_Validation.md#v03-public-repository-evaluation)
+provided a read-only evaluation of 133 modules and 299 XML files. Ordinary
+validation succeeded; strict module-dependency checks blocked on incomplete
+inventory. Both checkouts remained clean, and CLI results matched saved evidence
+and `runs show`. Reference diagnostics reported 104 earlier local definitions and
+439 unknown references, with unsupported operations and non-XML files explicitly
+recorded. These counts establish static inspection coverage, not runtime Odoo
+compatibility.
+
+The remaining limits are intentional: no database, XPath/view validation,
+dynamic evaluation, CSV-content inspection, cross-module XML-ID solver or runtime
+record-existence guarantee. Caller-declared module completeness cannot establish
+XML-ID completeness. Existing infrastructure was sufficient; no unrelated cleanup
+or architectural redesign was needed.
 
 ### v0.2 practical validation milestone
 
@@ -386,10 +439,11 @@ The fresh-build direction and first-release scope are confirmed and implemented.
 
 Prioritize the next practical milestone as follows:
 
-1. Extend the representative public/synthetic corpus and add bounded static XML
-   syntax and local reference diagnostics, using the existing Odoo command seam.
-2. Use those projects to decide whether direct dependency cycle diagnostics would
-   provide enough value to justify an additional static check.
+1. Use v0.3's unknown-reference evidence to select one useful additional static
+   check. Literal CSV XML-ID declarations are a candidate, but parsing them must
+   preserve load ordering and cannot establish runtime record existence.
+2. Evaluate direct dependency cycle diagnostics against representative projects
+   before committing to a solver or broader graph infrastructure.
 3. Schedule live runtime validation only with an explicitly agreed disposable
    Odoo environment. Beads and orchestration remain separately scoped proposals.
 
