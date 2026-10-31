@@ -9,6 +9,7 @@ from devkit.contracts import Context, DevkitError, JSONObject
 from devkit.schemas import validate
 
 from devkit_odoo.dependencies import external_dependencies, module_dependencies
+from devkit_odoo.xml_inspection import XMLInspection
 
 STRINGS: JSONObject = {"type": "array", "items": {"type": "string", "minLength": 1}}
 MANIFEST_SCHEMA: JSONObject = {
@@ -80,6 +81,7 @@ def inspect_module(
     available: dict[str, Path],
     context: Context,
     policy: JSONObject,
+    xml: XMLInspection,
 ) -> JSONObject:
     result: JSONObject = {
         "module": name,
@@ -89,6 +91,7 @@ def inspect_module(
         "path": module.relative_to(context.project_root).as_posix(),
         "dependencies": [],
         "external_dependencies": [],
+        "xml": {"files": [], "complete": False},
     }
     try:
         manifest = read_manifest(module)
@@ -122,7 +125,7 @@ def inspect_module(
         if item["status"] == "invalid"
     )
     _check_triggers(manifest, result)
-    _check_files(module, manifest, context, result)
+    _check_files(module, manifest, context, result, xml)
     return result
 
 
@@ -133,13 +136,21 @@ def _check_triggers(manifest: JSONObject, result: JSONObject) -> None:
         result["errors"].append("auto_install triggers must be declared or implicit dependencies")
 
 
-def _check_files(module: Path, manifest: JSONObject, context: Context, result: JSONObject) -> None:
-    for filename in manifest.get("data", []) + manifest.get("demo", []):
-        checkpoint(context)
-        try:
-            path = contained(module, filename)
-            if not path.is_file():
-                raise ValueError("Missing file")
-            result["checked_files"].append(filename)
-        except (OSError, ValueError):
-            result["errors"].append(f"Missing or unsafe declared file: {filename}")
+def _check_files(
+    module: Path, manifest: JSONObject, context: Context, result: JSONObject, xml: XMLInspection
+) -> None:
+    for phase in ("data", "demo"):
+        for filename in manifest.get(phase, []):
+            checkpoint(context)
+            try:
+                path = contained(module, filename)
+                if not path.is_file():
+                    raise ValueError("Missing file")
+                result["checked_files"].append(filename)
+                if path.suffix.lower() == ".xml":
+                    result["xml"]["files"].append(xml.inspect(path, filename, phase))
+            except (OSError, ValueError, RuntimeError):
+                result["errors"].append(f"Missing or unsafe declared file: {filename}")
+    result["xml"]["complete"] = not result["errors"] and all(
+        item["status"] == "valid" for item in result["xml"]["files"]
+    )

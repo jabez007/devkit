@@ -207,6 +207,52 @@ Run the configured lint, format, type, test, import, and complexity checks on ea
 
 ## Later releases
 
+### v0.3 offline XML validation design
+
+Reuse the Odoo command, literal manifests, contained-path checks, cancellation
+checkpoints, result envelope and evidence store. The existing `_check_files`
+seam already visits manifest `data` and `demo` files. Extend it to inspect declared
+XML automatically and preserve file order and phase. Keep XML parsing and literal
+reference analysis inside the Odoo specialization, behind one inspection module
+interface. No generic plugin-contract changes or runtime dependencies are needed.
+
+Use the standard-library Expat callbacks for source locations and bounded event
+inspection. Reject DTDs before declarations can expand entities. Never resolve
+external entities, evaluate expressions, process XInclude or import addon code.
+Bound per-file and invocation bytes, file count, element count, nesting depth and
+retained reference events. Reuse the existing final findings-size limit.
+Malformed XML is a defect; unsupported constructs, unreadable XML and exhausted
+inspection limits are missing coverage and block validation. Preserve any
+confirmed defects alongside blocked coverage in structured results.
+
+Literal reference analysis will cover a documented subset of Odoo loader
+operations, with source locations and data/demo ordering. Earlier same-module
+literal definitions can resolve a reference within the static inspection.
+Forward, external, dynamic and unseen references remain unknown. XML inventory
+cannot establish XML-ID absence: CSV, model metadata, hooks and installed data can
+supply IDs. Repeated definitions may be updates, so do not report duplicates as
+inherently invalid. No database simulation or XML-ID completeness setting.
+
+The additive specialization data schema becomes 1.2. Existing dependency
+classification and strict-dependency behavior remain unchanged. New XML results
+must explain examined files, unsupported forms and runtime limits. Syntax errors
+may make previously passing projects fail; document this intended behavior.
+
+Implement and commit three tested slices: bounded XML syntax diagnostics; literal
+reference diagnostics; representative CLI/wheel fixtures, public evaluation and
+versioned documentation. Test through CommandService, CLI evidence and MCP,
+including malformed and hostile XML, encodings, bounds, file order, data/demo
+separation, updates and unresolved references. Run all existing quality gates.
+The baseline Ruff complexity check passes; `read_manifest` measures 8 against
+limit 10. No unrelated cleanup is required by this change.
+
+References checked before implementation: the pinned Odoo 19
+[XML loader](https://github.com/odoo/odoo/blob/005e0a0eb7ef80cd15b0c82b570b2b0843181ba2/odoo/tools/convert.py),
+[Expat interface](https://docs.python.org/3.12/library/pyexpat.html), and
+[Python XML limits](https://docs.python.org/3.12/library/xml.html).
+Parser bounds and feature restrictions do not replace maintaining the Python
+runtime and its linked Expat library.
+
 ### v0.2 practical validation milestone
 
 Assessment before implementation: all 75 existing tests and six independent wheel

@@ -164,3 +164,29 @@ evidence, which was retrieved through `runs show`. Both records identified sourc
 revision `389daeb98a8e21fe11594bdddef873bb07d0cb61` with `dirty=false`. This is a
 snapshot evaluation, not a certification of OCA modules or their runtime behavior.
 No private client repositories or production instances were accessed.
+
+## XML syntax inspection in v0.3
+
+The existing command now parses XML files declared in manifest `data` and `demo`
+after checking their paths. No configuration change is required. Malformed XML
+fails with `INVALID_XML`; diagnostics identify the module-relative file and
+one-based line and column. XML syntax is separate from Odoo view, model and
+runtime validity.
+
+DTD declarations, unsupported encodings, unreadable XML and exhausted inspection
+limits block coverage. A DTD is unsupported, not automatically malformed XML.
+The parser does not load external entities or resources. UTF-8, UTF-16 and
+Latin-1 have acceptance coverage. CSV and other declared file types retain path
+checks without XML parsing.
+
+The additive specialization data schema is 1.2. Each module has `xml.files`, with
+path, data/demo phase, status, reason and diagnostic location, plus `xml.complete`.
+Top-level `xml_counts` totals valid, invalid and blocked files. Earlier dependency
+fields and strict-dependency behavior remain unchanged. A confirmed defect takes
+precedence over blocked coverage, but both findings remain in evidence.
+
+Limits apply to each invocation: 256 XML files, 16 MiB total XML bytes and 100,000
+elements. Each file is capped at 1 MiB and nesting at 128 elements. Cancellation
+and deadlines are checked between parse chunks and elements. The overall findings
+size limit still applies. These restrictions do not replace maintaining Python
+and its linked Expat library. See the [Python XML guidance](https://docs.python.org/3.12/library/xml.html).

@@ -16,6 +16,8 @@ from devkit.schemas import validate
 
 from devkit_odoo.inventory import Inventory, scan
 from devkit_odoo.validation import checkpoint, inspect_module
+from devkit_odoo.xml_inspection import LIMITS as XML_LIMITS
+from devkit_odoo.xml_inspection import XMLInspection
 
 INPUT_SCHEMA: JSONObject = {
     "type": "object",
@@ -56,9 +58,10 @@ OUTPUT_SCHEMA: JSONObject = {
         "dependency_counts",
         "not_checked",
         "inspection_complete",
+        "xml_counts",
     ],
     "properties": {
-        "validation_schema_version": {"const": "1.1"},
+        "validation_schema_version": {"const": "1.2"},
         "inventory": {
             "type": "object",
             "required": ["complete", "complete_prefixes", "scan_complete", "paths", "module_count"],
@@ -67,8 +70,25 @@ OUTPUT_SCHEMA: JSONObject = {
             "type": "array",
             "items": {
                 "type": "object",
-                "required": ["module", "dependencies", "errors"],
+                "required": ["module", "dependencies", "errors", "xml"],
                 "properties": {
+                    "xml": {
+                        "type": "object",
+                        "required": ["files", "complete"],
+                        "properties": {
+                            "complete": {"type": "boolean"},
+                            "files": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "required": ["path", "phase", "status", "reason"],
+                                    "properties": {
+                                        "status": {"enum": ["valid", "invalid", "blocked"]}
+                                    },
+                                },
+                            },
+                        },
+                    },
                     "dependencies": {
                         "type": "array",
                         "items": {
@@ -94,7 +114,7 @@ OUTPUT_SCHEMA: JSONObject = {
 
 def _data(inventory: Inventory, policy: JSONObject, *, scanned: bool = True) -> JSONObject:
     return {
-        "validation_schema_version": "1.1",
+        "validation_schema_version": "1.2",
         "target_profile": "19.0",
         "validator_version": version("devkit-odoo"),
         "modules": [],
@@ -105,6 +125,7 @@ def _data(inventory: Inventory, policy: JSONObject, *, scanned: bool = True) -> 
             "selected field types",
             "data/demo file paths",
             "direct module dependency presence",
+            "declared XML syntax",
         ],
         "not_checked": [
             "runtime",
@@ -115,6 +136,8 @@ def _data(inventory: Inventory, policy: JSONObject, *, scanned: bool = True) -> 
             "transitive dependencies",
             "dependency cycles",
         ],
+        "xml_counts": dict.fromkeys(("valid", "invalid", "blocked"), 0),
+        "xml_limits": XML_LIMITS,
         "dependency_counts": dict.fromkeys(("resolved", "missing", "unknown", "invalid"), 0),
     }
 
@@ -164,11 +187,12 @@ def _inspect(
     strict: bool,
 ) -> CommandResult:
     size = 0
+    xml = XMLInspection(lambda: checkpoint(context))
     for name in names:
         try:
             checkpoint(context)
             finding = inspect_module(
-                name, inventory.modules[name], inventory.modules, context, data["inventory"]
+                name, inventory.modules[name], inventory.modules, context, data["inventory"], xml
             )
         except DevkitError as exc:
             return _scan_failure(exc, data)
@@ -181,6 +205,8 @@ def _inspect(
                 "RESULT_LIMIT",
             )
         data["modules"].append(finding)
+        for file in finding["xml"]["files"]:
+            data["xml_counts"][file["status"]] += 1
         for edge in finding["dependencies"]:
             data["dependency_counts"][edge["status"]] += 1
     data["inspection_complete"] = True
@@ -193,9 +219,15 @@ def _summary(data: JSONObject, action: str) -> str:
     lines = [
         f"Examined {len(data['modules'])} modules; dependencies: {counts}.",
         f"Modules: {names[:500]}",
+        "XML files: " + ", ".join(f"{n} {status}" for status, n in data["xml_counts"].items()),
     ]
     for finding in data["modules"]:
         issues = list(finding["errors"])
+        issues.extend(
+            f"{file['path']}:{file['line']}:{file['column']}: {file['message']}"
+            for file in finding["xml"]["files"]
+            if file["status"] != "valid"
+        )
         issues.extend(
             f"{edge['status']}: {edge['name']}"
             for edge in finding["dependencies"]
@@ -223,6 +255,13 @@ def _outcome(data: JSONObject, strict: bool) -> CommandResult:
             data,
             "INVALID_MANIFEST",
         )
+    if data["xml_counts"]["invalid"]:
+        return CommandResult(
+            "failed",
+            _summary(data, "Correct malformed XML at the reported location."),
+            data,
+            "INVALID_XML",
+        )
     if counts["missing"]:
         return CommandResult(
             "failed",
@@ -231,6 +270,19 @@ def _outcome(data: JSONObject, strict: bool) -> CommandResult:
             ),
             data,
             "MISSING_DEPENDENCIES",
+        )
+    if data["xml_counts"]["blocked"]:
+        reason = next(
+            file["reason"]
+            for module in data["modules"]
+            for file in module["xml"]["files"]
+            if file["status"] == "blocked"
+        )
+        return CommandResult(
+            "blocked",
+            _summary(data, "XML inspection is incomplete; review the file diagnostics."),
+            data,
+            reason,
         )
     if strict and counts["unknown"]:
         return CommandResult(
