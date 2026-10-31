@@ -4,6 +4,10 @@ The contract is implemented and tested locally but remains provisional before
 public distribution. The source of truth is
 [`contracts.py`](../packages/devkit/src/devkit/contracts.py); plugin API and
 evidence schema versions are independent of distribution versions.
+The foundation wheel includes a `py.typed` marker for its inline annotations.
+Installed-consumer acceptance checks valid and invalid `CommandResult` statuses
+with strict mypy. This does not promise stability for every internal module;
+plugin authors should use the contracts documented here.
 
 ## Package and register
 

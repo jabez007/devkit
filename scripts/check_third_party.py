@@ -3,6 +3,7 @@
 import json
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -55,6 +56,30 @@ anyio.run(check)
     )
 
 
+def typed_consumer(root, project, env):
+    consumer = project / "consumer.py"
+    consumer.write_text(
+        "from devkit.contracts import CommandResult\n"
+        "def result() -> CommandResult:\n"
+        "    return CommandResult('success', 'Typed consumer')\n"
+    )
+    arguments = (
+        sys.executable,
+        "-m",
+        "mypy",
+        "--strict",
+        "--no-incremental",
+        "--python-executable",
+        str(root / "venv/bin/python"),
+        str(consumer),
+    )
+    run(*arguments, cwd=project, env=env)
+    consumer.write_text(consumer.read_text().replace("'success'", "'not-a-status'"))
+    rejected = subprocess.run(arguments, cwd=project, env=env, capture_output=True, text=True)
+    assert rejected.returncode == 1 and "[arg-type]" in rejected.stdout, rejected.stdout
+    print("PASS: installed foundation types accept valid and reject invalid plugin results")
+
+
 def main():
     root, wheels, constraints = map(Path, sys.argv[1:4])
     root.mkdir()
@@ -63,6 +88,7 @@ def main():
         root, wheels, ["devkit", "devkit_textcheck", "devkit_example", "devkit_mcp"], constraints
     )
     absent(root, project, env, ["devkit_go", "devkit_odoo", "devkit_beads", "odoo"])
+    typed_consumer(root, project, env)
     (project / "README.md").write_text("# Project\nUseful verification.\n")
     # Discovery requires no trust or project activation.
     discovered = cli(root, project, env, "plugins")["result"]["data"]["plugins"]
