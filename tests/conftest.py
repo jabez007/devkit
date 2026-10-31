@@ -4,6 +4,8 @@ import json
 
 import pytest
 
+from tests.beads_helpers import beads_project as beads_project
+
 
 @pytest.fixture(scope="session")
 def go_cache(tmp_path_factory):

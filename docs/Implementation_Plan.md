@@ -794,7 +794,7 @@ its qualified reference to the existing local pin set. The immutable original
 envelope remains unchanged. Repetition is idempotent; an invocation-evidence
 failure after pinning is reported by the existing `observed_result` mechanism
 and can be retried. Pins protect evidence, not task completion or approval.
-Copies of evidence must include `.references.json` to carry associations;
+Copies of evidence must include `references.json` to carry associations;
 retrieval uses existing `runs show` without requiring the adapter.
 
 Slices: (1) additive foundation seams; (2) read-only Beads commands;
@@ -816,3 +816,18 @@ Go, evidence lifecycle, artifact trust, and policy profiles), plus lint,
 formatting, strict typing and import boundaries. A stale hardcoded foundation
 producer version was observed failing a regression test and now uses the package
 version. The new seam tests also failed before implementation.
+
+Slice 2 adds the independently installed Beads read adapter. Its explicit process
+environment disables metrics and selects this project's `.beads`. All commands
+use `--readonly --sandbox --json`; no command initializes, migrates, or updates
+work items. Read effects include `network_read` conservatively because Beads
+configuration can select a remote backend before the adapter rejects that mode.
+`beads.workspace` is an existing environment-check prerequisite, so doctor and
+all item commands explain unsupported setup consistently. Commands repeat the
+workspace check at their own invocation to avoid relying on cached identity.
+
+Slice 3 uses `RunStore` references directly. Association accepts completed runs
+of any outcome and reports that outcome without changing it. Missing, incomplete,
+and foreign-project runs cannot be linked. Tests cover idempotence, retained
+original evidence, pruning protection, missing work items, reference-write failure,
+and evidence-write failure after a successful pin. Beads receives no writes.
