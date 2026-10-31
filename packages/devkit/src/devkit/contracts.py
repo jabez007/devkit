@@ -39,6 +39,7 @@ class Context:
     cancellation: Event
     settings: JSONObject = field(default_factory=dict)
     surface: str = "python"
+    state_root: Path | None = None
 
 
 @dataclass(frozen=True)

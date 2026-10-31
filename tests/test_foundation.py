@@ -16,6 +16,9 @@ def test_doctor_without_git(tmp_path, monkeypatch):
     project.mkdir()
     result = create_service(project).execute("core.doctor")
     assert result["result"]["status"] == "success"
+    from devkit import __version__
+
+    assert result["producer"]["version"] == __version__
     assert result["source"] == {"revision": None, "dirty": None}
     persisted = json.loads(Path(result["evidence_path"]).read_text())
     assert persisted["run_id"] == result["run_id"]
@@ -128,3 +131,16 @@ def test_source_metadata_does_not_execute_repository_hooks(tmp_path, monkeypatch
     assert result["source"]["revision"]
     assert result["source"]["dirty"] is True
     assert not (root / "hook-ran").exists()
+
+
+def test_handler_receives_resolved_evidence_location(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    settings = create_service(tmp_path).settings
+    command = CommandSpec(
+        "test.location",
+        "Inspect location",
+        lambda ctx, args: CommandResult("success", "Resolved", {"state": str(ctx.state_root)}),
+    )
+    result = service_with_grants(settings, (command,)).execute(command.id)
+    assert result["result"]["data"]["state"] == str(settings.state_root)

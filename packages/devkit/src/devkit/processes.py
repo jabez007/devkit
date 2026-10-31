@@ -5,6 +5,7 @@ import selectors
 import signal
 import subprocess
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from devkit.contracts import Context
@@ -87,9 +88,13 @@ def _collect(process: subprocess.Popen[bytes], context: Context) -> ProcessResul
     )
 
 
-def run_process(argv: list[str], context: Context) -> ProcessResult:
-    environment = {key: value for key, value in os.environ.items() if key in ENVIRONMENT}
-    environment.update(GOENV="off", GOTOOLCHAIN="local")
+def run_process(
+    argv: list[str], context: Context, *, environment: Mapping[str, str] | None = None
+) -> ProcessResult:
+    """Run with bounded capture and cancellation; an explicit environment replaces defaults."""
+    if environment is None:
+        environment = {key: value for key, value in os.environ.items() if key in ENVIRONMENT}
+        environment.update(GOENV="off", GOTOOLCHAIN="local")
     try:
         process = subprocess.Popen(
             argv,

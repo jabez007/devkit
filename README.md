@@ -11,7 +11,7 @@ XML/CSV inspection, explicit dependency coverage and Go checks.
 It needs no Odoo server, Docker, Beads, or model credentials. Package names and
 the plugin API remain provisional; these distributions have not been published.
 Packages version independently: Odoo is 0.5.0, the foundation diagnostic patch is
-0.1.1, and unchanged Go/MCP distributions remain 0.1.0. Update exact operator
+0.1.2, and unchanged Go/MCP distributions remain 0.1.0. Update exact operator
 trust and any wheel digest when upgrading Odoo. The generic plugin contract and
 evidence envelope retain their existing versions.
 
@@ -39,7 +39,7 @@ To install built distributions in another environment:
 ```sh
 uv build --all-packages
 uv venv /tmp/devkit-install --python 3.12
-uv pip install --python /tmp/devkit-install/bin/python dist/devkit-0.1.1-py3-none-any.whl
+uv pip install --python /tmp/devkit-install/bin/python dist/devkit-0.1.2-py3-none-any.whl
 # Add only the plugins and adapters you need:
 uv pip install --python /tmp/devkit-install/bin/python dist/devkit_go-0.1.0-py3-none-any.whl
 uv pip install --python /tmp/devkit-install/bin/python dist/devkit_odoo-0.5.0-py3-none-any.whl

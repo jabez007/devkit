@@ -68,8 +68,18 @@ again or call a command handler directly. The service owns validation, policy,
 prerequisites, diagnostics, and evidence.
 
 Python handlers must check cancellation and deadlines around bounded work.
-The internal `devkit.processes.run_process` helper demonstrates supervised
-process execution for the Go plugin; it is not a separately versioned plugin API.
+Foundation 0.1.2 adds optional `Context.state_root`, the resolved local evidence
+store. The invocation service always supplies it; manually constructed contexts
+may omit it. Existing positional construction and plugin API 1.0 remain valid.
+Use `RunStore(context.state_root)` for evidence references, rather than resolving
+global configuration again.
+
+`devkit.processes.run_process(argv, context, environment=None)` provides bounded
+capture, deadline enforcement and process-group cancellation on Linux. An explicit
+string mapping replaces the inherited environment completely; omit it to retain
+the existing filtered Go-compatible defaults. Plugins using these additions must
+require `devkit>=0.1.2,<0.2`. This helper follows the foundation package version,
+not a separate protocol version.
 Long-lived or untrusted work needs host isolation. Declared effects are policy
 inputs, not interception of Python filesystem or network calls.
 

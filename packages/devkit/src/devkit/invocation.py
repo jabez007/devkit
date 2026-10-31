@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from threading import Event
 from uuid import uuid4
 
+from devkit import __version__
 from devkit.config import Settings
 from devkit.contracts import CheckSpec, CommandResult, CommandSpec, Context, DevkitError, JSONObject
 from devkit.discovery import validate_command
@@ -89,6 +90,7 @@ class CommandService:
             cancellation or Event(),
             self.settings.options,
             surface,
+            self.settings.state_root,
         )
         safe_args = _json_arguments(args)
         with capture_output() as output:
@@ -113,7 +115,7 @@ class CommandService:
                 "parent_run_id": _parent_run_id,
                 "command": command,
                 "producer": self.origins.get(
-                    command, {"distribution": "devkit", "version": "0.1.0"}
+                    command, {"distribution": "devkit", "version": __version__}
                 ),
                 "project_root": str(self.settings.project_root),
                 "arguments": safe_args,

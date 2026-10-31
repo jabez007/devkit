@@ -763,3 +763,56 @@ Prioritize the next practical milestone as follows:
    Odoo environment. Beads and orchestration remain separately scoped proposals.
 
 No public package publication or external tracker mutation has been performed.
+
+
+## v0.6 design note — foundation integration
+
+The optional `devkit-beads` adapter will use the existing specialization entry
+point, command registry, policy checks, invocation service, process supervisor,
+and `RunStore.reference`/`show` interfaces. Beads remains the authority for work
+items and readiness. No task database, scheduler, or Beads writes are introduced.
+
+The tested upstream interface is Beads 1.3.2, commit
+`9b65b9e198acbcc98e7fd3a87a5d55baa065a572`. Disposable probes of `context`,
+`show`, `ready`, and `dep list` with `--readonly --sandbox --json` left the
+workspace files unchanged. Explicit read-only mode disables maintenance and
+server auto-start; `BD_DISABLE_METRICS=1` disables telemetry initialization.
+Initial support is an embedded Dolt workspace at the project root. Other
+versions, redirects, worktrees, and server backends require separate validation.
+
+Two additive foundation seams are necessary: `Context.state_root` supplies the
+already-resolved evidence location, and `run_process(..., environment=...)`
+accepts an explicit child environment without inheriting unrelated variables.
+Existing callers retain their defaults. These additions avoid configuration
+re-resolution and a duplicate subprocess supervisor. Foundation 0.1.2 keeps
+plugin API 1.0 and envelope 1.0; the new adapter requires that patch release.
+The adapter owns Beads JSON parsing, compatibility checks, and qualified identity
+(`beads:<project UUID>:<issue ID>`). No generic issue interface is needed.
+
+Association validates the existing run and live work item, then atomically adds
+its qualified reference to the existing local pin set. The immutable original
+envelope remains unchanged. Repetition is idempotent; an invocation-evidence
+failure after pinning is reported by the existing `observed_result` mechanism
+and can be retried. Pins protect evidence, not task completion or approval.
+Copies of evidence must include `.references.json` to carry associations;
+retrieval uses existing `runs show` without requiring the adapter.
+
+Slices: (1) additive foundation seams; (2) read-only Beads commands;
+(3) association and retention; (4) independent plugin and real installed-wheel
+acceptance; (5) documentation and full gates. Tests cover policy denial before
+execution, malformed/bounded output, missing tools, cancellation, incompatible
+workspaces, association retries and partial failures, and CLI/Python/MCP parity.
+Real disposable Go and Odoo workspaces exercise Beads 1.3.2. Existing P1 suites
+and foundation/Go/Odoo-only wheels remain regression gates.
+
+Baseline Ruff complexity checks passed at the configured maximum of 10.
+No existing over-threshold functions or required broad refactors were found.
+The process helper is already shared with Go; this concrete second consumer
+justifies documenting its narrow interface. Remote Beads modes and automatic
+association removal on task closure are follow-ups, not part of this milestone.
+
+Slice 1: the two additive seams passed 50 focused tests (foundation, processes,
+Go, evidence lifecycle, artifact trust, and policy profiles), plus lint,
+formatting, strict typing and import boundaries. A stale hardcoded foundation
+producer version was observed failing a regression test and now uses the package
+version. The new seam tests also failed before implementation.

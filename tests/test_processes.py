@@ -52,3 +52,18 @@ def test_cancellation_and_environment_filter(tmp_path, monkeypatch):
     )
     assert result.stdout.strip() == "None"
     assert run_process(["/missing/tool"], context(tmp_path)).reason == "MISSING_TOOL"
+
+
+def test_explicit_environment_replaces_inherited_environment(tmp_path, monkeypatch):
+    monkeypatch.setenv("GOPROXY", "must-not-inherit")
+    result = run_process(
+        [
+            sys.executable,
+            "-c",
+            'import os; print(os.getenv("BD_DISABLE_METRICS")); '
+            'print(os.getenv("GOPROXY")); print(os.getenv("GOENV"))',
+        ],
+        context(tmp_path),
+        environment={"BD_DISABLE_METRICS": "1"},
+    )
+    assert result.stdout.splitlines() == ["1", "None", "None"]
