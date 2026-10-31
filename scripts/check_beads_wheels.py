@@ -8,6 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from check_beads_lifecycle import exercise as lifecycle
 from check_wheels import absent, cli, install, policy, run
 
 READ = ["read_fs", "write_fs", "execute_process", "network_read"]
@@ -161,7 +162,7 @@ def exercise(root, wheels, constraints, domain, binary):
     touched = [name for name in before if before[name] != after[name]]
     assert all(name.startswith(("embeddeddolt/", "dolt/")) for name in touched), touched
     if touched:
-        print(f"LIMITATION: {len(touched)} embedded Dolt files rewritten with identical bytes")
+        print(f"INFO: {len(touched)} embedded Dolt bookkeeping files rewritten during inspection")
     assert snapshot(root / "home") == home_before, "Beads read operations changed user files"
     assert (
         bd(
@@ -178,6 +179,7 @@ def exercise(root, wheels, constraints, domain, binary):
         )[0]["status"]
         == "open"
     )
+    lifecycle(root, project, env, ref)
     # Copy the existing portable bundle, including references, into a foundation-only install.
     portable(root, wheels, constraints, env, check["run_id"], ref)
     print(

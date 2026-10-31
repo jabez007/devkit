@@ -1,6 +1,6 @@
 # Devkit implementation plan
 
-Status: v0.6 capabilities implemented; strict filesystem read-only Beads access remains an upstream limitation. Public publication is pending.\
+Status: Foundation, static validation, and writable Beads integration implemented. Public publication is pending.\
 Date: October 31, 2026.\
 Scope: Build a new toolkit inspired by Crpaxton4/devcontainer-features.\
 First release: Go checks and offline Odoo validation, as selected by the project owner.
@@ -736,7 +736,7 @@ tracker discovery and crash-atomic family deletion remain outside this increment
 | Increment | Dependency | Deliverable and acceptance gate |
 | --- | --- | --- |
 | Isolated Odoo runtime checks | First release and an agreed Odoo test environment | Add install, test, and upgrade commands for a pinned Odoo 19 edition and image. Use disposable databases, explicit target authorization, and resource ownership. Prove cancellation and cleanup. Odoo 17 requires its own tested profile. Select a maintained client or a narrow transport adapter only when a concrete operation needs RPC. |
-| Optional Beads adapter | v0.6 read-only profile implemented | Beads 1.3.2 embedded workspace inspection, ready/show/dependencies, and explicit local evidence references. Creation, claim, close, server and concurrent modes remain separately scoped. |
+| Optional Beads adapter | Inspection and writable lifecycle implemented | Beads 1.3.2 embedded workspace inspection, local evidence references, create, claim, update, comment and close. Server, administrative and simultaneous-writer modes remain separately scoped. |
 | Odoo Project import | Beads adapter and a scoped Odoo connection | Implement one-way import and reference linking with connector-owned mappings and checkpoints. Test replay, outages, concurrent attempts, and a crash between issue creation and checkpoint persistence. Preserve external field authority. |
 | Task-source independence | Beads adapter | Link an Odoo Project task to non-Odoo development and a GitHub issue reference to Odoo development. Manual GitHub reference linking is sufficient initially. A full GitHub sync connector requires separate scope. |
 | Optional orchestration | Stable domain commands and the integrations the pack actually needs | Build one Gas City pack that invokes existing commands. Verify equivalent evidence for manual and orchestrated execution. Keep scheduling and agent sessions outside the foundation. |
@@ -760,8 +760,8 @@ Prioritize the next practical milestone as follows:
    v0.4 CSV inspection and v0.5 observed-cycle diagnostics are implemented; neither
    establishes runtime record existence or global dependency completeness.
 3. Schedule live runtime validation only with an explicitly agreed disposable
-   Odoo environment. The v0.6 Beads read adapter is implemented; task mutations
-   and orchestration remain separately scoped proposals.
+   Odoo environment. Beads inspection and ordinary task mutations are implemented;
+   orchestration and administrative commands remain separately scoped proposals.
 
 No public package publication or external tracker mutation has been performed.
 
@@ -869,7 +869,7 @@ README example, below the configured threshold 10. No complexity suppression or
 new third-party Python dependency was introduced.
 
 
-### v0.6 verification and remaining limitation
+### Historical v0.6 verification and initial read-only interpretation
 
 Executed October 31, 2026 using the locked workspace environment:
 
@@ -907,12 +907,12 @@ No Odoo validator, task lifecycle, orchestration, or public registry publication
 was added. The independent package versions are foundation 0.1.2, Beads 0.1.0,
 Go/MCP 0.1.0 and Odoo 0.5.0; plugin/evidence schemas remain 1.0.
 
-Next priorities: (1) establish a Beads profile that guarantees strict storage
-read-only access, via a verified upstream fix or separately tested supported mode;
-(2) adopt the existing integration in one selected development repository and
-review evidence retention and diagnostics; (3) expand the Beads compatibility
-matrix only when that usage identifies a concrete need. Task writes and agent
-orchestration remain separately scoped.
+The original recommendation to prioritize strict storage read-only access is
+superseded by the writable integration below. Read-only task access remains an
+optional restricted configuration. Embedded bookkeeping is not a reason to block
+ordinary development workflows. Current priorities are a selected repository
+pilot and compatibility expansion based on observed needs. Administrative
+operations and orchestration remain separately scoped.
 
 
 ## Writable Beads integration design
@@ -962,3 +962,15 @@ configuration, interrupted/malformed writes, and existing association retries.
 Run the full lint, format, strict typing, import, pytest and installed-wheel gates.
 Baseline complexity passes at threshold 10. The current query function measures
 7; extraction keeps process policy local. No unrelated cleanup is required.
+
+
+Writable integration verification so far: 52 focused tests pass, including all
+five mutations on CLI, Python and MCP, denied/invalid calls before execution,
+revocation, explicit actors and effects, uncertain results, cancellation, native
+guard failures and evidence persistence failures. The original association tests
+remain unchanged in behavior. Actual installed Beads acceptance passed in both
+Go and Odoo repositories: create, claim and same-actor retry, competing claimant
+refusal, guarded update conflict, comment through MCP, verification, repeated
+association, blocked closure, successful closure and retention. Beads recorded
+exactly one explicit comment; evidence association added none. The shared
+invocation extraction separately passed 22 regressions before lifecycle code.

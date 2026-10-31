@@ -6,11 +6,12 @@ The CLI, Python API, and optional local MCP server share validation, authorizati
 and evidence handling.
 
 The v0.6 milestone adds an optional [Beads integration](docs/Beads_Integration.md):
-inspect work items and explicitly associate verification evidence without changing
-task status. Go checks and offline Odoo 19 validation remain independently usable.
+inspect work items and associate verification evidence. The writable follow-up
+adds individually authorized create, claim, update, comment, and close commands.
+Go checks and offline Odoo 19 validation remain independently usable.
 The foundation requires no Beads, Odoo server, Docker, or model credentials.
 Package names and the plugin API remain provisional; nothing is published to a
-public package registry. Versions are foundation 0.1.2, Beads/Go/MCP 0.1.0, and
+public package registry. Versions are foundation 0.1.2, Beads 0.2.0, Go/MCP 0.1.0, and
 Odoo 0.5.0. Plugin API 1.0 and evidence envelope 1.0 are unchanged.
 
 ## Set up a development checkout
@@ -42,7 +43,7 @@ uv pip install --python /tmp/devkit-install/bin/python dist/devkit-0.1.2-py3-non
 uv pip install --python /tmp/devkit-install/bin/python dist/devkit_go-0.1.0-py3-none-any.whl
 uv pip install --python /tmp/devkit-install/bin/python dist/devkit_odoo-0.5.0-py3-none-any.whl
 uv pip install --python /tmp/devkit-install/bin/python dist/devkit_mcp-0.1.0-py3-none-any.whl
-uv pip install --python /tmp/devkit-install/bin/python dist/devkit_beads-0.1.0-py3-none-any.whl
+uv pip install --python /tmp/devkit-install/bin/python dist/devkit_beads-0.2.0-py3-none-any.whl
 ```
 
 Use the supplied foundation wheel, since the working distribution name is not an
@@ -353,5 +354,5 @@ restricted execution sandbox.
 
 See the [architecture](docs/Composable_Developer_Tookkit_Architecture.md) and
 [implementation plan](docs/Implementation_Plan.md) for the fresh-build decisions
-and later increments. Live Odoo, tracker imports, Beads mutation/server modes,
+and later increments. Live Odoo, tracker imports, Beads server modes and administrative operations,
 and orchestration remain future work with separate integration prerequisites.

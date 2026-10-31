@@ -13,6 +13,8 @@ from devkit.contracts import (
 
 from devkit_beads.client import Beads, BeadsError, items, local_id
 from devkit_beads.evidence import associate
+from devkit_beads.writes import OPERATIONS, mutate
+from devkit_beads.writes import commands as write_commands
 
 # Reads do not change work-item data, but Beads embedded Dolt rewrites internal
 # files with unchanged bytes. Declare that observed filesystem effect honestly.
@@ -23,6 +25,8 @@ REFERENCE = {"type": "string", "pattern": r"^beads:[0-9a-f-]{36}:[A-Za-z0-9][A-Z
 def _operation(
     client: Beads, workspace: JSONObject, args: JSONObject, operation: str
 ) -> JSONObject:
+    if operation in OPERATIONS:
+        return mutate(client, workspace, args, operation)
     scope = workspace["project_id"]
     if operation == "evidence.associate":
         return associate(client.context, client, workspace, args)
@@ -58,11 +62,16 @@ def execute(context: Context, args: JSONObject, *, operation: str) -> CommandRes
             "success",
             "Evidence reference recorded; work item unchanged"
             if operation == "evidence.associate"
-            else "Beads inspection complete",
+            else "Beads operation complete",
             data,
         )
     except BeadsError as exc:
-        return CommandResult(exc.status, str(exc), reason=exc.reason)
+        return CommandResult(
+            exc.status,
+            str(exc),
+            {"mutation_may_have_occurred": True} if exc.reason == "BEADS_WRITE_UNCERTAIN" else {},
+            exc.reason,
+        )
     except OSError:
         return CommandResult("blocked", "Cannot access Beads workspace", reason="BEADS_UNAVAILABLE")
 
@@ -116,6 +125,7 @@ def register() -> Specialization:
             effects=READ_EFFECTS,
         )
     )
+    commands.extend(write_commands(execute, REFERENCE))
     return Specialization(
         "beads",
         tuple(commands),

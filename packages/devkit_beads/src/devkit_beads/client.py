@@ -1,4 +1,4 @@
-"""Bounded, read-only Beads 1.3.2 CLI access; no database access or task cache."""
+"""Bounded Beads 1.3.2 CLI access; no database access or task cache."""
 
 import json
 import os
@@ -72,7 +72,11 @@ def _item(row: object, scope: str, dependency: bool) -> JSONObject:
     description = row.get("description", "")
     if not isinstance(description, str):
         raise invalid()
+    optional = {key: row[key] for key in ("assignee", "created_by", "close_reason") if key in row}
+    if any(not isinstance(value, str) for value in optional.values()):
+        raise invalid()
     return {
+        **optional,
         "ref": f"beads:{scope}:{identifier}",
         **{key: row[key] for key in fields},
         "priority": priority,
@@ -122,6 +126,27 @@ class Beads:
             return json.loads(result.stdout)
         except (ValueError, RecursionError) as exc:
             raise invalid() from exc
+
+    def write(self, actor: str, *arguments: str) -> object:
+        result = self._invoke(["bd", "--sandbox", "--json", f"--actor={actor}", *arguments])
+        if result.reason in {"MISSING_TOOL", "PROCESS_ERROR"}:
+            raise BeadsError("blocked", result.reason, "Beads write process could not start")
+        if result.returncode == 13 and arguments[0] == "update":
+            raise BeadsError("blocked", "BEADS_CONFLICT", "Beads update guard no longer matches")
+        if result.reason or result.truncated or result.returncode:
+            raise BeadsError(
+                "error",
+                "BEADS_WRITE_UNCERTAIN",
+                "Beads write was not confirmed; inspect the item before retrying",
+            )
+        try:
+            return json.loads(result.stdout)
+        except (ValueError, RecursionError) as exc:
+            raise BeadsError(
+                "error",
+                "BEADS_WRITE_UNCERTAIN",
+                "Beads returned invalid write JSON; inspect the item before retrying",
+            ) from exc
 
     def workspace(self) -> JSONObject:
         if self.directory.is_symlink() or not self.directory.is_dir():

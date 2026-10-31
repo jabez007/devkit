@@ -246,7 +246,7 @@ requires-dist = [{ name = "jsonschema", specifier = ">=4.25,<5" }]
 
 [[package]]
 name = "devkit-beads"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "packages/devkit_beads" }
 dependencies = [
     { name = "devkit" },

@@ -1,7 +1,7 @@
 # Merge into the operator policy OUTSIDE the project, mode 0600.
 # Replace the path with the canonical project path. Include only needed surfaces.
 [trusted_plugins]
-devkit-beads = "0.1.0"
+devkit-beads = "0.2.0"
 devkit-go = "0.1.0"
 
 [profiles.beads]
@@ -28,5 +28,28 @@ effects = ["read_fs", "write_fs", "execute_process", "network_read"]
 surfaces = ["cli", "python", "mcp"]
 
 [profiles.beads.commands."go.test"]
+effects = ["read_fs", "write_fs", "execute_process", "network_read", "network_write"]
+surfaces = ["cli", "python", "mcp"]
+
+# Normal lifecycle access. Omit these five grants for restricted inspection and
+# local evidence association. Close remains separately authorized from update.
+
+[profiles.beads.commands."beads.item.create"]
+effects = ["read_fs", "write_fs", "execute_process", "network_read", "network_write"]
+surfaces = ["cli", "python", "mcp"]
+
+[profiles.beads.commands."beads.item.claim"]
+effects = ["read_fs", "write_fs", "execute_process", "network_read", "network_write"]
+surfaces = ["cli", "python", "mcp"]
+
+[profiles.beads.commands."beads.item.update"]
+effects = ["read_fs", "write_fs", "execute_process", "network_read", "network_write"]
+surfaces = ["cli", "python", "mcp"]
+
+[profiles.beads.commands."beads.item.comment"]
+effects = ["read_fs", "write_fs", "execute_process", "network_read", "network_write"]
+surfaces = ["cli", "python", "mcp"]
+
+[profiles.beads.commands."beads.item.close"]
 effects = ["read_fs", "write_fs", "execute_process", "network_read", "network_write"]
 surfaces = ["cli", "python", "mcp"]

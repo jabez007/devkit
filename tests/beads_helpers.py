@@ -15,7 +15,12 @@ root = Path.cwd()
 settings = json.loads((root / "fake.json").read_text())
 with (root / "calls.jsonl").open("a") as out:
     out.write(json.dumps({"argv":sys.argv[1:], "env":dict(os.environ)}) + "\\n")
-assert sys.argv[1:4] == ["--readonly", "--sandbox", "--json"]
+readonly = sys.argv[1] == "--readonly"
+if readonly:
+    assert sys.argv[1:4] == ["--readonly", "--sandbox", "--json"]
+else:
+    assert sys.argv[1:3] == ["--sandbox", "--json"]
+    assert sys.argv[3].startswith("--actor=")
 assert os.environ["BD_DISABLE_METRICS"] == "1"
 assert os.environ["BEADS_DIR"] == str(root / ".beads")
 assert "TEST_SECRET" not in os.environ
@@ -31,6 +36,26 @@ if mode == "malformed":
 if mode == "oversized":
     print("x" * 300000); sys.exit()
 item = {"id":"demo-1", "title":"Check project", "status":"open", "priority":2, "issue_type":"task"}
+if not readonly:
+    (root / "write-started").write_text("attempted")
+    mode = settings.get("write_mode")
+    if mode == "sleep":
+        time.sleep(30)
+    if mode == "malformed":
+        print("invalid json"); sys.exit()
+    if mode == "oversized":
+        print("x" * 300000); sys.exit()
+    if mode == "exit":
+        sys.exit(settings.get("write_code", 1))
+    if command == "comments":
+        result = {"id":"00000000-0000-0000-0000-000000000001", "issue_id":"demo-1",
+                  "author":sys.argv[3].split("=",1)[1], "text":sys.argv[-1]}
+    elif command == "create":
+        result = item
+    else:
+        result = [item]
+    print(json.dumps(settings.get("write_response", result)))
+    sys.exit()
 if command == "version":
     result = {"version":settings.get("version", "1.3.2")}
 elif command == "context":
@@ -69,7 +94,7 @@ def beads_project(tmp_path, monkeypatch):
 
     policy = tmp_path / "config/devkit/policy.toml"
     policy.parent.mkdir(parents=True)
-    text = '[trusted_plugins]\ndevkit-beads="0.1.0"\n'
+    text = '[trusted_plugins]\ndevkit-beads="0.2.0"\n'
     for spec in register().commands:
         text += f'[commands."{spec.id}"]\nproject={json.dumps(str(project))}\n'
         text += f'effects={json.dumps(sorted(spec.effects))}\nsurfaces=["cli","python","mcp"]\n'
