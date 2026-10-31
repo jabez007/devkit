@@ -1,0 +1,6 @@
+<odoo>
+    <record id="example_contact" model="res.partner">
+        <field name="name">Example contact</field>
+        <field name="parent_id" ref="example_partner"/>
+    </record>
+</odoo>

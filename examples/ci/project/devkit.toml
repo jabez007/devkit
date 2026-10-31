@@ -1,0 +1,13 @@
+schema_version = 1
+plugins = ["go", "odoo"]
+timeout = 90
+
+[options.odoo]
+addons_paths = ["addons"]
+strict_dependencies = false
+
+[options.odoo.inventory]
+complete = false
+
+[profiles]
+verify = ["go.tests", "odoo.manifests"]

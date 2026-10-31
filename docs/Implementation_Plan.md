@@ -207,6 +207,51 @@ Run the configured lint, format, type, test, import, and complexity checks on ea
 
 ## Later releases
 
+### CI adoption pilot design
+
+Reuse `core.check`, project profiles, CLI exit codes, exact project grants,
+wheel-artifact pins and `runs list/show/pin/prune`. These interfaces already
+provide the required behavior. No runtime package, schema or version change is
+needed. `scripts/check_wheels.py` already builds wheels and installs independent
+environments; extend that acceptance matrix with the actual CI recipe.
+
+Add a small synthetic combined Go/Odoo project under `examples/ci`. Its Go tests
+execute normally; its custom addon is inspected offline with an explicitly
+incomplete inventory. A short operator setup example creates a fresh external
+policy with exact wheel versions/digests and command grants. It does not read
+grants from project configuration or derive approved versions from installed
+metadata. The digest proves identity with the selected build, not independent
+provenance of the build source.
+
+A Bash recipe invokes doctor and the existing verify profile, retains their JSON,
+and preserves the check's exit code while retrieving evidence. Pin the profile
+parent so its children stay protected. Preview retention; apply zero-retention
+only inside disposable acceptance tests to prove family protection and release.
+Keep the complete private state store under a fresh report directory so the
+uploaded artifact can be read with `runs show --all-projects` after relocation.
+Exclude operator policy, wheels and source files from that report directory.
+Evidence-maintenance failure must fail a successful check and must not erase an
+existing nonzero check result.
+
+Add a GitHub Actions pilot with immutable action revisions, read-only repository
+permissions, no persisted checkout credentials and a finite job timeout. Install
+built wheels in a fresh environment. Upload reports on success or failure with
+seven-day artifact retention. Synthetic failure scenarios remain opt-in through
+workflow dispatch; default push/PR runs use the passing scenario. This workflow
+executes project Go tests and is not a sandbox for arbitrary test code.
+
+Test the recipe with actual installed wheels for success, failed Go tests,
+blocked strict Odoo coverage and invalid profile configuration. Check parent/child
+evidence, wheel identities, maintenance failure, relocated retrieval and pin/prune
+behavior. Exercise GitHub upload/download for both successful and intentionally
+failing jobs. Reuse the existing six wheel scenarios and all quality gates.
+The current lint/complexity check passes; changed wheel acceptance functions
+measure at most 2 against the limit of 10. No runtime cleanup is required.
+
+GitHub artifact retention and Devkit local retention are separate lifecycles.
+Cancelling or forcibly terminating a job can prevent its final upload. The pilot
+does not change branch protection, publish packages or touch another project.
+
 ### v0.5 observed dependency-cycle diagnostics design
 
 Reuse `module_dependencies`, the inspected module findings, `Inventory`, the

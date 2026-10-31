@@ -9,6 +9,8 @@ import tempfile
 import tomllib
 from pathlib import Path
 
+from check_ci_pilot import exercise as exercise_pilot
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -231,6 +233,12 @@ anyio.run(check)
     print("PASS: installed MCP, plugin composition, disabled imports, invalid output")
 
 
+def exercise_ci_pilot(root, wheels, constraints):
+    project, env = install(root, wheels, ["devkit", "devkit_go", "devkit_odoo"], constraints)
+    absent(root, project, env, ["odoo", "docker", "mcp"])
+    exercise_pilot(root / "venv/bin/devkit", wheels, root / "cases", env)
+
+
 def main():
     with tempfile.TemporaryDirectory(prefix="devkit-wheels-") as temporary:
         root = Path(temporary)
@@ -252,6 +260,7 @@ def main():
             exercise_template,
             exercise_artifact_pin,
             exercise_mcp,
+            exercise_ci_pilot,
         ):
             target = root / exercise.__name__
             target.mkdir()
