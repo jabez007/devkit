@@ -129,3 +129,38 @@ devkit --project /absolute/project --json runs show <run-uuid>
 prerequisites. Run `odoo.module.validate` to inspect addons paths and manifests.
 Static validation does not establish runtime Odoo compatibility, installation,
 upgrade behavior or database correctness.
+
+## Representative validation
+
+The [synthetic repositories](../tests/fixtures/odoo/README.md) cover custom-only,
+internal, external OCA-style, complete, duplicate, invalid, unsafe and optional
+addon cases. Fifteen CLI scenarios assert statuses and relationships, text output,
+persisted evidence and `runs show`. The same script runs against a separately
+installed Odoo-only wheel. Python/CLI/MCP parity tests also cover successful,
+blocked and failed dependency results and policy revocation.
+
+On October 31, 2026, devkit-odoo 0.2.0 evaluated the public
+[OCA/server-tools 19.0 snapshot](https://github.com/OCA/server-tools/tree/389daeb98a8e21fe11594bdddef873bb07d0cb61).
+The checkout remained clean. No addon Python code was imported, no server was
+started, and no dependencies were installed. Configuration and evidence were
+stored outside the checkout. These commands were used against that snapshot:
+
+```sh
+devkit --project /tmp/devkit-v02-oca-server-tools --json run odoo.module.validate --args '{"addons_paths":["."],"strict_dependencies":false}'
+devkit --project /tmp/devkit-v02-oca-server-tools --json run odoo.module.validate --args '{"addons_paths":["."],"strict_dependencies":true}'
+```
+
+| Observation | Ordinary check | Strict check |
+| --- | --- | --- |
+| Modules examined | 30 | 30 |
+| Resolved direct relationships | 2 | 2 |
+| Unknown direct relationships | 30 | 30 |
+| Missing / invalid relationships | 0 / 0 | 0 / 0 |
+| External requirements left unverified | 8 | 8 |
+| Result / CLI exit | success / 0 | blocked / 2 |
+
+The strict reason was `INCOMPLETE_INVENTORY`. Returned results matched persisted
+evidence, which was retrieved through `runs show`. Both records identified source
+revision `389daeb98a8e21fe11594bdddef873bb07d0cb61` with `dirty=false`. This is a
+snapshot evaluation, not a certification of OCA modules or their runtime behavior.
+No private client repositories or production instances were accessed.

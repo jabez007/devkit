@@ -234,7 +234,7 @@ wheels = [
 
 [[package]]
 name = "devkit"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "packages/devkit" }
 dependencies = [
     { name = "jsonschema" },
@@ -273,7 +273,7 @@ requires-dist = [
 
 [[package]]
 name = "devkit-odoo"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "packages/devkit_odoo" }
 dependencies = [
     { name = "devkit" },

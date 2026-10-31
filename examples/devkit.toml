@@ -7,6 +7,12 @@ target_version = "19.0"
 addons_paths = ["addons"]
 strict_dependencies = false
 
+# A successful scan does not imply a complete inventory. Unknown dependencies
+# remain unverified; strict_dependencies=true blocks when certainty is needed.
+[options.odoo.inventory]
+complete = false
+complete_prefixes = []
+
 [profiles]
 verify = ["go.tests", "odoo.manifests"]
 static = ["odoo.manifests"]

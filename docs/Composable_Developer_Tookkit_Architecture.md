@@ -145,7 +145,7 @@ Use Python wheels and `importlib.metadata.entry_points()`; do **not** build a ne
 # Current Odoo plugin registration
 [project]
 name = "devkit-odoo"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = ["devkit>=0.1,<0.2"]
 
 [project.entry-points."devkit.specializations.v1"]
@@ -270,6 +270,17 @@ A customer Odoo Project task describes a warehouse barcode enhancement. The conn
 ### 9.1 Odoo scope
 
 Build `odoo.module.validate` as an offline check for an Odoo 19 profile. Parse addon manifests as bounded literal data without executing them. Validate required fields and declared local files, and distinguish local dependency findings from checks that need a complete addon set or a running server. Static validation does not prove successful installation, upgrade, or runtime compatibility.
+
+The implemented v0.2 inventory defaults to incomplete. Multiple configured addon
+paths form one bounded inventory within the authorized workspace. Explicit full
+or module-prefix completeness claims distinguish missing dependencies from
+unknown ones; directory traversal alone never establishes completeness. Missing
+and invalid declarations fail, while strict checks with unknown dependencies
+block. Duplicate module names fail without path-order precedence. Results record
+relationships, scan completion and coverage using the specialization's additive
+schema 1.1; the generic command/result contract is unchanged. External Python and
+binary requirements remain unverified. See [Odoo validation](Odoo_Validation.md).
+
 
 Live Odoo testing and Odoo 17 support require separate tested profiles in later increments. Do not require Odoo Enterprise modules in generic tooling. Runtime checks must distinguish Community, Enterprise, optional OCA dependencies, and installed custom modules.
 
@@ -463,6 +474,7 @@ State formats belong to this project. Future changes to persisted devkit state w
 
 - D7. Build devkit from scratch. Use the upstream repository as design inspiration without extraction, state migration, or compatibility obligations.
 - D8. The first usable release provides Go checks and offline Odoo validation. Live Odoo testing, work tracking, and orchestration follow later.
+- D9. v0.2 deepens the existing offline specialization. Dependency presence and inventory completeness are distinct; strict incomplete coverage blocks instead of asserting a module defect. Completeness claims remain explicit and visible in evidence. No generic solver or plugin-contract expansion is needed.
 
 **Proposed decisions (approve or amend):**
 

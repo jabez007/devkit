@@ -5,9 +5,14 @@ plugins for a project, and authorize their commands through an operator policy.
 The CLI, Python API, and optional local MCP server share validation, authorization,
 and evidence handling.
 
-The first release provides Go tests and offline Odoo 19 manifest validation.
+The v0.2 milestone adds explicit dependency coverage to offline Odoo 19 validation,
+alongside the existing Go checks.
 It needs no Odoo server, Docker, Beads, or model credentials. Package names and
 the plugin API remain provisional; these distributions have not been published.
+Packages version independently: Odoo is 0.2.0, the foundation diagnostic patch is
+0.1.1, and unchanged Go/MCP distributions remain 0.1.0. Update exact operator
+trust and any wheel digest when upgrading Odoo. The generic plugin contract and
+evidence envelope retain their existing versions.
 
 ## Set up a development checkout
 
@@ -33,10 +38,10 @@ To install built distributions in another environment:
 ```sh
 uv build --all-packages
 uv venv /tmp/devkit-install --python 3.12
-uv pip install --python /tmp/devkit-install/bin/python dist/devkit-0.1.0-py3-none-any.whl
+uv pip install --python /tmp/devkit-install/bin/python dist/devkit-0.1.1-py3-none-any.whl
 # Add only the plugins and adapters you need:
 uv pip install --python /tmp/devkit-install/bin/python dist/devkit_go-0.1.0-py3-none-any.whl
-uv pip install --python /tmp/devkit-install/bin/python dist/devkit_odoo-0.1.0-py3-none-any.whl
+uv pip install --python /tmp/devkit-install/bin/python dist/devkit_odoo-0.2.0-py3-none-any.whl
 uv pip install --python /tmp/devkit-install/bin/python dist/devkit_mcp-0.1.0-py3-none-any.whl
 ```
 
@@ -79,7 +84,7 @@ replace the example project paths with the project's absolute path.
 
 ```toml
 [trusted_plugins]
-devkit-odoo = "0.1.0"
+devkit-odoo = "0.2.0"
 
 [commands."odoo.module.validate"]
 project = "/absolute/path/to/project"
@@ -94,8 +99,8 @@ trusted build or download process:
 
 ```toml
 [trusted_plugins.devkit-odoo]
-version = "0.1.0"
-wheel = "/absolute/operator/path/devkit_odoo-0.1.0-py3-none-any.whl"
+version = "0.2.0"
+wheel = "/absolute/operator/path/devkit_odoo-0.2.0-py3-none-any.whl"
 sha256 = "<64 lowercase hexadecimal characters>"
 ```
 

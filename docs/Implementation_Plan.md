@@ -215,9 +215,9 @@ the complexity limit of 10. The P1 fixes have regression coverage in
 `test_artifact_trust.py`, `test_policy_profiles.py`, and `test_runs.py`; no
 regression was observed. Their documented limits remain unchanged.
 
-The Odoo implementation currently merges every absent dependency into one
-unresolved list, accepts malformed dependency identifiers, and sorts an unbounded
-directory listing before applying its module limit. Manifest errors lose field
+At assessment, the Odoo implementation merged every absent dependency into one
+unresolved list, accepted malformed dependency identifiers, and sorted an unbounded
+directory listing before applying its module limit. Manifest errors lost field
 context. `doctor` checks activation but declares no Odoo environment prerequisites;
 its successful foundation check does not validate addon paths or manifests.
 
@@ -246,8 +246,11 @@ requirement checks, and additional filesystem scopes remain follow-ups.
 Delivery slices: dependency semantics and bounds; representative repositories and
 usability; documented v0.2 packaging and final acceptance. Dependency semantics
 and bounds, representative CLI fixtures, and focused usability improvements are
-implemented. Final versioned packaging and acceptance are next. See [Odoo validation](Odoo_Validation.md) for the configuration and
-result contract.
+implemented. Versioned packaging uses devkit-odoo 0.2.0 and foundation 0.1.1;
+Go/MCP remain at 0.1.0. The specialization data schema is additive 1.1, and the
+generic contracts remain unchanged. Exact Odoo trust versions and optional wheel
+pins must be updated. See [Odoo validation](Odoo_Validation.md) for configuration,
+compatibility and the public repository evaluation.
 
 The fixture corpus covers nine synthetic repository layouts and fifteen CLI
 cases. Both development and independent Odoo-only installations exercise the
@@ -260,6 +263,48 @@ These reuse existing summaries and redaction, with no domain branches in core.
 The four CLI regressions were observed failing before their fixes. No new runtime
 dependencies were added. Ruff's complexity limit remains 10; the manifest-only
 B018 exemption permits Odoo's required bare dictionary syntax, not complex code.
+
+### v0.2 completion evidence
+
+Executed October 31, 2026 from the locked workspace environment:
+
+| Command | Observed result |
+| --- | --- |
+| `.venv/bin/ruff check .` | Passed, including configured maximum complexity 10. |
+| `.venv/bin/ruff format --check .` | Passed; 70 Python files formatted. |
+| `.venv/bin/mypy` | Passed; strict checking of 22 source files. |
+| `.venv/bin/lint-imports` | Passed; foundation optional-import boundary kept. |
+| `.venv/bin/pytest -q` | 119 passed in 34.65 seconds. |
+| `.venv/bin/python scripts/check_wheels.py` | Six independent installed environments passed, including the 15 Odoo CLI cases. |
+| `.venv/bin/python scripts/check_odoo_fixtures.py .venv/bin/devkit` | Fifteen CLI cases passed, including text, persisted evidence and retrieval. |
+
+Process/MCP and installed-wheel checks ran in the host execution environment;
+restricted sandbox stdio cannot complete those tests. No required gate was
+skipped. A separate Ruff complexity measurement found a maximum of 8 in changed
+runtime functions (`read_manifest`); no complexity exemptions were introduced.
+No additional cleanup requiring an unrelated refactor was identified.
+
+The [public OCA evaluation](Odoo_Validation.md#representative-validation) examined
+30 modules at a pinned clean revision: 2 resolved relationships, 30 unknown,
+none missing or invalid, and 8 unverified external requirements. Ordinary
+validation succeeded; strict validation blocked with `INCOMPLETE_INVENTORY`.
+Both runs' persisted evidence and retrieval were checked.
+
+| Milestone acceptance | Evidence |
+| --- | --- |
+| Custom addons without a server or complete Odoo checkout | Standalone fixture and independent Odoo-only installation. |
+| Missing, unknown and invalid remain distinct | Explicit full/prefix claims, incomplete and malformed fixture regressions. |
+| Strict validation cannot infer completeness | Incomplete strict CLI/MCP cases block; unavailable scans never classify absence as missing. |
+| Go remains independent | Real passing/failing Go wheel tests with Odoo absent. |
+| Foundation remains independent | Foundation-only wheel tests, including doctor and evidence lifecycle. |
+| CLI/Python/MCP semantics remain consistent | Result equality for all dependency statuses, denial and revocation regressions. |
+| Prior P1 fixes remain covered | Artifact trust, operator profiles and evidence retention suites plus installed tamper scenario. |
+| Behavior is documented and demonstrated | README, specialization guide, architecture decision D9, synthetic fixtures and public evaluation. |
+
+Declared completeness is still a claim; the validator cannot certify that a
+caller supplied every source. Resolved means direct manifest presence. Runtime,
+transitive dependency/cycle analysis and external requirement checks remain
+outside coverage. These limits are exposed in results and documentation.
 
 ### P1 follow-up slices before integration expansion
 
@@ -293,4 +338,13 @@ The fresh-build direction and first-release scope are confirmed and implemented.
 - Select public distribution names and an owned entry-point namespace before publication.
 - Select Odoo runtime environments, Beads versions, and external credentials only when scheduling those later increments.
 
-The next integration increment needs either an agreed disposable Odoo runtime or a pinned Beads compatibility target. Neither is required to use the completed local toolkit. No public package publication or external tracker mutation has been performed.
+Prioritize the next practical milestone as follows:
+
+1. Extend the representative public/synthetic corpus and add bounded static XML
+   syntax and local reference diagnostics, using the existing Odoo command seam.
+2. Use those projects to decide whether direct dependency cycle diagnostics would
+   provide enough value to justify an additional static check.
+3. Schedule live runtime validation only with an explicitly agreed disposable
+   Odoo environment. Beads and orchestration remain separately scoped proposals.
+
+No public package publication or external tracker mutation has been performed.

@@ -57,7 +57,10 @@ def cli(root, project, env, *args, expected=0):
 def policy(root, project, names, commands):
     path = root / "config/devkit/policy.toml"
     path.parent.mkdir(parents=True, exist_ok=True)
-    text = "[trusted_plugins]\n" + "".join(f'devkit-{name}="0.1.0"\n' for name in names)
+    versions = {"odoo": "0.2.0"}
+    text = "[trusted_plugins]\n" + "".join(
+        f'devkit-{name}="{versions.get(name, "0.1.0")}"\n' for name in names
+    )
     for command, effects in commands.items():
         text += f'\n[commands."{command}"]\nproject={json.dumps(str(project))}\n'
         text += f'effects={json.dumps(effects)}\nsurfaces=["cli","python","mcp"]\n'
