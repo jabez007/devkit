@@ -1005,3 +1005,31 @@ access and restricted inspection use the same existing operator policy with
 separate command grants. Operators must renew exact-version or wheel trust for
 `devkit-beads` 0.2.0. The next useful step is a selected repository pilot; strict
 filesystem read-only operation is no longer a roadmap prerequisite.
+
+## Proposed v0.7 — everyday verification and linked worktrees
+
+The [repository assessment and acceptance design](v0.7_Assessment.md) separates
+verified native Beads behavior from adapter support. Start with small foundation
+improvements; do not expand Odoo or introduce orchestration.
+
+| Order | Independently testable slice | Completion evidence |
+| --- | --- | --- |
+| 1 | Shell child-check diagnostics and installed type annotations | Implemented during assessment; CLI regression and isolated typed-consumer acceptance |
+| 2 | Find evidence by exact reference with existing `RunStore` metadata | Scoped list/filter, pagination, corrupt metadata, retained families and foundation-only tests |
+| 3 | Linked-worktree adapter compatibility | Native identity and registered Git topology validation, exact checkout grants, provenance, transport parity, retention and contention gates; current protections remain until satisfied |
+| 4 | Plugin publication readiness | Decide distribution ownership, license and compatibility policy; package metadata and independent build/type/runtime matrix |
+| 5 | Direct server/concurrency qualification if needed | Pinned isolated server, competing claims, guarded updates, timeout/cancellation/restart tests; shared/proxied modes remain separate |
+
+The repeatable non-Odoo workflow is in `scripts/check_beads_workflow.py`, called
+by the installed-wheel gate. It exercises failing verification, repair, evidence
+association/review, explicit closure and retention. Native `git worktree add` and
+`bd worktree create` share the same ledger in sequential probes; the adapter still
+rejects both. No source or result schema changes are required for the small fixes.
+
+Assessment verification: 291 tests passed in 86.44 seconds; Ruff lint/format,
+strict mypy and import boundaries passed. The full installed-wheel matrix passed
+in 13 environments, including the new repair/worktree probes and installed
+consumer typing. See the assessment's verification record for commands and limits.
+The marker fix followed a reproduced `import-untyped` failure; the CLI regression
+also failed before its fix. Server and simultaneous-writer acceptance remain
+unimplemented, and existing workspace guards are unchanged.

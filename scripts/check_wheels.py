@@ -267,7 +267,7 @@ def main():
             target = root / exercise.__name__
             target.mkdir()
             exercise(target, wheels, constraints)
-        for script in ("check_third_party.py", "check_beads_wheels.py"):
+        for script in ("check_third_party.py", "check_beads_wheels.py", "check_beads_workflow.py"):
             run(
                 sys.executable,
                 str(ROOT / "scripts" / script),

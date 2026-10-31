@@ -279,6 +279,14 @@ future deployment and integration work.
 
 ### 8.3 Future single-writer and concurrent-writer modes
 
+The [v0.7 assessment](v0.7_Assessment.md) verifies native Beads 1.3.2 discovery
+and sequential operations in linked Git worktrees. Devkit still blocks these
+contexts. Any future support must preserve the invocation checkout as the policy,
+configuration and evidence scope while validating Beads' separate shared workspace
+identity. Neither a shared UUID nor successful sequential operations establish
+concurrent-writer safety. The assessment defines the acceptance gate before any
+guard is removed; it proposes no task database or Devkit locking service.
+
 For a solo user, embedded Dolt is sufficient. For multiple independent writers (agents, containers, daemon), use Beads' supported Dolt server mode, with a single intended authority for work graph changes. Verify actual version-specific behavior in integration tests. Do not rely on filesystem sharing to grant concurrency safety. Beads claims do not replace per-worktree, per-database, or privileged-resource leases.
 
 Treat Dolt push/pull, backups, and recovery as Beads concerns. A derived JSONL export is not an authoritative backup.
@@ -524,6 +532,7 @@ State formats belong to this project. Future changes to persisted devkit state w
 - D11. v0.4 adds bounded CSV identifiers to the same source-order resolver. Direct literal references share XML/CSV ordering, while runtime model metadata and relational cardinality remain unverified. Strict CSV parser rejection is missing coverage because Odoo's reader is permissive. Data schema 1.3 adds CSV evidence without a generic contract change or new dependency.
 - D12. v0.5 checks known dependency edges among already inspected manifests, using the standard-library graph implementation. A confirmed cycle fails, while absent evidence never establishes global acyclicity. Selecting a module retains its existing read scope. Schema 1.4 adds one cycle witness and explicit graph coverage; there is no transitive solver or generic contract change.
 - D15. Writable task lifecycle is normal optional integration behavior. The v0.6 inspection-only scope was temporary. Existing exact-command grants separate inspection, creation, claiming, updating, commenting and closing. Beads owns transitions and conflicts; destructive/admin operations are outside these grants.
+- D16. Worktree topology and writer concurrency require separate evidence. Preserve current workspace guards until native discovery, checkout-scoped authorization, shared identity, retention and contention tests pass. The v0.7 assessment prioritizes shell diagnostics, evidence discovery and independent extension usability without new domain validators or orchestration.
 - D14. The initial v0.6 slice implemented Beads inspection and evidence references. Foundation additions were limited to resolved evidence context and explicit child environments. D15 supersedes that delivery scope; read-only access is not a permanent architectural requirement.
 - D13. The CI adoption pilot composes existing profiles, exact operator grants, wheel identity checks and evidence maintenance. Provider artifact retention stays separate from local pin/prune rules. The pilot introduces no runtime adapter, package version or schema change.
 

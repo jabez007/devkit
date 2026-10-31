@@ -347,6 +347,10 @@ strict typing covers the runtime packages. The wheel matrix builds packages and
 tests the original seven environments (foundation, Go, offline Odoo, template,
 artifact trust, MCP composition, and CI pilot), plus a renamed third-party plugin,
 real Beads with Go and Odoo, and two foundation-only portable-evidence readers.
+One additional Go/Beads environment exercises a failing check, code repair,
+evidence review and explicit task closure. It also probes native Git worktrees
+and verifies that the current Devkit adapter still blocks them. The independent
+plugin environment checks installed foundation annotations with strict mypy.
 The Beads matrix needs the explicitly selected 1.3.2 test binary; see the
 [download/checksum and compatibility instructions](docs/Beads_Integration.md#reproduce-acceptance).
 Runtime users install only the optional tools they need. The Odoo-only
@@ -357,5 +361,7 @@ restricted execution sandbox.
 
 See the [architecture](docs/Composable_Developer_Tookkit_Architecture.md) and
 [implementation plan](docs/Implementation_Plan.md) for the fresh-build decisions
-and later increments. Live Odoo, tracker imports, Beads server modes and administrative operations,
+and later increments. The [v0.7 assessment](docs/v0.7_Assessment.md) records verified
+workflow behavior, worktree limitations and prioritized foundation improvements.
+Live Odoo, tracker imports, Beads server modes and administrative operations,
 and orchestration remain future work with separate integration prerequisites.

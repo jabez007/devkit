@@ -17,6 +17,12 @@ The tested upstream revision is
 [`9b65b9e198acbcc98e7fd3a87a5d55baa065a572`](https://github.com/gastownhall/beads/tree/9b65b9e198acbcc98e7fd3a87a5d55baa065a572).
 Other versions, server modes, redirects, worktrees, and symlinked workspace roots
 are blocked pending separate acceptance testing. Devkit does not install or initialize Beads or request administrative migrations.
+The [v0.7 assessment](v0.7_Assessment.md) exercised native Beads reads and
+sequential writes from both Git-created and Beads-created linked worktrees.
+They shared the main ledger, but the Devkit adapter still rejected them. Native
+discovery is verified; adapter worktree support and concurrent writers are not.
+Use the main checkout for Devkit's Beads commands until that acceptance gate is
+complete. Do not initialize a separate ledger in each linked worktree.
 Ordinary writes use native Beads behavior, including configured hooks, maintenance,
 and schema handling. Use a compatible workspace. Server and concurrent-writer
 profiles require separate acceptance testing.
