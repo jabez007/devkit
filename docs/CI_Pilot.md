@@ -167,3 +167,30 @@ For a downloaded store whose original project path is unavailable, add
 store unless the broader scope is intended. Local pins do not extend a CI
 provider's artifact retention. Hosted runners discard local state after the job;
 the uploaded artifact has a separate expiration date.
+
+## Verified pilot runs
+
+On October 31, 2026, the pilot ran on GitHub-hosted Ubuntu with wheels installed
+outside the checkout. The passing run retained a clean source revision. Opt-in
+faults retained a dirty revision, identifying the modified synthetic checkout.
+
+| Hosted run | Check exit | Observed result |
+| --- | --- | --- |
+| [Passing profile](https://github.com/jabez007/devkit/actions/runs/41229385545) | 0 | Both required checks passed; reports uploaded. |
+| [Go regression](https://github.com/jabez007/devkit/actions/runs/41229548702) | 1 | Job failed with `TEST_FAILED`; reports uploaded. |
+| [Strict Odoo coverage](https://github.com/jabez007/devkit/actions/runs/41229551188) | 2 | Job failed with `INCOMPLETE_INVENTORY`; reports uploaded. |
+| [Invalid profile](https://github.com/jabez007/devkit/actions/runs/41229553163) | 3 | Job failed with `INVALID_PROFILE`; reports uploaded. |
+
+The three red jobs are deliberate acceptance cases. Downloaded reports preserved
+the exit codes, reasons, source identity and `ci:artifact` pins. A separate
+foundation-only installation retrieved the saved results without Go/Odoo plugins
+or the original operator policy. Zero-retention previews still protected each
+pinned profile family. The first passing upload's metadata confirmed a seven-day
+expiration; these artifact links are not permanent evidence storage.
+
+The installed-wheel acceptance matrix also runs seven recipe cases: success,
+Go failure, blocked Odoo coverage, invalid profile, doctor trust failure, and
+maintenance failure after either success or blocked coverage. Those disposable
+local cases prove that applying retention protects pinned children and removes
+the family only after unpinning. The hosted test does not establish behavior on
+self-hosted runners, cancellation upload guarantees or any real client project.

@@ -255,6 +255,60 @@ The three opt-in fixture mutations appear in both the Bash workflow and Python
 acceptance code. Keep that small duplication: sharing it would add a scenario
 runner to an example whose purpose is to demonstrate ordinary CI commands.
 
+### CI adoption pilot completion evidence
+
+The pilot is implemented as examples, an installed-wheel acceptance case and a
+GitHub Actions workflow. It reuses the existing CLI without runtime package,
+schema, dependency or package-version changes. The three existing package versions
+are foundation 0.1.1, Go 0.1.0 and Odoo 0.5.0. The optional MCP package remains 0.1.0.
+The guide records installation, trust, profile exits, report retrieval, local
+retention and provider artifact expiration.
+
+Final local verification on October 31, 2026:
+
+| Command | Observed result |
+| --- | --- |
+| `.venv/bin/ruff check .` | Passed, including complexity limit 10. |
+| `.venv/bin/ruff format --check .` | Passed; 124 Python files formatted. |
+| `.venv/bin/mypy` | Passed; 26 runtime source files under strict checking. |
+| `.venv/bin/lint-imports` | Passed; foundation optional-import boundary kept. |
+| `.venv/bin/pytest -q` | 234 passed in 63.01 seconds. |
+| `.venv/bin/python scripts/check_wheels.py` | All seven independent environments passed, including the original 33 Odoo CLI fixtures and seven new CI recipe scenarios. |
+| `bash -n examples/ci/check.sh` | Passed. The actual recipe was also exercised by the wheel acceptance cases. |
+| `gofmt -l examples/ci/project/total.go examples/ci/project/total_test.go` | Passed with no files reported. |
+
+The first wheel run exposed that naming the policy script `operator.py` shadows
+Python's standard module. Renaming it to `prepare_policy.py` fixed startup; the
+full wheel matrix then passed. A later two-line fault-injection refinement changes
+Go's calculation instead of its assertion, producing a useful "got 11; want 10"
+diagnostic. All seven pilot cases passed again against installed wheels after
+that refinement. Exact workflow build, lock export, installation, operator setup
+and check commands also passed in a fresh local environment before workflow push.
+
+The maximum measured complexity in changed Python functions is 4 against the
+limit of 10. No suppressions were added. The existing bare-manifest lint exception
+was extended to the new literal example manifest. No runtime cleanup was needed.
+Host execution was used for Go/process/MCP and wheel checks because restricted
+sandbox stdio cannot complete them. All required gates ran; documentation links
+were checked locally.
+
+[Hosted acceptance](CI_Pilot.md#verified-pilot-runs) establishes a successful
+combined profile and three deliberately failing jobs with exits 1, 2 and 3.
+Every job uploaded reports. Downloaded artifacts preserved their results,
+revision/dirty identity and pins, and were readable with an independent
+foundation-only installation. Their pinned families survived a zero-retention
+preview. Artifact metadata confirmed seven-day provider retention.
+
+Remaining limits: this is a synthetic project, not a client adoption. The wheel
+hash approves identity with the selected build, not independent build provenance.
+Go tests execute under the runner's permissions. Provider expiration is independent
+of local pins, and forceful cancellation can prevent report upload. No package was
+published, no branch-protection rule changed, and no other repository was modified.
+
+Next, choose a real development repository and adapt its check profile and
+operator policy. Use its feedback before expanding static checks or integrations.
+Runtime Odoo, external task tracking and orchestration remain separately scoped.
+
 ### v0.5 observed dependency-cycle diagnostics design
 
 Reuse `module_dependencies`, the inspected module findings, `Inventory`, the
@@ -700,9 +754,8 @@ The fresh-build direction and first-release scope are confirmed and implemented.
 
 Prioritize the next practical milestone as follows:
 
-1. Pilot the existing checks in a development CI workflow. Document installation,
-   exact operator trust, exit-status handling and evidence retrieval/retention for
-   both Go and offline Odoo, without a new adapter or framework.
+1. Adopt the verified CI pilot in a selected real development repository. Review
+   that project's check profile, operator grants and evidence-upload contents.
 2. Use that adoption feedback to select the next static check or output improvement.
    v0.4 CSV inspection and v0.5 observed-cycle diagnostics are implemented; neither
    establishes runtime record existence or global dependency completeness.
