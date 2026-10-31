@@ -66,7 +66,7 @@ jobs:
           case "$SCENARIO" in
             passing) ;;
             go-failure)
-              sed -i 's/got != 10/got != 11/' "$DEVKIT_PROJECT/total_test.go" ;;
+              sed -i 's/return result/return result + 1/' "$DEVKIT_PROJECT/total.go" ;;
             odoo-blocked)
               sed -i 's/strict_dependencies = false/strict_dependencies = true/' "$DEVKIT_PROJECT/devkit.toml" ;;
             invalid-profile)

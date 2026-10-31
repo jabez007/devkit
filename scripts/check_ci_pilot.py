@@ -13,7 +13,7 @@ from check_odoo_fixtures import invoke
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples/ci"
 VARIANTS = {
     "passing": None,
-    "go-failure": ("total_test.go", "got != 10", "got != 11"),
+    "go-failure": ("total.go", "return result", "return result + 1"),
     "odoo-blocked": ("devkit.toml", "strict_dependencies = false", "strict_dependencies = true"),
     "invalid-profile": ("devkit.toml", '"go.tests", "odoo.manifests"', '"missing.check"'),
 }
