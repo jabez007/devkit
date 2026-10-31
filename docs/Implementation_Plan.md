@@ -257,6 +257,66 @@ Sources: pinned Odoo [CSV loader](https://github.com/odoo/odoo/blob/005e0a0eb7ef
 and [importer](https://github.com/odoo/odoo/blob/005e0a0eb7ef80cd15b0c82b570b2b0843181ba2/odoo/orm/models.py),
 and the [Python CSV interface](https://docs.python.org/3.12/library/csv.html).
 
+### v0.4 completion evidence
+
+Completed in three slices: shared bounded reads and reference inspection;
+CSV inspection and mixed-format resolution; representative acceptance, public
+evaluation and versioned documentation. devkit-odoo is 0.4.0 with data schema
+1.3. The foundation remains 0.1.1 and Go/MCP remain 0.1.0. No dependencies or
+generic plugin contracts changed. Exact operator trust and pinned wheel digests
+must be updated when installing the new Odoo wheel.
+
+The baseline passed 169 tests. The refactor passed 73 focused tests, and the
+feature slice passed 201 full-suite tests and the six-environment wheel matrix.
+A regression for blank or translation-only rows was observed failing before the
+fix: the loader removes translation columns and ignores empty rows before import,
+so width checks must not falsely block those rows.
+
+Final commands executed October 31, 2026:
+
+| Command | Observed result |
+| --- | --- |
+| `.venv/bin/ruff check .` | Passed, including complexity limit 10. |
+| `.venv/bin/ruff format --check .` | Passed; 99 Python files formatted. |
+| `.venv/bin/mypy` | Passed; 26 source files under strict checking. |
+| `.venv/bin/lint-imports` | Passed; foundation optional-import boundary kept. |
+| `.venv/bin/pytest -q` | 210 passed in 52.75 seconds. |
+| `.venv/bin/python scripts/check_wheels.py` | All six independent installation scenarios passed. The Odoo-only scenario includes all 26 CLI fixture cases. |
+| `.venv/bin/python scripts/check_odoo_fixtures.py .venv/bin/devkit` | 26 cases passed, including persisted evidence, retrieval and text diagnostics. |
+
+A separate Ruff measurement found maximum complexity 8 in the changed Odoo code
+and fixture assertion helper. No suppressions were added. Process/MCP and wheel
+checks ran on the host because restricted sandbox stdio cannot complete them.
+No required gate was skipped. The shared FileBudget and reference resolver remove
+format duplication; no additional cleanup or new abstraction is needed now.
+
+The twenty synthetic layouts cover mixed XML/CSV ordering, access controls,
+forward/demo references, updates, translations, multiline fields, malformed input
+and unsupported layouts. Python tests cover bounded inspection, cancellation,
+unsafe paths and inert cell contents. CLI/Python/MCP parity covers CSV success,
+defects, blocked coverage and authorization. P1 trust, policy and retention
+regressions remain in the full suite; foundation-only and Go independence remain
+in the wheel matrix.
+
+[Read-only public evaluation](Odoo_Validation.md#v04-public-repository-evaluation)
+inspected all 33 previously skipped CSV files and 107 nonempty rows across the
+same two pinned OCA snapshots. CSV findings report 2 resolved and 212 unknown
+references. Existing XML resolution counts did not change. Ordinary validation
+succeeded and strict module-dependency checks blocked on incomplete inventory;
+both checkouts remained clean and results matched persisted evidence. Synthetic
+fixtures establish the added cross-format resolution behavior.
+
+Runtime model metadata, relational cardinality, nested imports, conversions,
+permissions and hooks remain unverified. Unsupported CSV shapes block coverage;
+unknown IDs are advisory and never asserted missing. There is no runtime import
+or record-existence guarantee.
+
+For the next milestone, prioritize bounded dependency-cycle diagnostics among
+observed modules, reusing the existing inventory and result envelope. Prove
+cycles only from known edges and preserve incomplete-inventory semantics. Then
+use public results to select further static checks. Runtime Odoo operations and
+orchestration remain separately scoped future work.
+
 ### v0.3 offline XML validation design
 
 Reuse the Odoo command, literal manifests, contained-path checks, cancellation

@@ -33,9 +33,15 @@ persisted evidence and `runs show`. All fixture invocations remain offline.
 | xml_ordering | Forward, external and demo-only references remain unknown. |
 | xml_malformed | Syntax failure with a file and source location. |
 | xml_dtd | DTD inspection blocks without fetching the external resource. |
-| xml_dynamic | CSV interrupts reference certainty; Python expressions are never executed. |
+| xml_dynamic | CSV supplies an updated ID; Python expressions remain unexamined and are never executed. |
+| csv_access | Typical access-control IDs and references, followed by an XML lookup. |
+| csv_mixed | XML-to-CSV and CSV-to-XML references, plus a foreign-ID update. |
+| csv_ordering | Forward CSV references and data/demo separation. |
+| csv_empty | Empty-file failure matching the loader's header requirement. |
+| csv_unsupported | Nested import layout blocks without partial declarations. |
+| csv_quotes | Commas, multiline values, repeated/empty IDs and inert code-like text. |
 
-The corpus now has fourteen layouts and twenty CLI scenarios.
+The corpus now has twenty layouts and twenty-six CLI scenarios.
 
 Additional cases use arguments to select one module, require certainty, request
 an unsafe addons path, or assert completeness over an unavailable path. Python

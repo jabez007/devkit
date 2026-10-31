@@ -1,0 +1,4 @@
+id,name,parent_id/id
+child,Child,parent
+grandchild,Grandchild,child
+base.partner,External update,

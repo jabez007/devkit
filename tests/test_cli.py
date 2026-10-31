@@ -32,7 +32,7 @@ def test_text_discovery_lists_identifiers(tmp_path):
     }
     executable = str(Path(".venv/bin/devkit").resolve())
     for action, identifiers in [
-        ("plugins", ["go (devkit-go 0.1.0)", "odoo (devkit-odoo 0.3.0)"]),
+        ("plugins", ["go (devkit-go 0.1.0)", "odoo (devkit-odoo 0.4.0)"]),
         ("commands", ["core.doctor", "core.check"]),
     ]:
         proc = subprocess.run(

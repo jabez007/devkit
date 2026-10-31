@@ -33,6 +33,9 @@ def parameters(project):
         ("xml_valid", {}, 0),
         ("xml_malformed", {}, 1),
         ("xml_dtd", {}, 2),
+        ("csv_access", {}, 0),
+        ("csv_empty", {}, 1),
+        ("csv_unsupported", {}, 2),
     ],
 )
 def test_stdio_parity_and_denials(odoo_project, mode, arguments, exit_code):
@@ -43,8 +46,9 @@ def test_stdio_parity_and_denials(odoo_project, mode, arguments, exit_code):
         base = project / "addons/base"
         base.mkdir()
         (base / "__manifest__.py").write_text("{'name': 'Base', 'depends': []}")
-    if mode.startswith("xml_"):
-        fixture = Path("tests/fixtures/odoo") / mode / "addons/acme_xml"
+    if mode.startswith(("xml_", "csv_")):
+        addon = "acme_csv" if mode.startswith("csv_") else "acme_xml"
+        fixture = Path("tests/fixtures/odoo") / mode / "addons" / addon
         shutil.copytree(fixture, module, dirs_exist_ok=True)
     python_result = create_service(project).execute("odoo.module.validate", arguments)["result"]
     cli = subprocess.run(

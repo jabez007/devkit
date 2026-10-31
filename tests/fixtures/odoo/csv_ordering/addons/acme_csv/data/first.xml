@@ -1,0 +1,1 @@
+<odoo><record id="view" model="x"><field name="parent" ref="demo_only"/></record></odoo>

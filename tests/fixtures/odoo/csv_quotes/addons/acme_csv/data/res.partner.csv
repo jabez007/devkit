@@ -1,0 +1,6 @@
+id,name,name@fr
+first,"Acme, Inc.
+Second line",Traduction
+second,"__import__(""pathlib"").Path(""csv-executed"").touch()",
+first,"Updated ""name""",
+,Anonymous,

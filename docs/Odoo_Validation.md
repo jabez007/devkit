@@ -82,7 +82,7 @@ devkit --project /absolute/project --json run odoo.module.validate --args '{"mod
 
 ## Evidence and coverage
 
-Domain data schema 1.1 introduced these fields, which remain in 1.2:
+Domain data schema 1.1 introduced these fields, which remain in 1.3:
 
 - `inventory`: declared completeness, prefixes, claim basis, scan completion,
   scanned paths and counts, bounds, and the resolution basis `manifest_presence`.
@@ -135,7 +135,7 @@ upgrade behavior or database correctness.
 
 The [synthetic repositories](../tests/fixtures/odoo/README.md) cover custom-only,
 internal, external OCA-style, complete, duplicate, invalid, unsafe and optional
-addon cases, plus the v0.3 XML scenarios below. Twenty CLI scenarios assert
+addon cases, plus the XML and CSV scenarios below. Twenty-six CLI scenarios assert
 statuses and relationships, text output,
 persisted evidence and `runs show`. The same script runs against a separately
 installed Odoo-only wheel. Python/CLI/MCP parity tests also cover successful,
@@ -271,6 +271,10 @@ devkit --project /absolute/path/to/checkout --json run odoo.module.validate --ar
 
 ## CSV inspection in v0.4
 
+This milestone ships devkit-odoo 0.4.0 with specialization data schema 1.3. Update
+exact plugin trust and any approved wheel digest when upgrading. The foundation,
+Go and MCP package versions and the generic result envelope are unchanged.
+
 Manifest-declared CSV files now receive bounded inspection through
 `odoo.module.validate`. CSV and XML declarations share the existing literal
 reference resolver and preserve manifest file order, row order and data/demo
@@ -314,8 +318,8 @@ completeness does not imply XML-ID completeness.
 
 CSV has its own invocation budget: 256 files, 16 MiB total bytes, 10,000 data rows
 including ignored rows, and 4,000 reference events. Each file is limited to 1 MiB,
-128 columns and 65,536 characters per field. The existing result-size limit also
-applies. The inspector leaves Python's process-global CSV field-size limit
+128 columns and 65,536 characters per field. Selected header names must be at
+most 256 characters. The existing result-size limit also applies. The inspector leaves Python's process-global CSV field-size limit
 unchanged; a lower ambient parser limit can also block inspection. Cancellation
 and deadlines use the shared foundation contract.
 
@@ -332,3 +336,23 @@ The [pinned CSV loader](https://github.com/odoo/odoo/blob/005e0a0eb7ef80cd15b0c8
 and [field-path importer](https://github.com/odoo/odoo/blob/005e0a0eb7ef80cd15b0c82b570b2b0843181ba2/odoo/orm/models.py)
 define this subset. Nested imports, relational cardinality, runtime conversions,
 model metadata and hooks remain outside coverage.
+
+### v0.4 public repository evaluation
+
+On October 31, 2026, devkit-odoo 0.4.0 rechecked the same pinned public snapshots
+used for v0.3. Configuration and evidence stayed outside the checkouts. Both
+ordinary and strict runs matched persisted evidence and `runs show`; Git reported
+both checkouts clean. No addon code or runtime service was executed.
+
+| Snapshot | CSV files inspected | Nonempty CSV rows | CSV references resolved / unknown | XML references resolved / unknown |
+| --- | --- | --- | --- | --- |
+| [OCA/server-tools](https://github.com/OCA/server-tools/tree/389daeb98a8e21fe11594bdddef873bb07d0cb61) | 8 | 50 | 2 / 98 | 52 / 76 |
+| [OCA/sale-workflow](https://github.com/OCA/sale-workflow/tree/b2cb74591c66882b91264106abc5229e200f5bff) | 25 | 57 | 0 / 114 | 52 / 363 |
+
+All 33 CSV files passed the implemented structural checks. They had previously
+been skipped. Ordinary validation succeeded; strict module-dependency validation
+still blocked on incomplete module inventories. Existing XML resolution counts
+were unchanged. The public result establishes added CSV coverage and explicit
+reference diagnostics, not a reduction in those projects' unknown XML references.
+Synthetic mixed-format fixtures establish the new cross-format resolution cases.
+Generated model IDs and external modules remain outside the source inventory.

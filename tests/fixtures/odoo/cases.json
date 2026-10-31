@@ -312,5 +312,206 @@
       "unknown": 0
     },
     "reference_reasons": []
+  },
+  {
+    "fixture": "csv_access",
+    "status": "success",
+    "reason": null,
+    "counts": [
+      0,
+      0,
+      1,
+      0
+    ],
+    "arguments": {},
+    "csv_counts": {
+      "valid": 1,
+      "invalid": 0,
+      "blocked": 0
+    },
+    "csv_reference_counts": {
+      "resolved": 0,
+      "unknown": 2
+    },
+    "xml_counts": {
+      "valid": 1,
+      "invalid": 0,
+      "blocked": 0
+    },
+    "xml_reference_counts": {
+      "resolved": 1,
+      "unknown": 0
+    },
+    "reference_reasons": [],
+    "csv_reference_reasons": [
+      "not_in_scanned_data",
+      "external_module"
+    ]
+  },
+  {
+    "fixture": "csv_mixed",
+    "status": "success",
+    "reason": null,
+    "counts": [
+      0,
+      0,
+      1,
+      0
+    ],
+    "arguments": {},
+    "csv_counts": {
+      "valid": 1,
+      "invalid": 0,
+      "blocked": 0
+    },
+    "csv_reference_counts": {
+      "resolved": 2,
+      "unknown": 1
+    },
+    "xml_counts": {
+      "valid": 2,
+      "invalid": 0,
+      "blocked": 0
+    },
+    "xml_reference_counts": {
+      "resolved": 1,
+      "unknown": 0
+    },
+    "reference_reasons": [],
+    "csv_reference_reasons": [
+      "external_module"
+    ]
+  },
+  {
+    "fixture": "csv_ordering",
+    "status": "success",
+    "reason": null,
+    "counts": [
+      0,
+      0,
+      1,
+      0
+    ],
+    "arguments": {},
+    "csv_counts": {
+      "valid": 2,
+      "invalid": 0,
+      "blocked": 0
+    },
+    "csv_reference_counts": {
+      "resolved": 1,
+      "unknown": 1
+    },
+    "xml_counts": {
+      "valid": 1,
+      "invalid": 0,
+      "blocked": 0
+    },
+    "xml_reference_counts": {
+      "resolved": 0,
+      "unknown": 1
+    },
+    "reference_reasons": [
+      "demo_only_definition"
+    ],
+    "csv_reference_reasons": [
+      "forward_definition"
+    ]
+  },
+  {
+    "fixture": "csv_empty",
+    "status": "failed",
+    "reason": "INVALID_CSV",
+    "counts": [
+      0,
+      0,
+      1,
+      0
+    ],
+    "arguments": {},
+    "csv_counts": {
+      "valid": 0,
+      "invalid": 1,
+      "blocked": 0
+    },
+    "csv_reference_counts": {
+      "resolved": 0,
+      "unknown": 0
+    },
+    "xml_counts": {
+      "valid": 0,
+      "invalid": 0,
+      "blocked": 0
+    },
+    "xml_reference_counts": {
+      "resolved": 0,
+      "unknown": 0
+    },
+    "reference_reasons": [],
+    "csv_reference_reasons": []
+  },
+  {
+    "fixture": "csv_unsupported",
+    "status": "blocked",
+    "reason": "CSV_UNSUPPORTED",
+    "counts": [
+      0,
+      0,
+      1,
+      0
+    ],
+    "arguments": {},
+    "csv_counts": {
+      "valid": 0,
+      "invalid": 0,
+      "blocked": 1
+    },
+    "csv_reference_counts": {
+      "resolved": 0,
+      "unknown": 0
+    },
+    "xml_counts": {
+      "valid": 0,
+      "invalid": 0,
+      "blocked": 0
+    },
+    "xml_reference_counts": {
+      "resolved": 0,
+      "unknown": 0
+    },
+    "reference_reasons": [],
+    "csv_reference_reasons": []
+  },
+  {
+    "fixture": "csv_quotes",
+    "status": "success",
+    "reason": null,
+    "counts": [
+      0,
+      0,
+      1,
+      0
+    ],
+    "arguments": {},
+    "csv_counts": {
+      "valid": 1,
+      "invalid": 0,
+      "blocked": 0
+    },
+    "csv_reference_counts": {
+      "resolved": 0,
+      "unknown": 0
+    },
+    "xml_counts": {
+      "valid": 0,
+      "invalid": 0,
+      "blocked": 0
+    },
+    "xml_reference_counts": {
+      "resolved": 0,
+      "unknown": 0
+    },
+    "reference_reasons": [],
+    "csv_reference_reasons": []
   }
 ]
