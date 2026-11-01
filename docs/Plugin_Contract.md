@@ -33,7 +33,7 @@ installed payload before registration. Pins require a normal wheel installation;
 editable development checkouts must use version-only trust. See the
 [trust configuration and limits](../README.md#authorize-commands).
 
-Commands use namespaced IDs such as `example.greet`. Each component starts with
+Commands use namespaced IDs such as `example.readme`. Each component starts with
 a lowercase letter and contains lowercase letters, digits, or underscores.
 Commands and checks stay inside the plugin's namespace. Duplicate IDs,
 unsupported API versions, invalid schemas, and unknown effects/surfaces fail
@@ -101,53 +101,41 @@ A failed prerequisite blocks its parent handler. Error/cancelled prerequisites
 preserve that status. The first implementation does not cache prerequisites or
 offer arbitrary dependency graphs between checks.
 
-## Contract tests
+## Test an independent plugin
 
-[`tests/contract_helpers.py`](../tests/contract_helpers.py) provides an explicitly
-authorized temporary service and an assertion that checks both returned data and
-persisted evidence. Copy these repository-local helpers with your plugin's tests
-until a separate testing distribution is warranted.
-[`test_template.py`](../tests/test_template.py) demonstrates their use.
+The [template tests](../examples/plugin/tests/test_plugin.py) are self-contained.
+Install your built wheel and pytest, then run them outside this repository with
+`python -I -m pytest -c pyproject.toml tests`. They write temporary project and
+operator configuration and call the public `devkit.app.create_service` entry
+point. They do not construct internal settings/policy objects or import Devkit's
+repository-local helpers. No testing SDK or runtime pytest dependency is needed.
 
-Test each public command with valid input, invalid input, an unmet prerequisite,
-and domain failure cases. Test cancellation for handlers that run processes or
-perform prolonged work. Inspect `result` and evidence rather than internal helper
-call counts. The core suite covers denial, invalid plugin output, registration,
-redaction, deadlines, and transport parity. The wheel acceptance script covers
-metadata-only discovery and real stdio invocation from independent installations.
+The template covers installed registration, a configured check, valid and invalid
+input, domain failure, unsafe files, denial, a failed prerequisite, handler errors,
+invalid output, cancellation and persisted evidence. Adapt its domain assertions
+when implementing your command. The [authoring guide](Plugin_Authoring.md) maps
+other foundation conformance coverage and documents deadline testing. Passing
+these tests does not certify arbitrary plugin code as safe.
 
-`devkit plugins validate` checks activation and environment prerequisites; it
-cannot prove a third-party handler's behavior or CLI/MCP equivalence. Keep those
-behavioral checks in the plugin's own automated suite.
-
+`devkit plugins validate` checks activation and environment prerequisites through
+`doctor`. It cannot prove a handler's behavior or transport equivalence. Registry
+validation includes API versions, namespaced IDs, schemas, effects and surfaces.
+The core tests remain authoritative for these generic rejection rules rather than
+copying their entire suite into every external package.
 
 ## Build an independent specialization from the template
 
-The [README whitespace specialization](../examples/readme_specialization.py)
-provides a second example with filesystem access, bounded inspection, actionable
-failure data, and blocked prerequisites. It depends only on `devkit.contracts`.
-To create it outside this checkout:
+The [template package](../examples/plugin) now contains the bounded README check,
+project/policy examples, tests and its own author guide. It supersedes the separate
+`examples/readme_specialization.py` implementation and the greeting-only template.
+The unpublished example distribution is version 0.2.0; the public plugin contract
+is still 1.0. Rename the distribution, import package, entry point, command/check
+namespace, tests and example configuration together.
 
-1. Copy `examples/plugin` to a new directory.
-2. Change `devkit-example` to `devkit-textcheck`, `devkit_example` to
-   `devkit_textcheck`, and the entry-point name `example` to `textcheck` in
-   `pyproject.toml`. Also update the explicit Hatch wheel package path.
-3. Rename `src/devkit_example` and replace its `__init__.py` with
-   `examples/readme_specialization.py`. Its specialization, command and check IDs
-   already use the `textcheck` namespace.
-4. Build in that independent directory with `uv build`. Install its wheel with
-   the local foundation wheel into an isolated environment. The example does not
-   depend on this repository's workspace, test helpers, or optional packages.
-5. Select `plugins=["textcheck"]`, trust `devkit-textcheck="0.1.0"` in the external
-   policy, and grant `textcheck.readme` with `effects=["read_fs"]` on the desired
-   surfaces. Run it against a repository containing a UTF-8 `README.md`.
-6. Remove `textcheck` from project selection before uninstalling the wheel.
-   Leaving an uninstalled plugin selected produces an explicit activation error;
-   it is not silently ignored. Existing evidence remains readable after removal.
-
-[`check_third_party.py`](../scripts/check_third_party.py) performs these steps in
-a directory outside the checkout, builds and installs the resulting distribution,
-and checks discovery, trust, authorization, successful and failed CLI/Python/MCP
-results, persisted evidence, deactivation and uninstall. Another independent
-plugin remains usable throughout removal. The full wheel matrix invokes this
-acceptance test. This example requires no testing SDK or new plugin abstraction.
+[`check_third_party.py`](../scripts/check_third_party.py) copies and renames this
+complete package outside the checkout, builds its sdist and rebuilds a wheel from
+that sdist. It installs only wheels, runs the package's own tests with isolated
+Python, checks import origins and proves that metadata discovery and untrusted
+selection do not import plugin code. CLI/Python/MCP success, defect, invalid-input
+and denial results match. Deactivation and uninstall leave an unrelated plugin
+and historical evidence usable. The full wheel matrix runs this workflow.

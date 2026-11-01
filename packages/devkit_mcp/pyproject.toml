@@ -5,6 +5,8 @@ build-backend = "hatchling.build"
 [project]
 name = "devkit-mcp"
 version = "0.1.0"
+description = "Optional local stdio MCP presentation of the shared command service. Does not add authorization or orchestration."
+readme = "README.md"
 requires-python = ">=3.12"
 dependencies = ["devkit>=0.1,<0.2", "mcp>=1.30,<2", "anyio>=4.5,<5"]
 
@@ -13,3 +15,7 @@ devkit-mcp = "devkit_mcp:main"
 
 [tool.uv.sources]
 devkit = {workspace = true}
+
+[project.urls]
+Source = "https://github.com/jabez007/devkit"
+Documentation = "https://github.com/jabez007/devkit/blob/main/docs/Getting_Started.md"

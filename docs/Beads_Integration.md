@@ -61,7 +61,7 @@ not download tools or require Odoo, Go, Docker, or an agent.
 ```sh
 uv build --all-packages
 uv pip install --python /path/to/venv/bin/python \
-  dist/devkit-0.1.2-py3-none-any.whl dist/devkit_beads-0.3.0-py3-none-any.whl
+  dist/devkit-0.1.3-py3-none-any.whl dist/devkit_beads-0.3.0-py3-none-any.whl
 ```
 
 Select `beads` in `devkit.toml`, alongside the specialization whose checks you

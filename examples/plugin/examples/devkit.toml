@@ -1,0 +1,4 @@
+plugins = ["example"]
+
+[profiles]
+verify = ["example.readme"]

@@ -13,5 +13,11 @@ def test_plugin_template(tmp_path, monkeypatch):
 
     plugin = register()
     service = service_with_grants(create_service(tmp_path).settings, plugin.commands)
-    assert_success(service, "example.greet", {"name": "Dev"}, {"greeting": "Hello, Dev"})
-    assert service.execute("example.greet", {})["result"]["reason"] == "INVALID_INPUT"
+    (tmp_path / "README.md").write_text("Clean text.\n")
+    assert_success(service, "example.readme", {}, {"lines": 1, "trailing_whitespace_lines": []})
+    assert (
+        service.execute("example.readme", {"filename": "../outside"})["result"]["reason"]
+        == "INVALID_INPUT"
+    )
+    missing = service.execute("example.readme", {"filename": "README.rst"})["result"]
+    assert "README.rst" in missing["summary"]

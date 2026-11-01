@@ -59,7 +59,7 @@ def cli(root, project, env, *args, expected=0):
 def policy(root, project, names, commands):
     path = root / "config/devkit/policy.toml"
     path.parent.mkdir(parents=True, exist_ok=True)
-    versions = {"odoo": "0.5.0", "beads": "0.3.0"}
+    versions = {"odoo": "0.5.0", "beads": "0.3.0", "example": "0.2.0", "textcheck": "0.2.0"}
     text = "[trusted_plugins]\n" + "".join(
         f'devkit-{name}="{versions.get(name, "0.1.0")}"\n' for name in names
     )
@@ -139,24 +139,21 @@ def exercise_odoo(root, wheels, constraints):
 def exercise_template(root, wheels, constraints):
     project, env = install(root, wheels, ["devkit", "devkit_example"], constraints)
     (project / "devkit.toml").write_text('plugins=["example"]')
-    policy(root, project, ["example"], {"example.greet": []})
-    result = cli(root, project, env, "run", "example.greet", "--args", '{"name":"Dev"}')
-    assert result["result"]["data"] == {"greeting": "Hello, Dev"}
+    policy(root, project, ["example"], {"example.readme": ["read_fs"]})
+    (project / "README.md").write_text("Clean text.\n")
+    result = cli(root, project, env, "run", "example.readme")
+    assert result["result"]["data"] == {"lines": 1, "trailing_whitespace_lines": []}
     second = root / "second-project"
     second.mkdir()
     (second / "devkit.toml").write_text('plugins=["example"]')
     (root / "config/devkit/policy.toml").write_text(
-        '[trusted_plugins]\ndevkit-example="0.1.0"\n[profiles.shared]\n'
+        '[trusted_plugins]\ndevkit-example="0.2.0"\n[profiles.shared]\n'
         f"projects={json.dumps([str(project), str(second)])}\n"
-        '[profiles.shared.commands."example.greet"]\neffects=[]\nsurfaces=["cli"]\n'
+        '[profiles.shared.commands."example.readme"]\neffects=["read_fs"]\nsurfaces=["cli"]\n'
     )
     for selected in (project, second):
-        assert (
-            cli(root, selected, env, "run", "example.greet", "--args", '{"name":"Dev"}')["result"][
-                "status"
-            ]
-            == "success"
-        )
+        (selected / "README.md").write_text("Clean text.\n")
+        assert cli(root, selected, env, "run", "example.readme")["result"]["status"] == "success"
     print("PASS: independently built plugin template")
 
 
@@ -248,6 +245,9 @@ def main():
         run("uv", "build", "--all-packages", "--out-dir", str(wheels), cwd=ROOT)
         run("uv", "build", "tests/fixtures/plugin", "--out-dir", str(wheels), cwd=ROOT)
         run("uv", "build", "examples/plugin", "--out-dir", str(wheels), cwd=ROOT)
+        from check_package_metadata import check
+
+        check(wheels, root / "package-rebuilds")
         lock = tomllib.loads((ROOT / "uv.lock").read_text())
         constraints = root / "constraints.txt"
         constraints.write_text(

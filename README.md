@@ -11,10 +11,16 @@ adds individually authorized create, claim, update, comment, and close commands.
 The v0.7 follow-up adds exact reference-based evidence discovery and sequential
 linked-worktree support with separate checkout grants and evidence.
 Go checks and offline Odoo 19 validation remain independently usable.
+v0.8 adds a self-contained specialization template, tests against installed
+artifacts, metadata-only selection/trust diagnostics and documented public
+compatibility. Start with [developer/operator onboarding](docs/Getting_Started.md)
+or the [plugin author guide](docs/Plugin_Authoring.md).
 The foundation requires no Beads, Odoo server, Docker, or model credentials.
 Package names and the plugin API remain provisional; nothing is published to a
-public package registry. Versions are foundation 0.1.2, Beads 0.3.0, Go/MCP 0.1.0, and
+public package registry. Versions are foundation 0.1.3, Beads 0.3.0, Go/MCP 0.1.0, and
 Odoo 0.5.0. Plugin API 1.0 and evidence envelope 1.0 are unchanged.
+See [publication readiness](docs/Compatibility.md) for the naming, licensing and
+release-ownership decisions still needed before public distribution.
 
 ## Set up a development checkout
 
@@ -43,7 +49,7 @@ To install built distributions in another environment:
 ```sh
 uv build --all-packages
 uv venv /tmp/devkit-install --python 3.12
-uv pip install --python /tmp/devkit-install/bin/python dist/devkit-0.1.2-py3-none-any.whl
+uv pip install --python /tmp/devkit-install/bin/python dist/devkit-0.1.3-py3-none-any.whl
 # Add only the plugins and adapters you need:
 uv pip install --python /tmp/devkit-install/bin/python dist/devkit_go-0.1.0-py3-none-any.whl
 uv pip install --python /tmp/devkit-install/bin/python dist/devkit_odoo-0.5.0-py3-none-any.whl

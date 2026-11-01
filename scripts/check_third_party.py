@@ -5,6 +5,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tarfile
 from pathlib import Path
 
 from check_wheels import ROOT, absent, cli, install, policy, run
@@ -13,17 +14,61 @@ from check_wheels import ROOT, absent, cli, install, policy, run
 def build(root, wheels):
     source = root / "independent-author"
     shutil.copytree(
-        ROOT / "examples/plugin", source, ignore=shutil.ignore_patterns("dist", "__pycache__")
+        ROOT / "examples/plugin",
+        source,
+        ignore=shutil.ignore_patterns("dist", "__pycache__", ".pytest_cache", ".venv"),
     )
-    metadata = source / "pyproject.toml"
-    metadata.write_text(metadata.read_text().replace("example", "textcheck"))
+    for path in source.rglob("*"):
+        if path.suffix in {".py", ".toml", ".md"}:
+            path.write_text(path.read_text().replace("example", "textcheck"))
     package = source / "src/devkit_textcheck"
     (source / "src/devkit_example").rename(package)
-    shutil.copyfile(ROOT / "examples/readme_specialization.py", package / "__init__.py")
-    run("uv", "build", "--out-dir", str(wheels), cwd=source)
+    marker = root / "imported"
+    implementation = package / "__init__.py"
+    # Acceptance instrumentation only: an import is observable even if it then fails.
+    implementation.write_text(
+        f"from pathlib import Path as _Marker\n_Marker({str(marker)!r}).touch()\n"
+        + implementation.read_text()
+    )
+    run("uv", "build", "--sdist", "--out-dir", str(wheels), cwd=source)
+    unpacked = root / "sdist"
+    with tarfile.open(next(wheels.glob("devkit_textcheck-*.tar.gz"))) as archive:
+        archive.extractall(unpacked, filter="data")
+    rebuilt = next(unpacked.iterdir())
+    run("uv", "build", "--wheel", "--out-dir", str(wheels), cwd=rebuilt)
+    assert not marker.exists(), "Building executed plugin code"
+    return rebuilt, marker
 
 
-def parity(root, project, env, expected):
+def author_tests(root, project, env, source, constraints):
+    python = str(root / "venv/bin/python")
+    run(
+        "uv", "pip", "install", "--python", python, "--constraint", str(constraints), "pytest>=8,<9"
+    )
+    run(
+        python,
+        "-I",
+        "-m",
+        "pytest",
+        "-q",
+        "-c",
+        str(source / "pyproject.toml"),
+        str(source / "tests"),
+        cwd=project,
+        env=env,
+    )
+    code = """
+import sys
+from pathlib import Path
+import devkit, devkit_textcheck
+for module in (devkit, devkit_textcheck):
+    assert Path(module.__file__).is_relative_to(Path(sys.prefix)), module.__file__
+assert all(not Path(p).is_relative_to(Path(sys.argv[1])) for p in sys.path if p)
+"""
+    run(python, "-I", "-c", code, str(ROOT), cwd=project, env=env)
+
+
+def parity(root, project, env, expected, arguments=None):
     code = """
 import anyio, json, os, sys
 from pathlib import Path
@@ -31,14 +76,15 @@ from devkit.app import create_service
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 project, expected = Path(sys.argv[1]), json.loads(sys.argv[2])
-assert create_service(project).execute("textcheck.readme")["result"] == expected
+arguments = json.loads(sys.argv[4])
+assert create_service(project).execute("textcheck.readme", arguments)["result"] == expected
 async def check():
     params = StdioServerParameters(
         command=sys.argv[3], args=["--project",str(project)], env=dict(os.environ))
     async with stdio_client(params) as (read,write):
         async with ClientSession(read,write) as session:
             await session.initialize()
-            response = await session.call_tool("textcheck.readme",{})
+            response = await session.call_tool("textcheck.readme",arguments)
             envelope = response.structuredContent
             assert envelope["result"] == expected
             assert json.loads(Path(envelope["evidence_path"]).read_text())["result"] == expected
@@ -51,6 +97,7 @@ anyio.run(check)
         str(project),
         json.dumps(expected),
         str(root / "venv/bin/devkit-mcp"),
+        json.dumps(arguments or {}),
         cwd=project,
         env=env,
     )
@@ -83,49 +130,79 @@ def typed_consumer(root, project, env):
 def main():
     root, wheels, constraints = map(Path, sys.argv[1:4])
     root.mkdir()
-    build(root, wheels)
+    source, marker = build(root, wheels)
     project, env = install(
         root, wheels, ["devkit", "devkit_textcheck", "devkit_example", "devkit_mcp"], constraints
     )
     absent(root, project, env, ["devkit_go", "devkit_odoo", "devkit_beads", "odoo"])
+    assert not (root / "config/devkit/policy.toml").exists(), "Installation wrote policy"
     typed_consumer(root, project, env)
     (project / "README.md").write_text("# Project\nUseful verification.\n")
     # Discovery requires no trust or project activation.
     discovered = cli(root, project, env, "plugins")["result"]["data"]["plugins"]
     assert any(plugin["id"] == "textcheck" for plugin in discovered), discovered
+    details = cli(root, project, env, "plugins", "list", "--details")["result"]["data"]
+    row = next(item for item in details["plugins"] if item["id"] == "textcheck")
+    assert row["selected"] is False and row["trust"] == "not-configured"
+    assert not marker.exists(), "Metadata discovery imported the plugin"
     (project / "devkit.toml").write_text('plugins=["textcheck","example"]')
-    cli(root, project, env, "run", "textcheck.readme", expected=3)
+    untrusted = cli(root, project, env, "run", "textcheck.readme", expected=3)
+    assert untrusted["result"]["reason"] == "UNTRUSTED_PLUGIN"
+    assert not marker.exists(), "Untrusted selection imported the plugin"
+    details = cli(root, project, env, "plugins", "list", "--details")["result"]["data"]
+    assert next(item for item in details["plugins"] if item["id"] == "textcheck")["selected"]
+    assert not marker.exists(), "Detailed inspection imported the plugin"
+    policy(root, project, ["textcheck", "example"], {})
+    trusted_denied = cli(root, project, env, "run", "textcheck.readme", expected=2)
+    assert trusted_denied["result"]["reason"] == "DENIED"
+    assert marker.exists(), "Trusted registration was not attempted"
     policy(
         root,
         project,
         ["textcheck", "example"],
-        {"textcheck.readme": ["read_fs"], "example.greet": []},
+        {"textcheck.readme": ["read_fs"], "example.readme": ["read_fs"]},
     )
     result = cli(root, project, env, "run", "textcheck.readme")
     assert result["result"]["data"] == {"lines": 2, "trailing_whitespace_lines": []}
+    assert marker.exists()
     parity(root, project, env, result["result"])
+    invalid = cli(
+        root,
+        project,
+        env,
+        "run",
+        "textcheck.readme",
+        "--args",
+        '{"filename":"../secret"}',
+        expected=3,
+    )
+    assert invalid["result"]["reason"] == "INVALID_INPUT"
+    parity(root, project, env, invalid["result"], {"filename": "../secret"})
+    author_tests(root, project, env, source, constraints)
     (project / "README.md").write_text("# Project  \nUseful verification.\n")
     failed = cli(root, project, env, "run", "textcheck.readme", expected=1)
     assert failed["result"]["data"]["trailing_whitespace_lines"] == [1]
     parity(root, project, env, failed["result"])
     (project / "README.md").unlink()
     os.mkfifo(project / "README.md")
-    assert (
-        cli(root, project, env, "run", "textcheck.readme", expected=2)["result"]["reason"]
-        == "UNSAFE_PATH"
-    )
+    unsafe = cli(root, project, env, "run", "textcheck.readme", expected=2)
+    assert unsafe["result"]["reason"] == "UNSAFE_PATH"
     (project / "README.md").unlink()
-    # Deny an installed, trusted plugin independently of its activation.
-    policy(root, project, ["textcheck", "example"], {"example.greet": []})
-    assert (
-        cli(root, project, env, "run", "textcheck.readme", expected=2)["result"]["reason"]
-        == "DENIED"
-    )
+    policy(root, project, ["textcheck", "example"], {"example.readme": ["read_fs"]})
+    denied = cli(root, project, env, "run", "textcheck.readme", expected=2)
+    assert denied["result"]["reason"] == "DENIED"
+    parity(root, project, env, denied["result"])
     (project / "devkit.toml").write_text('plugins=["example"]')
-    cli(root, project, env, "run", "example.greet", "--args", '{"name":"Dev"}')
+    (project / "README.md").write_text("Clean text.\n")
+    marker.unlink(missing_ok=True)
+    cli(root, project, env, "run", "example.readme")
+    assert not marker.exists(), "Deactivated plugin was imported"
     run("uv", "pip", "uninstall", "--python", str(root / "venv/bin/python"), "devkit-textcheck")
     absent(root, project, env, ["devkit_textcheck"])
-    cli(root, project, env, "run", "example.greet", "--args", '{"name":"Dev"}')
+    (project / "README.md").write_text("Clean text.\n")
+    marker.unlink(missing_ok=True)
+    cli(root, project, env, "run", "example.readme")
+    assert not marker.exists(), "Deactivated plugin was imported"
     shown = cli(root, project, env, "runs", "show", result["run_id"])["result"]["data"]
     assert shown["run"]["result"] == result["result"]
     print(

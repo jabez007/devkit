@@ -1,0 +1,9 @@
+# Operator example only. Installation never writes this file.
+# Keep outside the project, mode 0600. Replace the canonical project path.
+[trusted_plugins]
+devkit-example = "0.2.0"
+
+[commands."example.readme"]
+project = "/absolute/path/to/project"
+effects = ["read_fs"]
+surfaces = ["cli", "python", "mcp"]

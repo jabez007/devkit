@@ -5,6 +5,8 @@ build-backend = "hatchling.build"
 [project]
 name = "devkit-go"
 version = "0.1.0"
+description = "Go test verification with structured results and evidence. Requires Go only when executing Go checks."
+readme = "README.md"
 requires-python = ">=3.12"
 dependencies = ["devkit>=0.1,<0.2"]
 
@@ -13,3 +15,7 @@ go = "devkit_go:register"
 
 [tool.uv.sources]
 devkit = {workspace = true}
+
+[project.urls]
+Source = "https://github.com/jabez007/devkit"
+Documentation = "https://github.com/jabez007/devkit/blob/main/docs/Getting_Started.md"
