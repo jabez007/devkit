@@ -1341,3 +1341,100 @@ pilot at `bf72595` were green. No runtime function needs expansion. Profile disc
 currently requires reading documented TOML configuration; a new registry or profile
 API is unnecessary for two skills. Concurrent Beads writers and release publication
 remain outside this milestone.
+
+#### v0.9 implementation and qualification
+
+Implemented [the native Claude Code bundle](../integrations/claude-code) as plugin
+version 0.1.0, with two focused skills, detailed command references, standalone GPL
+license, and a stdlib checkout helper. The foundation remains 0.2.0; API and evidence
+remain 1.0. No runtime dependency, permission framework, registry, lifecycle logic,
+or orchestration component was added to the foundation.
+
+The helper uses the current Git checkout, removes inherited Git path overrides,
+and preserves explicit non-Git/subproject selection. Tests exercise a main checkout
+and two linked worktrees, including nested directories and distinct persisted
+evidence. Existing Beads acceptance still tests separate grants and evidence while
+those checkouts sequentially share a ledger. Concurrent writers remain unqualified.
+
+The bundle has no hooks, subagents, preapproved tools, or automatic MCP server.
+Native Claude 2.1.316 reported exactly two skills and zero agents, hooks, MCP servers,
+or LSP servers. In a temporary profile, disablement reported `enabled: false`;
+re-enablement worked, and a new invocation without `--plugin-dir` reported no plugin.
+The existing `devkit-mcp` server connected through the documented private local
+registration. Another project could not retrieve that binding. Native removal
+deleted only the temporary binding. Personal Claude settings were not changed.
+
+The installed-wheel matrix now includes 15 environments. Its added Go-only and
+Odoo-only cases copy the complete plugin outside the repository, select a checkout
+from a nested directory, inspect metadata and activation, and invoke the ordinary
+CLI. They verify results against persisted evidence and retrieve it after removing
+the plugin. These environments have no Beads or MCP installed. Existing foundation,
+independent-author, three-interface, artifact-trust, and Beads tests remain intact.
+
+Observed development exercises:
+
+- Go: a real `Remaining(a, b)` regression test failed with addition and passed after
+  subtraction. The real Beads workflow created and claimed a task, linked failing
+  and passing evidence idempotently, inspected the diff and stored results, then
+  performed an explicitly requested review comment and closure. Retention preserved
+  both referenced runs. These are deterministic CLI actions, not model actions.
+- Odoo: an offline custom addon depending on `base` passed ordinary validation while
+  reporting unknown dependencies. Strict validation blocked with
+  `INCOMPLETE_INVENTORY`. Real Beads associations retained both results without
+  changing their statuses. No Odoo runtime, installation, upgrade, or database
+  compatibility was inferred.
+- Native terminal: a clean `nvim -u NONE -i NONE --headless` process used `termopen`
+  to retrieve an existing Devkit run through the installed CLI. No editor package
+  or Claude session was required.
+
+The opt-in `scripts/check_claude_live.py` prepares disposable Go/Odoo projects and
+loads the copied plugin under `--bare`, isolated configuration, explicit tool
+permissions, no MCP, and no session persistence. It asserts source/evidence/task
+outcomes rather than trusting a model narrative. Its Go and Odoo postconditions
+were exercised separately against real CLI results. The actual model request
+returned **Credit balance is too low** before task actions. Consequently, live
+model-guided Go/Odoo workflows, adherence to mutation intent, and live model behavior
+in linked worktrees are **not qualified**. No additional model requests were made.
+
+A new executable documentation-contract test caught an unsupported colon in the
+example actor label. It failed against the original snippets, then passed after
+changing the examples to `claude-code/developer`. The existing actor schema was
+preserved. The test validates all argument-bearing Beads examples against public
+command declarations. Focused tests also cover missing CLI/MCP, missing/untrusted
+specializations, authorization denial, invalid roots/profiles, failed/blocked
+results, and plugin removal. Existing Beads tests retain association-failure,
+cancellation, uncertain-write, and retry coverage.
+
+Final verification results are recorded below. Implementation is delivered; closing
+the live qualification gap requires a funded Claude test environment. Next, rerun
+the opt-in exercise before broadening harness support, then prioritize the existing
+release/provenance and Python/dependency-range qualification workstream. No public
+release, registry publication, or new legal decision was performed.
+
+Verification executed on November 1, 2026:
+
+| Command / exercise | Observed result |
+| --- | --- |
+| `.venv/bin/ruff check .` | Passed, including complexity limit 10. |
+| `.venv/bin/ruff format --check .` | Passed, 144 Python files formatted. |
+| `.venv/bin/mypy` | Passed, 31 runtime files. |
+| `.venv/bin/mypy --strict integrations/claude-code/scripts/checkout.py` | Passed; also added to hosted CI. |
+| `.venv/bin/lint-imports` | Passed; foundation boundary retained, 66 files and 211 dependencies. |
+| `.venv/bin/pytest -q` | Final run: 330 passed in 103.17 seconds. |
+| `.venv/bin/pytest -q tests/test_claude_integration.py` | 9 passed, including documentation schema and linked-worktree evidence tests. |
+| `DEVKIT_BEADS_BINARY=/tmp/devkit-beads-1.3.2/bd .venv/bin/python scripts/check_wheels.py` | Passed all 15 environments, six distribution metadata/license inventories, and independent sdist rebuilds. |
+| Independent author exercise within the matrix | 14 author tests passed, plus three-interface invocation, deactivation/removal, and historical evidence checks. |
+| Beads exercises within the matrix | Passed real lifecycle operations, conflicts, association retries, retention, and sequential main plus two linked worktrees. |
+| Native Claude `plugin validate --strict`, `details`, `disable`, `enable`, `list` | Passed with 2.1.316 in an isolated configuration; no model session needed. Marketplace listing suggestions are outside scope. |
+| Native Claude `mcp add/get/list/remove` | Existing server connected; binding unavailable from a different project; explicit removal succeeded. |
+| Native Neovim terminal and empty-tool-PATH foundation check | Evidence retrieval passed in Neovim; foundation doctor succeeded with no Claude, Git, Go, or Beads executable available. |
+| `uv export --all-packages --no-dev --no-emit-workspace --no-hashes --format requirements-txt` | Documented constraint export succeeded against the lockfile. |
+| Local documentation links and standalone license comparison | Passed; plugin GPL text matches the root license. |
+| `scripts/check_claude_live.py` with installed native Claude | **Blocked** before model task actions by insufficient API credit. Both postcondition checkers passed separately against real CLI workflows; those are not live-model results. |
+
+The checkout helper's maximum function complexity is 3. The new acceptance scripts'
+maximum is 5 and the focused tests' maximum is 3. No existing runtime function grew,
+and no suppression or new abstraction was needed. No unrelated cleanup was applied.
+Implementation commit `1639e2e` was pushed; its hosted CI pilot passed while the
+full hosted checks were still running at this report's preparation. Local quality
+gates above completed successfully.

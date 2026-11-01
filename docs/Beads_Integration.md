@@ -309,3 +309,9 @@ retention protection, and foundation-only retrieval of copied evidence. The
 unit/integration suite adds controlled missing-tool, malformed-output,
 policy-denial, cancellation, and partial-failure cases. Synthetic fixtures do not
 establish production deployment or simultaneous embedded-writer compatibility.
+
+The optional [Claude Code skills](../integrations/claude-code) consume these same
+commands. They require intentional lifecycle actions, operator-chosen actor audit
+labels, and reconciliation before retrying an uncertain write. They do not add
+permissions, automatically claim ready items, or close tasks after verification.
+Their evidence associations use the same local reference and retention mechanism.

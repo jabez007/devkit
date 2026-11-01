@@ -20,6 +20,16 @@ Private names, registration internals, configuration loaders and service attribu
 are not extension contracts. Tests using public interfaces do not certify arbitrary
 plugin code as safe. No testing SDK is needed.
 
+### Optional Claude Code bundle
+
+The [native plugin](../integrations/claude-code) is a separately maintained directory
+bundle, version 0.1.0. It consumes foundation 0.2.0 with API/evidence 1.0 and requires
+no Python package or import changes. Native loading, disablement, removal and local
+MCP configuration were exercised with Claude Code 2.1.316 on Linux. Model-driven
+qualification remains open because the test account reported insufficient credit.
+This is not a compatibility promise for other Claude versions or other harnesses.
+The CLI path remains independent of Claude and of the optional MCP adapter.
+
 ## Migration from the unpublished devkit distributions
 
 Foundation 0.2.0 intentionally changes distribution/import names before public
