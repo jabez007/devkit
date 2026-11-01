@@ -377,7 +377,7 @@ retrieval. Stdio/process tests require a host runtime that
 supports child process communication; they do not complete in this agent's
 restricted execution sandbox.
 
-See the [architecture](docs/Composable_Developer_Tookkit_Architecture.md) and
+See the [architecture](docs/Composable_Developer_Toolkit_Architecture.md) and
 [implementation plan](docs/Implementation_Plan.md) for the fresh-build decisions
 and later increments. The [v0.7 assessment](docs/v0.7_Assessment.md) records verified
 workflow behavior, worktree limitations and prioritized foundation improvements.

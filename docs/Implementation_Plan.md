@@ -18,7 +18,7 @@ First release: Go checks and offline Odoo validation, as selected by the project
 
 Build a small Python foundation that discovers explicitly activated plugins, invokes commands through one policy path, and produces portable evidence. Prove the design with useful Go checks and Odoo manifest validation before adding live Odoo environments, task connectors, or orchestration.
 
-The [architecture draft](Composable_Developer_Tookkit_Architecture.md) defines the responsibilities and fresh-build scope. This plan supplies the delivery slices and acceptance gates. Compatibility with upstream commands, databases, package names, and deployment workflows is outside scope.
+The [architecture draft](Composable_Developer_Toolkit_Architecture.md) defines the responsibilities and fresh-build scope. This plan supplies the delivery slices and acceptance gates. Compatibility with upstream commands, databases, package names, and deployment workflows is outside scope.
 
 ## Architecture review
 
