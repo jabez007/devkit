@@ -1247,3 +1247,57 @@ authoring, retained pre-migration evidence/references and all existing gates.
 Baseline Ruff, including complexity <=10, passed before changes. This is a public
 packaging migration, not a registry or authorization redesign. No unrelated files
 or the untracked .serena directory are part of the work.
+
+#### Migration verification and outcome
+
+Completed the approved namespace and licensing migration. Foundation 0.2.0 and
+all bundled packages install under the native `mccann_hub` namespace. There is no
+top-level compatibility package or namespace-root `__init__.py`. New core evidence
+records `mccann-hub-devkit` as its producer; a red/green regression caught the stale
+producer name during migration. Historical producer values remain unchanged.
+Go/Odoo/Beads behavior and the command/result contracts are unchanged.
+
+The independent author exercise now builds `author-demo-textcheck` with
+`author_demo.textcheck` imports, leaving the foundation namespace and registration
+group intact. It rejects legacy distribution trust before import and verifies
+uninstalling the author package preserves the unrelated template and evidence.
+Another installed fixture contributes a native namespace sibling and an unrelated
+top-level `devkit` module that raises if imported. The foundation works without
+importing it, ignores registrations under the old entry-point group, and can be
+removed without deleting the sibling package.
+
+Verification executed on November 1, 2026:
+
+| Command / exercise | Observed result |
+| --- | --- |
+| `uv lock --offline` and `uv sync --all-packages --locked` | Passed; renamed workspace dependencies resolved without adding runtime dependencies. |
+| `.venv/bin/ruff check .` and `.venv/bin/ruff format --check .` | Passed; 140 Python files formatted, complexity limit 10 preserved. |
+| `.venv/bin/mypy` | Passed, 31 runtime files. Explicit package bases resolve native namespace imports. |
+| `.venv/bin/lint-imports` | Passed, foundation boundary kept; namespace graph analyzes 66 files and 211 dependencies. |
+| `.venv/bin/pytest -q` | 321 passed in 101.36 seconds. |
+| `DEVKIT_BEADS_BINARY=/tmp/devkit-beads-1.3.2/bd .venv/bin/python scripts/check_wheels.py` | Passed all 13 environments, including foundation-only, Go-only, Odoo-only, three invocation surfaces, CI pilot, Beads lifecycle and sequential linked worktrees. |
+| Same matrix: external author and namespace isolation | 14 author-owned tests passed; independent imports, old-trust rejection, unrelated import isolation, deactivation and removal passed. |
+| Same matrix: packaging | All six distributions passed metadata/license checks and independent sdist rebuilds with identical wheel payloads apart from RECORD. |
+| Pre-migration evidence fixture | An actual run created by the old 0.1.3 CLI remained readable with identical persisted fields under 0.2.0. Reference lookup and applied pruning preserved the pinned run without rewriting its bytes. |
+| Literal author-guide MCP client | Passed with namespaced installed wheels; Python/MCP results and persisted evidence agreed. |
+| Documentation/license checks | 88 local link targets resolved; all seven package/fixture license copies match the root GPLv3 text. |
+
+The full matrix initially exposed old artifact/CI wheel paths in the acceptance
+harness; these were corrected and the complete matrix rerun successfully. The
+external author's uninstall check now checks the removed outer namespace, since
+`find_spec` of a child raises when its parent namespace no longer exists. The
+literal documentation client also caught a renamed executable reference; it now
+uses the retained `devkit-mcp` name and was rerun successfully.
+
+Changed harness functions remain below the complexity threshold: packaging check
+4, template builder 3 and the namespace-coexistence exercise 1. Runtime logic is
+unchanged except registration/producer identity and the Odoo distribution-version
+lookup. The existing handler supervisor remains at complexity 10. No new
+abstraction, runtime dependency or unrelated cleanup was introduced.
+
+The migration and GPL-3.0-or-later decision are complete. Registry name reservation,
+publication ownership and the release/provenance workflow remain separate owner
+actions. No PyPI upload, public release or registry reservation was performed.
+Newer-Python/dependency-range qualification and Beads simultaneous-writer testing
+remain deferred. Use [Compatibility.md](Compatibility.md) for the explicit
+environment, plugin rebuild and operator trust migration steps.
