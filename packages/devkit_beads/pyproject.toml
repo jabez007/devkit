@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "devkit-beads"
-version = "0.2.0"
+version = "0.3.0"
 description = "Optional Beads task lifecycle and Devkit evidence associations"
 requires-python = ">=3.12"
 dependencies = ["devkit>=0.1.2,<0.2"]

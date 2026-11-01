@@ -93,9 +93,8 @@ class Beads:
             for key, value in os.environ.items()
             if key in {"PATH", "HOME", "TMPDIR", "LANG", "LC_ALL"}
         }
-        self.environment.update(
-            BEADS_DIR=str(self.directory), BD_DISABLE_METRICS="1", DO_NOT_TRACK="1"
-        )
+        self.environment.update(BD_DISABLE_METRICS="1", DO_NOT_TRACK="1")
+        self.identity: JSONObject | None = None
 
     def _invoke(self, arguments: list[str]) -> ProcessResult:
         if self.context.cancellation.is_set():
@@ -128,6 +127,7 @@ class Beads:
             raise invalid() from exc
 
     def write(self, actor: str, *arguments: str) -> object:
+        self.workspace()  # Refuse an identity change before any mutation can run.
         result = self._invoke(["bd", "--sandbox", "--json", f"--actor={actor}", *arguments])
         if result.reason in {"MISSING_TOOL", "PROCESS_ERROR"}:
             raise BeadsError("blocked", result.reason, "Beads write process could not start")
@@ -149,48 +149,66 @@ class Beads:
             ) from exc
 
     def workspace(self) -> JSONObject:
-        if self.directory.is_symlink() or not self.directory.is_dir():
-            raise BeadsError(
-                "blocked",
-                "BEADS_NOT_INITIALIZED",
-                "Select a project with its own initialized .beads directory; "
-                "Devkit does not initialize it",
-            )
+        from devkit_beads.workspace import resolve
+
+        self.environment.pop("BEADS_DIR", None)
+        main = resolve(self.context.project_root, self._invoke)
         version = self.query("version")
         if not isinstance(version, dict) or version.get("version") != SUPPORTED_VERSION:
             raise BeadsError(
                 "blocked", "UNSUPPORTED_BEADS_VERSION", "This adapter requires Beads 1.3.2"
             )
-        info = self.query("context")
-        self._validate_workspace(info)
-        assert isinstance(info, dict)
+        self.directory = main / ".beads"
+        identity = self._validate_workspace(self.query("context"), main)
+        if self.identity is not None and self.identity != identity:
+            raise BeadsError(
+                "blocked", "WORKSPACE_MISMATCH", "Beads workspace changed before execution"
+            )
+        self.environment["BEADS_DIR"] = str(self.directory)
+        if main != self.context.project_root:
+            bound = self._validate_workspace(self.query("context"), main)
+            if bound != identity:
+                raise BeadsError(
+                    "blocked", "WORKSPACE_MISMATCH", "Beads binding changed workspace identity"
+                )
+        self.identity = identity
+        return identity
+
+    def _validate_workspace(self, info: object, main: Path) -> JSONObject:
+        if not isinstance(info, dict) or info.get("schema_version") != 1:
+            raise invalid()
+        linked = main != self.context.project_root
+        expected = {"backend": "dolt", "dolt_mode": "embedded", "bd_version": SUPPORTED_VERSION}
+        if (
+            any(info.get(key) != value for key, value in expected.items())
+            or info.get("is_redirected") is not False
+            or info.get("is_worktree") is not linked
+        ):
+            raise BeadsError(
+                "blocked",
+                "UNSUPPORTED_BEADS_WORKSPACE",
+                "Use a main or linked Git checkout with embedded Beads; "
+                "server modes and redirects are unsupported",
+            )
+        for key, path in (
+            ("beads_dir", self.directory),
+            ("repo_root", main),
+            ("cwd_repo_root", self.context.project_root),
+        ):
+            if info.get(key) != str(path):
+                raise BeadsError(
+                    "blocked", "WORKSPACE_MISMATCH", "Beads selected another workspace"
+                )
         return {
             "project_id": project_id(info.get("project_id")),
             "tool_version": SUPPORTED_VERSION,
             "backend": "dolt",
             "mode": "embedded",
+            "checkout_root": str(self.context.project_root),
+            "workspace_root": str(main),
+            "is_worktree": linked,
+            "concurrency": "sequential-only",
         }
-
-    def _validate_workspace(self, info: object) -> None:
-        if not isinstance(info, dict) or info.get("schema_version") != 1:
-            raise invalid()
-        expected = {"backend": "dolt", "dolt_mode": "embedded", "bd_version": SUPPORTED_VERSION}
-        flags = ("is_redirected", "is_worktree")
-        if any(info.get(key) != value for key, value in expected.items()) or any(
-            info.get(key) is not False for key in flags
-        ):
-            raise BeadsError(
-                "blocked",
-                "UNSUPPORTED_BEADS_WORKSPACE",
-                "Use a local embedded Beads workspace; "
-                "server modes, redirects and worktrees are unverified",
-            )
-        for key, path in (("beads_dir", self.directory), ("repo_root", self.context.project_root)):
-            value = info.get(key)
-            if not isinstance(value, str) or Path(value).resolve() != path:
-                raise BeadsError(
-                    "blocked", "WORKSPACE_MISMATCH", "Beads selected another workspace"
-                )
 
     def show(self, reference: str, workspace: JSONObject) -> JSONObject:
         identifier = local_id(reference, workspace)

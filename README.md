@@ -8,10 +8,12 @@ and evidence handling.
 The v0.6 milestone adds an optional [Beads integration](docs/Beads_Integration.md):
 inspect work items and associate verification evidence. The writable follow-up
 adds individually authorized create, claim, update, comment, and close commands.
+The v0.7 follow-up adds exact reference-based evidence discovery and sequential
+linked-worktree support with separate checkout grants and evidence.
 Go checks and offline Odoo 19 validation remain independently usable.
 The foundation requires no Beads, Odoo server, Docker, or model credentials.
 Package names and the plugin API remain provisional; nothing is published to a
-public package registry. Versions are foundation 0.1.2, Beads 0.2.0, Go/MCP 0.1.0, and
+public package registry. Versions are foundation 0.1.2, Beads 0.3.0, Go/MCP 0.1.0, and
 Odoo 0.5.0. Plugin API 1.0 and evidence envelope 1.0 are unchanged.
 
 ## Set up a development checkout
@@ -46,7 +48,7 @@ uv pip install --python /tmp/devkit-install/bin/python dist/devkit-0.1.2-py3-non
 uv pip install --python /tmp/devkit-install/bin/python dist/devkit_go-0.1.0-py3-none-any.whl
 uv pip install --python /tmp/devkit-install/bin/python dist/devkit_odoo-0.5.0-py3-none-any.whl
 uv pip install --python /tmp/devkit-install/bin/python dist/devkit_mcp-0.1.0-py3-none-any.whl
-uv pip install --python /tmp/devkit-install/bin/python dist/devkit_beads-0.2.0-py3-none-any.whl
+uv pip install --python /tmp/devkit-install/bin/python dist/devkit_beads-0.3.0-py3-none-any.whl
 ```
 
 Use the supplied foundation wheel, since the working distribution name is not an
@@ -357,8 +359,9 @@ tests the original seven environments (foundation, Go, offline Odoo, template,
 artifact trust, MCP composition, and CI pilot), plus a renamed third-party plugin,
 real Beads with Go and Odoo, and two foundation-only portable-evidence readers.
 One additional Go/Beads environment exercises a failing check, code repair,
-evidence review and explicit task closure. It also probes native Git worktrees
-and verifies that the current Devkit adapter still blocks them. The independent
+evidence review and explicit task closure. It also verifies the adapter in a main checkout and two linked worktrees,
+with separate grants, revisions and evidence on one shared Beads ledger.
+Simultaneous writers remain unqualified. The independent
 plugin environment checks installed foundation annotations with strict mypy.
 The Beads matrix needs the explicitly selected 1.3.2 test binary; see the
 [download/checksum and compatibility instructions](docs/Beads_Integration.md#reproduce-acceptance).

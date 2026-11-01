@@ -59,7 +59,7 @@ def cli(root, project, env, *args, expected=0):
 def policy(root, project, names, commands):
     path = root / "config/devkit/policy.toml"
     path.parent.mkdir(parents=True, exist_ok=True)
-    versions = {"odoo": "0.5.0", "beads": "0.2.0"}
+    versions = {"odoo": "0.5.0", "beads": "0.3.0"}
     text = "[trusted_plugins]\n" + "".join(
         f'devkit-{name}="{versions.get(name, "0.1.0")}"\n' for name in names
     )

@@ -64,7 +64,7 @@ def test_invalid_input_and_policy_denial_never_start_beads(beads_project):
     for args in ({"limit": 0}, {"limit": 101}, {"limit": True}):
         assert service.execute("beads.ready", args)["result"]["reason"] == "INVALID_INPUT"
     policy = Path(os.environ["XDG_CONFIG_HOME"]) / "devkit/policy.toml"
-    policy.write_text('[trusted_plugins]\ndevkit-beads="0.2.0"\n')
+    policy.write_text('[trusted_plugins]\ndevkit-beads="0.3.0"\n')
     assert service.execute("beads.ready")["result"]["reason"] == "DENIED"
     assert not (beads_project / "calls.jsonl").exists()
 
@@ -137,7 +137,7 @@ def test_cli_python_mcp_parity(beads_project):
 
                 before_denial = (beads_project / "calls.jsonl").read_bytes()
                 policy = Path(os.environ["XDG_CONFIG_HOME"]) / "devkit/policy.toml"
-                policy.write_text('[trusted_plugins]\ndevkit-beads="0.2.0"\n')
+                policy.write_text('[trusted_plugins]\ndevkit-beads="0.3.0"\n')
                 denied = await session.call_tool("beads.item.show", {"ref": REF})
                 assert denied.structuredContent["result"]["reason"] == "DENIED"
                 python_denied = create_service(beads_project).execute(

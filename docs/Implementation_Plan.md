@@ -1057,3 +1057,43 @@ lint/format/complexity, strict mypy and import boundaries passed. The full
 13-environment installed-wheel gate passed, including actual Beads uninstallation
 and foundation-only filtered retrieval. Changed functions remain below complexity
 10 (`RunStore.list`: 2, CLI dispatch: 5).
+
+### v0.7 sequential linked worktrees design
+
+Reuse the adapter's bounded subprocess supervisor, native `bd context`, existing
+per-checkout command grants and `RunStore` project scope. Add a private topology
+module inside the adapter to validate supervised Git plumbing, registered
+worktree paths and the administrative backlink. Native discovery runs without
+ambient `BEADS_DIR`; subsequent calls bind to the verified main `.beads` directory.
+Compare native checkout/root paths and UUID, and repeat validation before writes.
+This deep module hides topology details without changing the specialization
+contract or adding core lifecycle behavior. No new dependency is needed.
+
+Support a normal main checkout and linked checkouts sequentially, including a
+linked checkout without local `.beads` metadata. Reject bare/detached-Git-directory
+topologies, unregistered or forged paths, symlink escapes, external redirects,
+server modes and identity changes before mutation. Detached HEAD within a properly
+registered worktree is not an unsupported topology. Evidence and configuration
+stay on the invoking checkout. Association remains same-checkout-only even when
+issues share a UUID. Bump `devkit-beads` to 0.3.0 and renew exact-version trust.
+
+Tests will use actual Git repositories with controlled Beads responses for
+adversarial topology/identity/cancellation cases, plus installed Beads 1.3.2 in a
+main checkout and two linked worktrees. Exercise native lifecycle, distinct
+verification revisions, grants and cross-checkout denials, association retries,
+reference filtering, retention and all invocation surfaces. Simultaneous writers
+remain explicitly unqualified; do not add a Devkit lock or scheduler. Native Git
+and Beads remain trusted executables; checks do not eliminate hostile filesystem
+races. Baseline complexity passes; no unrelated refactor is needed.
+
+Sequential-worktree verification: `.venv/bin/ruff check .`,
+`.venv/bin/ruff format --check .`, `.venv/bin/mypy` and `.venv/bin/lint-imports`
+passed. Final `.venv/bin/pytest -q`: 311 passed in 98.69 seconds. The full
+`DEVKIT_BEADS_BINARY=/tmp/devkit-beads-1.3.2/bd .venv/bin/python scripts/check_wheels.py`
+gate passed across 13 independent environments, including renewed adapter trust,
+main + two linked checkouts, separate revisions/grants/evidence, successful and
+denied association on CLI/Python/MCP, native lifecycle, retention and uninstall
+regressions. The changed adapter functions stay at complexity 8 or below, against
+the existing limit of 10. The isolated workflow also passed before the full gate.
+No concurrent-writer or server compatibility is claimed. Reference-slice hosted
+checks and CI pilot both passed on `42d52b7`.

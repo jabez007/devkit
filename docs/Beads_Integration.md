@@ -1,6 +1,6 @@
 # Beads work items and verification evidence
 
-`devkit-beads` 0.2.0 is an optional specialization requiring foundation 0.1.2.
+`devkit-beads` 0.3.0 is an optional specialization requiring foundation 0.1.2.
 It supports ordinary task lifecycle operations and explicit evidence associations.
 Beads owns readiness, dependencies, claims, task status and closure rules. Devkit
 provides separately authorized commands and verification evidence. The v0.6
@@ -9,23 +9,49 @@ Trusted developers and authorized agents can use the same commands.
 
 ## Supported environment
 
-The initial profile is Linux with Python 3.12+ and **Beads 1.3.2**, using an
-initialized embedded Dolt workspace in the selected Git repository's `.beads`
-directory. Beads `context` requires a Git repository root, even when `bd init`
-can create a ledger outside Git.
+The supported profile is Linux with Python 3.12+ and **Beads 1.3.2**, using an
+initialized embedded Dolt workspace in a normal main Git checkout. Registered
+linked worktrees share that ledger and are supported for sequential operation.
 The tested upstream revision is
 [`9b65b9e198acbcc98e7fd3a87a5d55baa065a572`](https://github.com/gastownhall/beads/tree/9b65b9e198acbcc98e7fd3a87a5d55baa065a572).
-Other versions, server modes, redirects, worktrees, and symlinked workspace roots
-are blocked pending separate acceptance testing. Devkit does not install or initialize Beads or request administrative migrations.
-The [v0.7 assessment](v0.7_Assessment.md) exercised native Beads reads and
-sequential writes from both Git-created and Beads-created linked worktrees.
-They shared the main ledger, but the Devkit adapter still rejected them. Native
-discovery is verified; adapter worktree support and concurrent writers are not.
-Use the main checkout for Devkit's Beads commands until that acceptance gate is
-complete. Do not initialize a separate ledger in each linked worktree.
-Ordinary writes use native Beads behavior, including configured hooks, maintenance,
-and schema handling. Use a compatible workspace. Server and concurrent-writer
-profiles require separate acceptance testing.
+Other Beads versions, server modes, redirects, bare repositories, separate Git
+directories and symlinked workspace paths remain blocked. Devkit does not install
+or initialize Beads, start servers or request administrative migrations.
+Ordinary writes retain native Beads hooks, maintenance and schema behavior.
+
+### Linked checkouts
+
+Create worktrees with native `git worktree add` or `bd worktree create`. Initialize
+Beads once in the main checkout. Linked checkouts may contain tracked `.beads`
+metadata or omit that directory. Do not create a separate ledger per checkout.
+Native Beads discovery must select the main checkout's ledger in either case.
+
+Use `--project /absolute/path/to/linked-checkout`. Keep its `devkit.toml` and check
+profile in that checkout. Add each checkout's canonical path explicitly to the
+existing operator profile's `projects` list. A grant for the main checkout never
+authorizes its siblings. Restricted inspection uses the same command omissions
+as in the main checkout.
+
+The adapter validates Git's common directory, registered paths and administrative
+backlink. It compares Beads' main root, checkout root and ledger location with
+that topology, binds calls to the shared `.beads`, and rechecks identity before
+writes. Ambient `BEADS_DIR` and Git environment overrides are not inherited.
+An identity change before execution blocks the write without claiming a mutation.
+Git and Beads are trusted executables; these checks do not eliminate hostile
+filesystem races.
+
+Workspace results retain their existing fields and add `checkout_root`,
+`workspace_root` (the main checkout), `is_worktree`, and
+`concurrency="sequential-only"`. These are additive command data; plugin API 1.0
+and evidence envelope 1.0 are unchanged. Each verification run retains its own
+checkout path and Git revision. Sharing a Beads UUID does not broaden evidence
+access: association accepts only a run from the invoking checkout. Use explicit
+`runs list --reference ... --all-projects` for operator-wide discovery.
+
+Simultaneous writers are **unqualified**. Devkit neither detects nor serializes
+overlapping Beads invocations and adds no new lock service. Run this supported
+workflow sequentially. Claim and guard behavior still belongs to Beads; successful
+sequential tests do not establish concurrent-writer safety.
 
 Install the foundation and adapter wheels from this checkout into your chosen
 environment. Install the official [Beads 1.3.2 release](https://github.com/gastownhall/beads/releases/tag/v1.3.2)
@@ -35,7 +61,7 @@ not download tools or require Odoo, Go, Docker, or an agent.
 ```sh
 uv build --all-packages
 uv pip install --python /path/to/venv/bin/python \
-  dist/devkit-0.1.2-py3-none-any.whl dist/devkit_beads-0.2.0-py3-none-any.whl
+  dist/devkit-0.1.2-py3-none-any.whl dist/devkit_beads-0.3.0-py3-none-any.whl
 ```
 
 Select `beads` in `devkit.toml`, alongside the specialization whose checks you
@@ -68,7 +94,7 @@ commands use `--sandbox --json --actor=...` and require all five effects, includ
 or disable every Beads maintenance operation. Item lookup
 uses `list --id` with inclusion flags and a two-row limit, then validates the
 exact returned ID. It deliberately avoids Beads 1.3.2 `show`, which writes the
-last-touched marker even in read-only mode. The child environment selects the project's workspace and disables metrics with
+last-touched marker even in read-only mode. The child environment binds the validated shared workspace and disables metrics with
 `BD_DISABLE_METRICS=1`. Policy grants and Beads flags do not isolate arbitrary
 third-party executable code; use trusted tool installations.
 
@@ -81,7 +107,7 @@ to search the operator's entire local evidence store.
 
 The single [operator policy example](../examples/beads/policy.toml) lists separate
 grants for inspection, local evidence association, and five lifecycle commands.
-Renew exact-version trust for `devkit-beads="0.2.0"`. Existing 0.1.0 trust fails
+Renew exact-version trust for `devkit-beads="0.3.0"`. Earlier adapter-version trust fails
 closed after upgrading. If you pin a wheel, update its path and hash as well.
 
 For normal development, retain the lifecycle grants needed by the developer or

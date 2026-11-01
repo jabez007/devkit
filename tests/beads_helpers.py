@@ -2,6 +2,7 @@
 
 import json
 import os
+import subprocess
 import sys
 
 import pytest
@@ -22,7 +23,7 @@ else:
     assert sys.argv[1:3] == ["--sandbox", "--json"]
     assert sys.argv[3].startswith("--actor=")
 assert os.environ["BD_DISABLE_METRICS"] == "1"
-assert os.environ["BEADS_DIR"] == str(root / ".beads")
+assert os.environ.get("BEADS_DIR") is None or Path(os.environ["BEADS_DIR"]).name == ".beads"
 assert "TEST_SECRET" not in os.environ
 command = sys.argv[4]
 assert command != "show", "bd show writes last-touched even in readonly mode"
@@ -61,8 +62,13 @@ if command == "version":
 elif command == "context":
     result = {"schema_version":1,"backend":"dolt","dolt_mode":"embedded","bd_version":"1.3.2",
               "beads_dir":str(root / ".beads"),"repo_root":str(root),
+              "cwd_repo_root":str(root),
               "is_redirected":False,"is_worktree":False,"project_id":settings["scope"]}
     result.update(settings.get("context", {}))
+    contexts = sum(json.loads(line)["argv"][-1] == "context"
+                   for line in (root / "calls.jsonl").read_text().splitlines())
+    if contexts >= settings.get("change_context_after", 1000):
+        result.update(settings.get("changed_context", {}))
 elif command == "list":
     assert sys.argv[5:] == ["--id", "demo-1", "--all", "--limit", "2", "--max-rows", "2",
                            "--include-infra", "--include-gates",
@@ -80,6 +86,7 @@ print(json.dumps(result))
 def beads_project(tmp_path, monkeypatch):
     project = tmp_path / "project"
     (project / ".beads").mkdir(parents=True)
+    subprocess.run(["git", "init", "--quiet", str(project)], check=True)
     (project / "devkit.toml").write_text('plugins=["beads"]')
     (project / "fake.json").write_text(json.dumps({"scope": SCOPE}))
     binary = tmp_path / "bin/bd"
@@ -94,7 +101,7 @@ def beads_project(tmp_path, monkeypatch):
 
     policy = tmp_path / "config/devkit/policy.toml"
     policy.parent.mkdir(parents=True)
-    text = '[trusted_plugins]\ndevkit-beads="0.2.0"\n'
+    text = '[trusted_plugins]\ndevkit-beads="0.3.0"\n'
     for spec in register().commands:
         text += f'[commands."{spec.id}"]\nproject={json.dumps(str(project))}\n'
         text += f'effects={json.dumps(sorted(spec.effects))}\nsurfaces=["cli","python","mcp"]\n'

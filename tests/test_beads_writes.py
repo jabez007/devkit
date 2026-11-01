@@ -51,7 +51,7 @@ def test_restricted_policy_denies_each_mutation_before_execution(beads_project, 
     from devkit_beads import register
 
     policy = Path(os.environ["XDG_CONFIG_HOME"]) / "devkit/policy.toml"
-    text = '[trusted_plugins]\ndevkit-beads="0.2.0"\n'
+    text = '[trusted_plugins]\ndevkit-beads="0.3.0"\n'
     for spec in register().commands:
         if spec.id.startswith("beads.item.") and spec.id != "beads.item.show":
             continue
