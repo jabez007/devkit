@@ -1144,3 +1144,74 @@ surfaces, no-import trust checks, deactivation/removal, foundation/domain/Beads
 regressions and existing full gates. Complexity stays at 10. No speculative
 marketplace, installer, registry rewrite, runtime dependency or orchestration is
 needed. Publication licensing/naming decisions remain owner approvals.
+
+### v0.8 delivered and verified
+
+Implemented with foundation 0.1.3 and template 0.2.0. Plugin API 1.0,
+result/evidence envelope 1.0 and existing specialization commands are unchanged.
+
+- The canonical template now supplies the bounded README validator, schemas,
+  explicit effects/surfaces, an optional check, project/operator examples, build
+  instructions and 14 self-contained installed-package tests. The duplicate
+  standalone implementation was removed. The fixture uses the public service
+  entry point; no test SDK, internal source imports or runtime dependency was added.
+- The clean-room exercise renames the complete template, builds its sdist,
+  rebuilds/installs its wheel and runs its own tests outside the monorepo under
+  isolated Python. Import markers establish metadata-only discovery and rejection
+  before import for untrusted selection. Trust without a grant remains denied.
+  Success, defect, invalid input and denial agree across CLI/Python/MCP. Removal
+  preserves the unrelated installed plugin and historical evidence.
+- Metadata inspection optionally reports project selection, missing packages and
+  configured trust. It explicitly does not verify pins or attempt activation.
+  `plugins validate` now uses doctor's blocked activation diagnostics; its exit
+  code for untrusted activation is 2 instead of the previous generic error 3.
+  Existing command statuses/reasons and invocation authorization are unchanged.
+  Denied-command summaries explain the policy fields to inspect.
+- All six distributions have package descriptions and Markdown READMEs. Acceptance
+  validates metadata and rebuilds each wheel from an independently extracted sdist,
+  comparing payloads. Public interface, versioning and qualification limits are
+  documented in [Compatibility.md](Compatibility.md). Developer/operator and
+  author paths are in [Getting_Started.md](Getting_Started.md) and
+  [Plugin_Authoring.md](Plugin_Authoring.md).
+
+The service remains the module owning command validation, authorization and
+evidence; the CLI inspection change only presents existing configuration and
+metadata. No additional permission model or plugin abstraction was needed.
+The moved validator's alternate-filename diagnostic initially still named
+README.md; a failing regression established the problem and the diagnostic now
+names the requested file. The three initial CLI diagnostic tests also failed
+before implementation. No unrelated cleanup or domain behavior was changed.
+
+Executed on November 1, 2026, Linux/Python 3.12:
+
+| Command / exercise | Observed result |
+| --- | --- |
+| `.venv/bin/ruff check .` | Passed, including configured McCabe limit 10. |
+| `.venv/bin/ruff format --check .` | Passed, 140 Python files formatted. |
+| `.venv/bin/mypy` | Passed, 31 runtime source files under strict checking. |
+| `.venv/bin/lint-imports` | Passed; foundation optional-integration boundary kept. |
+| `.venv/bin/pytest -q` | 320 passed in 97.39 seconds. |
+| `DEVKIT_BEADS_BINARY=/tmp/devkit-beads-1.3.2/bd .venv/bin/python scripts/check_wheels.py` | Passed full 13-environment matrix, including foundation-only, domain-only, real Beads lifecycle and sequential linked worktrees. |
+| Same matrix: independent authoring | 14 template-owned tests passed; renamed sdist/wheel, installed type-consumer checks, all transports, denial, removal and historical evidence passed. |
+| Same matrix: packaging | All six metadata inventories and independent sdist rebuilds passed with identical wheel payloads apart from RECORD. |
+| Literal MCP example from the author guide | Executed successfully from an external installed-wheel environment; Python/MCP results and stored evidence matched. |
+| Local links in changed Markdown | 61 file targets resolved. |
+
+Changed-function complexity was inspected separately with Ruff's threshold lowered
+for reporting: CLI dispatch 9, result renderer 6, plugin renderer 5, configuration
+inspection/trust helpers 3, invocation policy branch 6, template handler 4 and
+package validation 4. No changed function exceeds 10. The existing handler
+supervision function remains at 10 and was not expanded.
+
+Deferred owner decisions: choose distribution/import/CLI naming because PyPI's
+`devkit` belongs to a different project; select a license and approve release
+ownership/provenance. No registry claim, public release or publication was made.
+Package metadata intentionally omits an unapproved license. Local wheel-based
+authoring is verified; public distribution readiness is conditional on those
+decisions. Newer Python/platforms and the full declared dependency ranges remain
+unqualified; sequential Beads worktrees do not establish concurrent writer safety.
+
+Recommended v0.9 priority: resolve owner naming/licensing decisions, then qualify
+the supported Python and dependency range with installed-artifact CI. Prepare a
+reviewable release/provenance procedure after those decisions. Keep additional
+specializations, orchestration and concurrent Beads support out of that scope.

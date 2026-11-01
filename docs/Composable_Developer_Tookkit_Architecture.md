@@ -1,7 +1,7 @@
 # Composable Developer Toolkit — Architectural Specification
 
-**Status:** Draft 0.6. Foundation, static validation and writable Beads integration implemented; public names and plugin API remain provisional.\
-**Date:** October 31, 2026\
+**Status:** Draft 0.8. Foundation, static validation, writable Beads integration and independent plugin authoring implemented; publication names and licensing remain owner decisions.\
+**Date:** November 1, 2026\
 **Working project name:** `devkit` (placeholder, not a proposed public package name)\
 **Design inspiration:** [Crpaxton4/devcontainer-features](https://github.com/Crpaxton4/devcontainer-features) and its [ADR-006](https://github.com/Crpaxton4/devcontainer-features/blob/main/docs/design/adr/ADR-006-workspace-three-layers-state-root.md)\
 **First-release specializations:** Go checks and offline Odoo validation\
@@ -227,7 +227,29 @@ Multiple specializations may be active for one repository (e.g., Odoo + Python +
 
 ### 7.5 Third-party developer experience
 
-The [plugin template](../examples/plugin) builds independently, and [contract-test helpers](../tests/contract_helpers.py) stay in the repository. The Go plugin is the first non-Odoo reference implementation. `devkit plugins validate` checks activation and runs declared environment prerequisites through `doctor`. Behavioral equivalence and error handling require automated tests; the command does not certify arbitrary plugin code. Core and domain-only acceptance runs without Beads installed. Adapter acceptance uses a pinned Beads executable in disposable repositories. Neither requires an Odoo server, Gas City, or paid model credentials.
+The [plugin template](../examples/plugin) is a complete, independently buildable
+README check with schemas, explicit effects/surfaces, configuration examples and
+tests. Its tests use only installed packages and the documented
+`devkit.app.create_service(...).execute(...)` interface. Repository-local contract
+helpers remain internal; no external testing SDK or runtime test dependency is
+needed. Acceptance copies and renames the template outside this repository,
+rebuilds its wheel from its sdist and tests installation, trust, grants, all three
+surfaces, deactivation and removal. Historical evidence and unrelated plugins
+remain usable. Generic malformed-contract tests stay in the foundation suite.
+
+`devkit plugins list --details` reports selection and configured trust without
+importing code or verifying artifact pins. `plugins validate` checks activation
+and declared prerequisites through `doctor`, including actionable diagnostics
+when activation is blocked. Command authorization remains separate. Neither
+inspection nor tests certify arbitrary plugin code. The
+[onboarding guide](Getting_Started.md), [author guide](Plugin_Authoring.md) and
+[compatibility policy](Compatibility.md) define the independent developer path
+and supported public extension points. Plugin API 1.0 and evidence 1.0 remain
+unchanged; distribution releases do not automatically change those contracts.
+
+Core and domain-only acceptance runs without Beads installed. Adapter acceptance
+uses a pinned Beads executable in disposable repositories. Neither requires an
+Odoo server, Gas City, or paid model credentials.
 
 ## 8. Beads task integration
 
@@ -535,6 +557,7 @@ State formats belong to this project. Future changes to persisted devkit state w
 - D12. v0.5 checks known dependency edges among already inspected manifests, using the standard-library graph implementation. A confirmed cycle fails, while absent evidence never establishes global acyclicity. Selecting a module retains its existing read scope. Schema 1.4 adds one cycle witness and explicit graph coverage; there is no transitive solver or generic contract change.
 - D15. Writable task lifecycle is normal optional integration behavior. The v0.6 inspection-only scope was temporary. Existing exact-command grants separate inspection, creation, claiming, updating, commenting and closing. Beads owns transitions and conflicts; destructive/admin operations are outside these grants.
 - D16. Worktree topology and writer concurrency require separate evidence. v0.7 enables sequential linked checkouts only after native topology, identity, checkout-scoped grants and retention tests. Concurrent writers remain explicitly unqualified pending contention testing. Reference-based evidence discovery stays provider-independent and uses the existing operator interface.
+- D17. v0.8 qualifies independent plugin authoring through a self-contained template and installed-artifact tests, using the existing public contracts and service entry point. No testing SDK or contract expansion is required. Metadata inspection reports configured trust without implying artifact verification. Publication naming, licensing and ownership require explicit owner decisions; see [Compatibility.md](Compatibility.md).
 - D14. The initial v0.6 slice implemented Beads inspection and evidence references. Foundation additions were limited to resolved evidence context and explicit child environments. D15 supersedes that delivery scope; read-only access is not a permanent architectural requirement.
 - D13. The CI adoption pilot composes existing profiles, exact operator grants, wheel identity checks and evidence maintenance. Provider artifact retention stays separate from local pin/prune rules. The pilot introduces no runtime adapter, package version or schema change.
 
