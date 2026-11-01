@@ -16,6 +16,7 @@ def add_runs_parser(parser: argparse.ArgumentParser) -> None:
     listing = sub.add_parser("list")
     listing.add_argument("--limit", type=int, default=50)
     listing.add_argument("--offset", type=int, default=0)
+    listing.add_argument("--reference", help="Match an exact reference before pagination")
     show = sub.add_parser("show")
     show.add_argument("run_id")
     pin = sub.add_parser("pin")
@@ -38,7 +39,8 @@ def dispatch_runs(args: argparse.Namespace) -> JSONObject:
     project: Path | None = None if args.all_projects else root
     store = RunStore(state_root().resolve())
     if args.operation == "list":
-        data = store.list(project, args.limit, args.offset)
+        reference = redact(args.reference) if args.reference is not None else None
+        data = store.list(project, args.limit, args.offset, reference=reference)
     elif args.operation == "show":
         data = store.show(args.run_id, project)
     elif args.operation in {"pin", "unpin"}:

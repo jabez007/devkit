@@ -210,14 +210,26 @@ class RunStore:
     def __init__(self, state: Path) -> None:
         self.state = state
 
-    def list(self, project: Path | None, limit: int = 50, offset: int = 0) -> JSONObject:
+    def list(
+        self,
+        project: Path | None,
+        limit: int = 50,
+        offset: int = 0,
+        *,
+        reference: str | None = None,
+    ) -> JSONObject:
         if not 1 <= limit <= 1000 or offset < 0:
             raise DevkitError("INVALID_INPUT", "List limit must be 1..1000 and offset nonnegative")
         with run_lock(self.state) as root:
             records = [
                 item
                 for item in _scan(root).values()
-                if project is None or item["project_root"] == str(project)
+                if (project is None or item["project_root"] == str(project))
+                and (
+                    reference is None
+                    or reference in item["references"]
+                    or reference == item["work_item_ref"]
+                )
             ]
             records.sort(key=lambda item: (item["finished_at"] or "", item["run_id"]), reverse=True)
             public = [

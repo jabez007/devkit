@@ -161,6 +161,47 @@ def test_reference_updates_are_idempotent_and_independent(runs):
     assert not cli("prune", "--keep-last", "0", "--apply")["deleted"]
 
 
+def test_reference_listing_is_exact_scoped_and_paginated(runs):
+    cli, create, project, root = runs
+    reference = "review: arbitrary / café #42"
+    other = project.parent / "other"
+    other.mkdir()
+    first, first_path = create(age=50)
+    second, _ = create(age=40)
+    foreign, _ = create(selected=other)
+    unrelated, _ = create(age=1)
+    legacy, _ = create(age=60, work_item_ref=reference)
+    for identifier in (first, second, foreign):
+        for _ in range(2):
+            cli("pin", identifier, "--reference", reference, "--all-projects")
+    before = {path: path.read_bytes() for path in root.glob("*/*.json")}
+    (project / "devkit.toml").write_text('plugins=["beads-not-installed"]')
+    page = cli("list", "--reference", reference, "--limit", "1", "--offset", "1")
+    assert page["total"] == 3 and page["offset"] == 1
+    assert [row["run_id"] for row in page["runs"]] == [first]
+    assert cli("list", "--reference", reference, "--offset", "3")["runs"] == []
+    all_projects = cli("list", "--reference", reference, "--all-projects")
+    assert {row["run_id"] for row in all_projects["runs"]} == {first, second, foreign, legacy}
+    assert cli("list", "--reference", "review:")["total"] == 0
+    assert cli("list", "--reference", reference.upper())["total"] == 0
+    assert before == {path: path.read_bytes() for path in root.glob("*/*.json")}
+    assert cli("prune", "--keep-last", "0", "--older-than-days", "0", "--apply")["deleted"] == [
+        unrelated
+    ]
+    assert first_path.exists()
+
+
+@pytest.mark.parametrize("foreign", [False, True])
+def test_reference_filter_does_not_hide_corrupt_metadata(runs, foreign):
+    cli, create, project, root = runs
+    selected = project.parent / "other" if foreign else project
+    selected.mkdir(exist_ok=True)
+    identifier, path = create(selected=selected)
+    (path.parent / "references.json").write_text('{"references":["duplicate","duplicate"]}')
+    cli("list", "--reference", "unrelated", expected=3)
+    assert (root / identifier / "result.json").exists()
+
+
 def test_concurrent_pruners_remove_each_run_once(runs):
     _, create, project, _ = runs
     ids = {create()[0] for _ in range(5)}

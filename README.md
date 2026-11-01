@@ -257,6 +257,7 @@ flags still precede the subcommand:
 
 ```sh
 devkit --project /absolute/path/to/project --json runs list --limit 50 --offset 0
+devkit --project /absolute/path/to/project --json runs list --reference 'review: arbitrary / café #42'
 devkit --project /absolute/path/to/project --json runs show <run-uuid>
 devkit --project /absolute/path/to/project runs pin <run-uuid> --reference work:active-123
 devkit --project /absolute/path/to/project runs prune
@@ -269,6 +270,14 @@ operation to inspect or maintain the entire local store. Listing supports a
 limit of 1 to 1,000 and an offset. These operator commands do not create new
 run evidence or expose MCP tools. Local filesystem access controls maintenance;
 project command grants do not grant or restrict this operator interface.
+
+`runs list --reference` matches an exact, case-sensitive string in reference
+metadata or the reserved `work_item_ref` field. Filtering precedes pagination;
+`total` counts matching runs in the selected project scope. References are not
+restricted to Beads IDs. The CLI applies the same redaction as `runs pin`.
+Filtering neither pins nor deletes evidence, and works after a plugin is removed.
+Corrupt metadata stops the scan with `CORRUPT_EVIDENCE`, even for a nonmatching
+run or another project; no partial list is presented as complete.
 
 `runs prune` previews eligible UUIDs and explains why other runs are protected.
 Only `--apply` deletes evidence. Defaults retain runs from the last 30 days and

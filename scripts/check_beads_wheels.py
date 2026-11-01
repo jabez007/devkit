@@ -182,6 +182,13 @@ def exercise(root, wheels, constraints, domain, binary):
     lifecycle(root, project, env, ref)
     # Copy the existing portable bundle, including references, into a foundation-only install.
     portable(root, wheels, constraints, env, check["run_id"], ref)
+    run("uv", "pip", "uninstall", "--python", str(root / "venv/bin/python"), "devkit-beads")
+    absent(root, project, env, ["devkit_beads"])
+    discovered = cli(root, project, env, "runs", "list", "--reference", ref)["result"]["data"]
+    assert [row["run_id"] for row in discovered["runs"]] == [check["run_id"]]
+    assert cli(root, project, env, "runs", "show", check["run_id"])["result"]["data"][
+        "references"
+    ] == [ref]
     print(
         f"PASS: real Beads 1.3.2 + {domain}, association parity/retries, "
         "retention, portable evidence"
@@ -198,6 +205,8 @@ def portable(root, wheels, constraints, source_env, run_id, reference):
     )
     shown = cli(target, project, env, "runs", "show", run_id, "--all-projects")["result"]["data"]
     assert shown["references"] == [reference]
+    listed = cli(target, project, env, "runs", "list", "--reference", reference, "--all-projects")
+    assert [row["run_id"] for row in listed["result"]["data"]["runs"]] == [run_id]
     assert shown["run"]["result"]["status"] == "success"
     assert "work_item_ref" in shown["run"] and shown["run"]["work_item_ref"] is None
     pruned = cli(

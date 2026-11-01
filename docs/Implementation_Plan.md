@@ -1033,3 +1033,27 @@ consumer typing. See the assessment's verification record for commands and limit
 The marker fix followed a reproduced `import-untyped` failure; the CLI regression
 also failed before its fix. Server and simultaneous-writer acceptance remain
 unimplemented, and existing workspace guards are unchanged.
+
+### v0.7 reference discovery implementation
+
+`RunStore.list` gains an optional exact reference filter, exposed as
+`runs list --reference`. Reuse the locked scan, project selection, reference
+metadata, reserved `work_item_ref`, stable sort and pagination. The CLI applies
+pin-compatible redaction. Filtering happens before pagination, and the response
+schema is unchanged. Operator-only access, plugin independence and fail-closed
+corrupt metadata handling remain intact. No index or provider-specific parsing
+is needed. Existing retention code is unchanged.
+
+Tests exercise arbitrary Unicode reference text, exact matching, duplicate pins,
+project isolation, explicit all-project scope, pagination, missing matches,
+corrupt metadata in either project and retention after filtering. Installed-wheel
+acceptance uninstalls Beads before querying its existing association, and queries
+copied evidence in a foundation-only installation. The new CLI tests failed
+before the implementation. Baseline complexity passed at threshold 10; no
+unrelated cleanup is required.
+
+Reference slice verification: 294 pytest tests passed in 86.75 seconds. Ruff
+lint/format/complexity, strict mypy and import boundaries passed. The full
+13-environment installed-wheel gate passed, including actual Beads uninstallation
+and foundation-only filtered retrieval. Changed functions remain below complexity
+10 (`RunStore.list`: 2, CLI dispatch: 5).

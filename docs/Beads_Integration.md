@@ -74,6 +74,11 @@ third-party executable code; use trusted tool installations.
 
 ## Normal and restricted access
 
+To find associated evidence without loading Beads, use
+`devkit --project /path/to/checkout runs list --reference 'beads:<project-uuid>:<issue-id>'`.
+This also works after uninstalling the adapter. Add `--all-projects` explicitly
+to search the operator's entire local evidence store.
+
 The single [operator policy example](../examples/beads/policy.toml) lists separate
 grants for inspection, local evidence association, and five lifecycle commands.
 Renew exact-version trust for `devkit-beads="0.2.0"`. Existing 0.1.0 trust fails
