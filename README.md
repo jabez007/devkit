@@ -367,6 +367,9 @@ real Beads with Go and Odoo, and two foundation-only portable-evidence readers.
 One additional Go/Beads environment exercises a failing check, code repair,
 evidence review and explicit task closure. It also verifies the adapter in a main checkout and two linked worktrees,
 with separate grants, revisions and evidence on one shared Beads ledger.
+Two further environments exercise the copied Claude plugin's CLI procedures with
+Go-only and Odoo-only installations, without Beads or MCP. Model-driven Claude
+qualification is a separate, opt-in exercise.
 Simultaneous writers remain unqualified. The independent
 plugin environment checks installed foundation annotations with strict mypy.
 The Beads matrix needs the explicitly selected 1.3.2 test binary; see the
@@ -383,6 +386,15 @@ and later increments. The [v0.7 assessment](docs/v0.7_Assessment.md) records ver
 workflow behavior, worktree limitations and prioritized foundation improvements.
 Live Odoo, tracker imports, Beads server modes and administrative operations,
 and orchestration remain future work with separate integration prerequisites.
+
+## Optional Claude Code integration
+
+Load the [Claude Code plugin](integrations/claude-code) with native `--plugin-dir`
+support. Its two skills use the existing CLI for verification and optional Beads
+work items. MCP remains an explicit, project-local option. The plugin resolves the
+active checkout, preserves worktree scopes, and leaves authorization with the
+operator. Removing it does not remove Devkit evidence. The same commands work
+from Neovim's terminal without any editor package or AI session.
 
 ## License
 

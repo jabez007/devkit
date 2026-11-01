@@ -102,3 +102,11 @@ build/install/authorize/remove procedure and example TOML files.
 You do not need Devkit's source tree, internal service constructors or test helpers.
 No testing SDK is currently needed. Review the [compatibility and publication
 policy](Compatibility.md) before declaring support or releasing a package.
+
+## Optional Claude Code use
+
+After terminal verification works, load the [native Claude Code plugin](../integrations/claude-code)
+to use the same checks and evidence from a Claude session. Start it in the selected
+development checkout, including when using Neovim's terminal. CLI use needs no MCP
+adapter. Follow the plugin guide for explicit project-local MCP setup or optional
+Beads operations. Loading a skill does not grant Devkit command permissions.

@@ -1301,3 +1301,43 @@ actions. No PyPI upload, public release or registry reservation was performed.
 Newer-Python/dependency-range qualification and Beads simultaneous-writer testing
 remain deferred. Use [Compatibility.md](Compatibility.md) for the explicit
 environment, plugin rebuild and operator trust migration steps.
+
+### v0.9 design: native Claude Code integration
+
+Reuse `CommandService` through the existing CLI and optional `devkit-mcp`,
+metadata-only `plugins list --details`, diagnostic `doctor`, authorized `commands`,
+configured verification profiles, `runs show/list --reference`, and the existing
+Beads read, lifecycle, and evidence-association commands. No foundation contract,
+distribution version, API 1.0, or evidence 1.0 change is needed.
+
+Add a standalone GPL-3.0-or-later plugin directory with two skills and supporting
+references. Skills describe verification and optional work-item operations. A
+stdlib-only checkout helper resolves the current Git worktree or an explicitly
+selected project directory. It never invokes Devkit or changes Git state. This
+small filesystem/process boundary makes project selection testable without
+duplicating invocation or policy logic. Explicit project selection also supports
+non-Git directories and monorepo subprojects.
+
+Do not bundle MCP startup: a static plugin configuration cannot safely select a
+different project on every invocation. Document opt-in, project-local registration
+of the existing server with an absolute executable and checkout path. Installation
+does not grant Claude tools, activate Python plugins, or alter operator policy.
+Skills are instructions, not a sandbox; Devkit and Claude retain their respective
+authorization checks. Beads writes require intentional actions and actor labels.
+Ambiguous mutation outcomes require reconciliation before retry. Association stays
+idempotent and does not imply review, approval, or issue closure.
+
+Reuse installed-wheel fixture builders, the Go regression workflow, Odoo fixtures,
+and Beads/worktree acceptance instead of creating another task model or test SDK.
+Add focused tests for checkout selection and the integration's documented failure
+paths. Test a copied plugin outside the repository, real native Claude validation
+and loading where available, and CLI workflows against installed distributions.
+Report model-driven qualification separately from deterministic CLI tests. Keep
+historical evidence accessible after plugin removal. Existing package, invocation,
+license, and complexity gates remain required.
+
+Baseline Ruff, including complexity <=10, passed. Hosted `checks` and passing CI
+pilot at `bf72595` were green. No runtime function needs expansion. Profile discovery
+currently requires reading documented TOML configuration; a new registry or profile
+API is unnecessary for two skills. Concurrent Beads writers and release publication
+remain outside this milestone.

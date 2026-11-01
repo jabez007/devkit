@@ -1,0 +1,9 @@
+{
+  "name": "mccann-hub-devkit",
+  "version": "0.1.0",
+  "description": "Use Devkit verification evidence and optional Beads work items in the active checkout.",
+  "author": {"name": "McCann Hub"},
+  "repository": "https://github.com/jabez007/devkit",
+  "license": "GPL-3.0-or-later",
+  "keywords": ["verification", "evidence", "beads"]
+}

@@ -588,6 +588,31 @@ The [implementation plan](Implementation_Plan.md) records delivered slices 0 thr
 
 The first-release implementation is complete. Follow the [README](../README.md) to install and exercise it. Later slices need their stated service and version prerequisites. Add a new abstraction only for a demonstrated seam or a concrete second use case.
 
+### 18.1. Native Claude Code integration, v0.9
+
+The optional [Claude Code plugin](../integrations/claude-code) consists of two
+native skills, supporting references, and a checkout-resolution helper. It consumes
+the existing CLI and optional stdio MCP server. No foundation module imports Claude,
+and the specialization API and evidence envelope remain version 1.0. The helper
+selects the active Git worktree or an explicit directory; it performs no invocation,
+authorization, or Git mutation.
+
+The plugin contains no hooks, agents, automatic tool preapprovals, or bundled MCP
+startup. An operator may register `devkit-mcp` locally for a specific project with
+an absolute checkout path. A fixed binding must not silently follow a session into
+another worktree. CLI invocation always passes the selected project explicitly.
+
+Beads remains authoritative for task lifecycle. Skills require intentional writes,
+actor audit labels, and reconciliation of uncertain outcomes. Evidence association
+reuses local references and retention, without changing issue state or recording
+approval. Claude retains its native sessions and execution. Skill instructions are
+not a sandbox or a replacement for either product's authorization checks.
+
+Native package loading, deterministic CLI workflows, and live model qualification
+are distinct acceptance claims. See the implementation plan for observed results
+and any missing qualification. Other harness packages and concurrent Beads writers
+remain separately scoped.
+
 ## 19. References and verification notes
 
 The design draws on public upstream documentation reviewed October 30, 2026. First-release behavior is supported by local and installed-wheel tests. Beads inspection and ordinary task lifecycle commands are tested against the pinned release. Server, administrative, connector, and orchestration work remains separately scoped; verify their supported interfaces at implementation time. Public package names are not reserved or published.
