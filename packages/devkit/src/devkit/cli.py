@@ -7,9 +7,11 @@ from pathlib import Path
 
 from devkit import __version__
 from devkit.app import create_service
+from devkit.config import config_root, load_settings
 from devkit.contracts import EXIT_CODES, CommandResult, DevkitError, JSONObject
 from devkit.discovery import discover
 from devkit.evidence import redact
+from devkit.policy import load_policy
 from devkit.runs_cli import add_runs_parser, dispatch_runs
 
 
@@ -27,30 +29,70 @@ def parser() -> argparse.ArgumentParser:
     check.add_argument("profile")
     plugins = sub.add_parser("plugins")
     plugins.add_argument("operation", choices=["list", "validate"], default="list", nargs="?")
+    plugins.add_argument(
+        "--details",
+        action="store_true",
+        help="Show selection and configured trust without importing plugins",
+    )
     run = sub.add_parser("run")
     run.add_argument("command")
     run.add_argument("--args", default="{}", help="JSON object")
     return result
 
 
+def configured_trust(trust: object, version: str) -> str:
+    if trust is None:
+        return "not-configured"
+    configured = trust.get("version") if isinstance(trust, dict) else trust
+    if configured != version:
+        return "version-mismatch"
+    return "wheel-pin-unverified" if isinstance(trust, dict) else "version-trust-configured"
+
+
+def list_plugins(project: Path, details: bool) -> JSONObject:
+    rows: list[JSONObject] = [
+        {"id": item.id, "distribution": item.distribution, "version": item.version}
+        for item in discover()
+    ]
+    data: JSONObject = {"plugins": rows}
+    if details:
+        settings = load_settings(project)
+        policy = load_policy(settings.project_root)
+        for row in rows:
+            row.update(
+                selected=row["id"] in settings.plugins,
+                trust=configured_trust(
+                    policy.trusted_plugins.get(row["distribution"]), row["version"]
+                ),
+            )
+        data.update(
+            project_root=str(settings.project_root),
+            policy_file=str(config_root() / "policy.toml"),
+            missing=sorted(set(settings.plugins) - {row["id"] for row in rows}),
+            activation="not-attempted",
+            artifact_verification="not-performed",
+        )
+    return {
+        "result": {
+            "status": "success",
+            "summary": "Installed plugins",
+            "data": data,
+            "reason": None,
+        }
+    }
+
+
 def dispatch(args: argparse.Namespace) -> JSONObject:
     if args.action == "runs":
         return dispatch_runs(args)
-    if args.action == "plugins" and args.operation == "list":
-        return {
-            "result": {
-                "status": "success",
-                "summary": "Installed plugins",
-                "data": {
-                    "plugins": [
-                        {"id": item.id, "distribution": item.distribution, "version": item.version}
-                        for item in discover()
-                    ]
-                },
-                "reason": None,
-            }
-        }
-    service = create_service(args.project, args.timeout, diagnostic=args.action == "doctor")
+    if args.action == "plugins":
+        if args.operation == "list":
+            return list_plugins(args.project, args.details)
+        if args.details:
+            raise DevkitError("INVALID_INPUT", "--details applies to plugins list")
+    service = create_service(
+        args.project, args.timeout, diagnostic=args.action in {"doctor", "plugins"}
+    )
     if args.action == "commands":
         return {
             "result": {
@@ -74,7 +116,7 @@ def dispatch(args: argparse.Namespace) -> JSONObject:
 
 def render_checks(envelope: JSONObject, action: str) -> None:
     """Expose existing core aggregate diagnostics without interpreting plugin data."""
-    if action not in {"doctor", "check"}:
+    if action not in {"doctor", "check", "plugins"}:
         return
     for check in envelope["result"]["data"].get("checks", []):
         result = check["result"]
@@ -85,6 +127,18 @@ def render_checks(envelope: JSONObject, action: str) -> None:
         print(f"    Inspect: devkit --project {project} runs show {check['run_id']}")
 
 
+def render_plugins(data: JSONObject) -> None:
+    for plugin in data.get("plugins", []):
+        print(f"  {plugin['id']} ({plugin['distribution']} {plugin['version']})")
+        if "selected" in plugin:
+            print(f"    Selected: {plugin['selected']}; trust: {plugin['trust']}")
+    if "activation" in data:
+        print("Activation not attempted; wheel pins not verified. Run plugins validate next.")
+        print(f"Policy: {data['policy_file']}")
+        for missing in data["missing"]:
+            print(f"  Selected but not installed: {missing}")
+
+
 def render(envelope: JSONObject, action: str) -> None:
     result = envelope["result"]
     print(f"{result['status']}: {result['summary']}")
@@ -92,8 +146,8 @@ def render(envelope: JSONObject, action: str) -> None:
         print(f"Reason: {result['reason']}")
     for command in result["data"].get("commands", []) if action == "commands" else []:
         print(f"  {command}")
-    for plugin in result["data"].get("plugins", []) if action == "plugins" else []:
-        print(f"  {plugin['id']} ({plugin['distribution']} {plugin['version']})")
+    if action == "plugins":
+        render_plugins(result["data"])
     render_checks(envelope, action)
     if envelope.get("evidence_path"):
         print(f"Evidence: {envelope['evidence_path']}")

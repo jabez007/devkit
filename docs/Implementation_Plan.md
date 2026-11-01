@@ -1097,3 +1097,50 @@ regressions. The changed adapter functions stay at complexity 8 or below, agains
 the existing limit of 10. The isolated workflow also passed before the full gate.
 No concurrent-writer or server compatibility is claimed. Reference-slice hosted
 checks and CI pilot both passed on `42d52b7`.
+
+## v0.8 design: independent authors and onboarding
+
+Reuse entry-point discovery, activation validation, exact operator trust and
+artifact pins, `create_service(...).execute(...)`, `CommandResult`/`CommandSpec`,
+RunStore and the existing CLI/Python/MCP wheel matrix. Core contract tests already
+cover invalid registrations, schemas, results, cancellation and policy failures.
+The current independent test builds a renamed distribution but supplies its
+implementation and test harness from this repository. The template itself has
+no tests, README or configuration examples, while repository-local contract
+helpers construct internal settings/policy objects.
+
+Move the existing bounded README check into the template as its useful command;
+remove the duplicate standalone implementation. Supply self-contained tests that
+exercise an installed plugin through `devkit.app.create_service` and isolated
+operator/project configuration. Use ordinary pytest as a development dependency,
+not a core runtime dependency. Document the small public Python entry point and
+contracts used by those tests. A testing SDK is not justified if this succeeds.
+
+Extend the existing clean-room script to copy/rename the complete template,
+build from its sdist, install only wheel artifacts, and run its own tests with
+isolated Python and no repository imports. Instrument the acceptance copy to
+prove discovery and untrusted selection do not import code. Preserve unrelated
+plugin and historical evidence checks. Expand transport scenarios to invalid
+input and denial without duplicating the foundation's internal contract suite.
+
+At the CLI seam, retain metadata-only `plugins list` and add optional project
+selection/trust details without implying activation or artifact verification.
+Reuse `doctor` for actionable `plugins validate` failures. Keep policy and
+activation separate; installation never edits policy. Add package README,
+description and source metadata, validate wheel/sdist contents, and document
+public compatibility, supported baseline and owner-only publication decisions.
+No license or registry ownership will be selected or published by this work.
+
+Compatibility: plugin API 1.0 and evidence 1.0 remain unchanged. Template command
+changes affect the unpublished example distribution only and will use its next
+version. Any CLI inspection fields are additive; default metadata discovery
+continues to work with invalid project configuration. Only documented contracts
+and invocation entry points receive compatibility promises; constructors and
+private validation/policy modules do not. Local artifact trust remains unchanged.
+
+Acceptance: red/green tests for concrete diagnostics, template-owned tests against
+independent wheels, entry-point/metadata and sdist rebuild validation, all three
+surfaces, no-import trust checks, deactivation/removal, foundation/domain/Beads
+regressions and existing full gates. Complexity stays at 10. No speculative
+marketplace, installer, registry rewrite, runtime dependency or orchestration is
+needed. Publication licensing/naming decisions remain owner approvals.

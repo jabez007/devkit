@@ -153,7 +153,13 @@ class CommandService:
         if spec is None:
             return CommandResult("error", "Unknown command", reason="UNKNOWN_COMMAND")
         if spec not in self.allowed(surface):
-            return CommandResult("blocked", "Command unavailable here", reason="DENIED")
+            return CommandResult(
+                "blocked",
+                f"Command {command} is not authorized; check its project, effects and surfaces "
+                "in the external policy.toml, and check for revoked plugin trust "
+                "or an explicit deny",
+                reason="DENIED",
+            )
         try:
             validate(arguments, spec.input_schema)
         except Exception:

@@ -114,3 +114,19 @@ def test_registration_output_is_rejected_without_leaking(capsys):
     with pytest.raises(DevkitError, match="Cannot activate"):
         activate(("sample",), Policy({"devkit-sample": "0.1.0"}), (entry,))
     assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"id": "not_namespaced"},
+        {"id": "other.run"},
+        {"surfaces": frozenset({"unknown"})},
+        {"output_schema": {"type": "array"}},
+    ],
+)
+def test_invalid_command_declarations_fail_activation(changes):
+    spec = CommandSpec("sample.run", "Sample", lambda ctx, args: CommandResult("success", "OK"))
+    entry = candidate([], Specialization("sample", (replace(spec, **changes),)))
+    with pytest.raises(DevkitError, match="Cannot activate"):
+        activate(("sample",), Policy({"devkit-sample": "0.1.0"}), (entry,))
