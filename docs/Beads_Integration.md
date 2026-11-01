@@ -1,6 +1,6 @@
 # Beads work items and verification evidence
 
-`devkit-beads` 0.3.0 is an optional specialization requiring foundation 0.1.2.
+`mccann-hub-devkit-beads` 0.3.0 is an optional specialization requiring renamed foundation 0.2.0.
 It supports ordinary task lifecycle operations and explicit evidence associations.
 Beads owns readiness, dependencies, claims, task status and closure rules. Devkit
 provides separately authorized commands and verification evidence. The v0.6
@@ -61,7 +61,7 @@ not download tools or require Odoo, Go, Docker, or an agent.
 ```sh
 uv build --all-packages
 uv pip install --python /path/to/venv/bin/python \
-  dist/devkit-0.1.3-py3-none-any.whl dist/devkit_beads-0.3.0-py3-none-any.whl
+  dist/mccann_hub_devkit-0.2.0-py3-none-any.whl dist/mccann_hub_devkit_beads-0.3.0-py3-none-any.whl
 ```
 
 Select `beads` in `devkit.toml`, alongside the specialization whose checks you
@@ -107,7 +107,7 @@ to search the operator's entire local evidence store.
 
 The single [operator policy example](../examples/beads/policy.toml) lists separate
 grants for inspection, local evidence association, and five lifecycle commands.
-Renew exact-version trust for `devkit-beads="0.3.0"`. Earlier adapter-version trust fails
+Renew exact-version trust for `mccann-hub-devkit-beads="0.3.0"`. Earlier adapter-version trust fails
 closed after upgrading. If you pin a wheel, update its path and hash as well.
 
 For normal development, retain the lifecycle grants needed by the developer or

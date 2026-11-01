@@ -141,7 +141,7 @@ persisted evidence and `runs show`. The same script runs against a separately
 installed Odoo-only wheel. Python/CLI/MCP parity tests also cover successful,
 blocked and failed dependency results and policy revocation.
 
-On October 31, 2026, devkit-odoo 0.2.0 evaluated the public
+On October 31, 2026, mccann-hub-devkit-odoo 0.2.0 evaluated the public
 [OCA/server-tools 19.0 snapshot](https://github.com/OCA/server-tools/tree/389daeb98a8e21fe11594bdddef873bb07d0cb61).
 The checkout remained clean. No addon Python code was imported, no server was
 started, and no dependencies were installed. Configuration and evidence were
@@ -182,7 +182,7 @@ Latin-1 have acceptance coverage. UTF-32 is explicitly unsupported and blocks
 inspection rather than producing a malformed-XML finding. CSV and other declared file types retain path
 checks without XML parsing.
 
-devkit-odoo 0.3.0 uses additive specialization data schema 1.2. Update the exact
+mccann-hub-devkit-odoo 0.3.0 uses additive specialization data schema 1.2. Update the exact
 plugin trust version and any approved wheel digest when upgrading. Previously
 passing projects with malformed XML now fail by design. Each module has `xml.files`, with
 path, data/demo phase, status, reason and diagnostic location, plus `xml.complete`.
@@ -240,7 +240,7 @@ from the affected file.
 
 ### v0.3 public repository evaluation
 
-On October 31, 2026, devkit-odoo 0.3.0 evaluated two public 19.0 snapshots with
+On October 31, 2026, mccann-hub-devkit-odoo 0.3.0 evaluated two public 19.0 snapshots with
 `addons_paths=["."]`, both with ordinary and strict module-dependency validation.
 The CLI results matched persisted evidence and `runs show`. Both checkouts
 remained clean. No addon code, Odoo server or private repository was used.
@@ -271,7 +271,7 @@ devkit --project /absolute/path/to/checkout --json run odoo.module.validate --ar
 
 ## CSV inspection in v0.4
 
-This milestone ships devkit-odoo 0.4.0 with specialization data schema 1.3. Update
+This milestone ships mccann-hub-devkit-odoo 0.4.0 with specialization data schema 1.3. Update
 exact plugin trust and any approved wheel digest when upgrading. The foundation,
 Go and MCP package versions and the generic result envelope are unchanged.
 
@@ -339,7 +339,7 @@ model metadata and hooks remain outside coverage.
 
 ### v0.4 public repository evaluation
 
-On October 31, 2026, devkit-odoo 0.4.0 rechecked the same pinned public snapshots
+On October 31, 2026, mccann-hub-devkit-odoo 0.4.0 rechecked the same pinned public snapshots
 used for v0.3. Configuration and evidence stayed outside the checkouts. Both
 ordinary and strict runs matched persisted evidence and `runs show`; Git reported
 both checkouts clean. No addon code or runtime service was executed.
@@ -359,7 +359,7 @@ Generated model IDs and external modules remain outside the source inventory.
 
 ## Dependency cycles in v0.5
 
-This milestone ships devkit-odoo 0.5.0 with specialization data schema 1.4. Update
+This milestone ships mccann-hub-devkit-odoo 0.5.0 with specialization data schema 1.4. Update
 exact plugin trust and any approved wheel digest when upgrading. The foundation,
 Go and MCP versions and generic result envelope are unchanged. Existing data
 fields remain; consumers matching exact specialization versions must accept 1.4.
@@ -419,7 +419,7 @@ runtime compatibility.
 
 ### v0.5 public repository evaluation
 
-On October 31, 2026, devkit-odoo 0.5.0 rechecked the same pinned public snapshots
+On October 31, 2026, mccann-hub-devkit-odoo 0.5.0 rechecked the same pinned public snapshots
 without modifying their files or executing addon code:
 
 | Snapshot | Inspected manifests | Included edges | Unknown declarations excluded | Graph result |

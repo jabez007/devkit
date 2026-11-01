@@ -48,9 +48,9 @@ jobs:
         run: |
           pilot_root="$RUNNER_TEMP/devkit-pilot"
           uv python install 3.12
-          uv build --package devkit --out-dir "$pilot_root/wheels"
-          uv build --package devkit-go --out-dir "$pilot_root/wheels"
-          uv build --package devkit-odoo --out-dir "$pilot_root/wheels"
+          uv build --package mccann-hub-devkit --out-dir "$pilot_root/wheels"
+          uv build --package mccann-hub-devkit-go --out-dir "$pilot_root/wheels"
+          uv build --package mccann-hub-devkit-odoo --out-dir "$pilot_root/wheels"
           uv export --all-packages --no-dev --no-emit-workspace --no-hashes --frozen \
             --output-file "$pilot_root/constraints.txt"
           uv venv --python 3.12 "$pilot_root/venv"

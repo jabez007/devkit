@@ -36,7 +36,7 @@ def python_claim(root, project, env, reference, expected):
     code = """
 import json,sys
 from pathlib import Path
-from devkit.app import create_service
+from mccann_hub.devkit.app import create_service
 result = create_service(Path(sys.argv[1])).execute("beads.item.claim", {
     "ref":sys.argv[2], "actor":"devkit-acceptance"})
 assert result["result"] == json.loads(sys.argv[3]), result

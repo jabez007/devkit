@@ -8,15 +8,15 @@ repository's implementation or test helpers.
 
 ## Keep the public interface small
 
-Import the data contracts from `devkit.contracts`. Registration returns a
-`Specialization` through the `devkit.specializations.v1` entry point. In tests and
-Python consumers, use `devkit.app.create_service(Path(project), timeout=...)`
+Import the data contracts from `mccann_hub.devkit.contracts`. Registration returns a
+`Specialization` through the `mccann_hub.devkit.specializations.v1` entry point. In tests and
+Python consumers, use `mccann_hub.devkit.app.create_service(Path(project), timeout=...)`
 and its returned service's `execute(command, arguments, cancellation=...)` method.
 Do not call handlers directly for integration tests or construct the internal
 service settings/policy objects. An isolated test policy is an explicit fixture,
 not a permission grant to install into a user's environment.
 
-Use `devkit.processes.run_process` for supervised subprocesses if your command
+Use `mccann_hub.devkit.processes.run_process` for supervised subprocesses if your command
 needs them. The README example needs no subprocess. Check cancellation/deadlines
 around long work; synchronous Python handlers cannot be forcibly interrupted.
 Effects describe capabilities for policy review, not a sandbox for arbitrary code.
@@ -60,7 +60,7 @@ still needed. No external testing SDK is necessary for the current template.
 
 ## Exercise MCP without an agent harness
 
-Install the reviewed foundation, plugin and `devkit-mcp` wheels together. Grant
+Install the reviewed foundation, plugin and `mccann-hub-devkit-mcp` wheels together. Grant
 the same command on the `mcp` surface. The MCP adapter brings its client library
 and AnyIO dependencies. Save this as `mcp_check.py` and run it with that environment's
 Python, passing the absolute project path:
@@ -74,7 +74,7 @@ from pathlib import Path
 import anyio
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
-from devkit.app import create_service
+from mccann_hub.devkit.app import create_service
 
 async def main():
     project = Path(sys.argv[1]).resolve()

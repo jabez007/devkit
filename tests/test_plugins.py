@@ -3,11 +3,11 @@ from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
-from devkit.app import create_service
-from devkit.contracts import CommandResult, CommandSpec, DevkitError, Specialization
-from devkit.discovery import Candidate, activate
-from devkit.invocation import CommandService
-from devkit.policy import Policy
+from mccann_hub.devkit.app import create_service
+from mccann_hub.devkit.contracts import CommandResult, CommandSpec, DevkitError, Specialization
+from mccann_hub.devkit.discovery import Candidate, activate
+from mccann_hub.devkit.invocation import CommandService
+from mccann_hub.devkit.policy import Policy
 
 
 def candidate(marker, plugin=None):
@@ -22,7 +22,7 @@ def candidate(marker, plugin=None):
             ),
         )
 
-    return Candidate("sample", "devkit-sample", "0.1.0", SimpleNamespace(load=load))
+    return Candidate("sample", "mccann-hub-devkit-sample", "0.1.0", SimpleNamespace(load=load))
 
 
 def test_disabled_and_untrusted_plugins_are_not_loaded():
@@ -36,12 +36,19 @@ def test_disabled_and_untrusted_plugins_are_not_loaded():
 
 def test_duplicate_missing_and_incompatible_plugins():
     entry = candidate([], Specialization("sample", (), api_version="99"))
-    trusted = Policy({"devkit-sample": "0.1.0"})
+    trusted = Policy({"mccann-hub-devkit-sample": "0.1.0"})
     for candidates in [(), (entry, entry)]:
         with pytest.raises(DevkitError, match="exactly one"):
             activate(("sample",), trusted, candidates)
     with pytest.raises(DevkitError, match="Cannot activate"):
         activate(("sample",), trusted, (entry,))
+
+
+def test_old_distribution_trust_does_not_authorize_renamed_plugin():
+    calls = []
+    with pytest.raises(DevkitError, match="trust"):
+        activate(("sample",), Policy({"devkit-sample": "0.1.0"}), (candidate(calls),))
+    assert not calls
 
 
 def test_denied_command_never_reaches_handler(tmp_path, monkeypatch):
@@ -102,7 +109,7 @@ def test_incompatible_schemas_fail_activation(schema):
     )
     entry = candidate([], Specialization("sample", (command,)))
     with pytest.raises(DevkitError, match="Cannot activate"):
-        activate(("sample",), Policy({"devkit-sample": "0.1.0"}), (entry,))
+        activate(("sample",), Policy({"mccann-hub-devkit-sample": "0.1.0"}), (entry,))
 
 
 def test_registration_output_is_rejected_without_leaking(capsys):
@@ -110,9 +117,11 @@ def test_registration_output_is_rejected_without_leaking(capsys):
         print("plugin registration output")
         return Specialization("sample", ())
 
-    entry = Candidate("sample", "devkit-sample", "0.1.0", SimpleNamespace(load=lambda: noisy))
+    entry = Candidate(
+        "sample", "mccann-hub-devkit-sample", "0.1.0", SimpleNamespace(load=lambda: noisy)
+    )
     with pytest.raises(DevkitError, match="Cannot activate"):
-        activate(("sample",), Policy({"devkit-sample": "0.1.0"}), (entry,))
+        activate(("sample",), Policy({"mccann-hub-devkit-sample": "0.1.0"}), (entry,))
     assert capsys.readouterr().out == ""
 
 
@@ -129,4 +138,4 @@ def test_invalid_command_declarations_fail_activation(changes):
     spec = CommandSpec("sample.run", "Sample", lambda ctx, args: CommandResult("success", "OK"))
     entry = candidate([], Specialization("sample", (replace(spec, **changes),)))
     with pytest.raises(DevkitError, match="Cannot activate"):
-        activate(("sample",), Policy({"devkit-sample": "0.1.0"}), (entry,))
+        activate(("sample",), Policy({"mccann-hub-devkit-sample": "0.1.0"}), (entry,))

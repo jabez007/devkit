@@ -1,7 +1,7 @@
 import json
 
 import pytest
-from devkit.app import create_service
+from mccann_hub.devkit.app import create_service
 
 
 def validate(project, **arguments):

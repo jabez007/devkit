@@ -2,21 +2,25 @@
 
 This package checks README files for trailing whitespace without executing project
 code. It uses the public Devkit contract and standard Python packaging. Tested
-baseline: Linux and Python 3.12. Names and license are placeholders for your own
-project; do not publish this example unchanged. No installation step grants trust
-or writes operator policy.
+baseline: Linux and Python 3.12. Choose your own package identity before publishing
+a derivative. This template is licensed under GPL-3.0-or-later; retain its license
+and applicable notices. No installation step grants trust or writes operator policy.
 
 ## Create and rename the package
 
-Copy this directory outside the Devkit checkout. Replace `devkit-example`,
-`devkit_example`, and `example` with your distribution, import package and command
+Copy this directory outside the Devkit checkout. Replace `mccann-hub-devkit-example`,
+`mccann_hub.devkit_example`, and `example` with your distribution, import package and command
 namespace throughout the package, tests, examples and this guide. Rename
-`src/devkit_example` accordingly. Keep the Hatch wheel path and entry-point group
-`devkit.specializations.v1` correct. For example, use `devkit-textcheck`,
-`devkit_textcheck`, and `textcheck`. Choose a license with the project owner before
-redistributing code; this template does not grant a license.
+`src/mccann_hub/devkit_example` accordingly. Keep the Hatch wheel path and entry-point group
+`mccann_hub.devkit.specializations.v1` correct. For example, use distribution
+`author-demo-textcheck`, import `author_demo.textcheck`, and command namespace
+`textcheck`. Move the implementation to `src/author_demo/textcheck` and set the
+Hatch wheel packages to `["src/author_demo"]`.
+Choose an import namespace you control and update the Hatch wheel path. Keep the
+foundation imports and entry-point group unchanged. The native namespace root
+has no `__init__.py`; the leaf plugin package does. GPL terms apply to copied code.
 
-Implement your handler in `src/devkit_example/__init__.py`. Resolve inputs against
+Implement your handler in `src/mccann_hub/devkit_example/__init__.py`. Resolve inputs against
 `context.project_root`, declare every effect and surface, return `CommandResult`,
 and keep registration free of effects. The example permits only two filenames,
 rejects symlinks and special files, and limits inspection to 64 KiB. Its input and
@@ -33,8 +37,8 @@ directory, with `uv` installed, run:
 ```sh
 uv build --out-dir dist
 uv venv .venv --python 3.12
-uv pip install --python .venv/bin/python /path/to/devkit-0.1.3-py3-none-any.whl \
-  dist/devkit_example-0.2.0-py3-none-any.whl
+uv pip install --python .venv/bin/python /path/to/mccann_hub_devkit-0.2.0-py3-none-any.whl \
+  dist/mccann_hub_devkit_example-0.2.0-py3-none-any.whl
 uv pip install --python .venv/bin/python 'pytest>=8,<9'
 .venv/bin/python -I -m pytest -c pyproject.toml tests
 ```
@@ -47,9 +51,9 @@ evidence, and never alter your normal operator policy. No Devkit source or
 repository-local helpers are required. Build from the sdist as well before release:
 
 ```sh
-mkdir -p /tmp/devkit-example-sdist
-tar -xzf dist/devkit_example-0.2.0.tar.gz -C /tmp/devkit-example-sdist
-uv build --wheel /tmp/devkit-example-sdist/devkit_example-0.2.0
+mkdir -p /tmp/mccann-hub-devkit-example-sdist
+tar -xzf dist/mccann_hub_devkit_example-0.2.0.tar.gz -C /tmp/mccann-hub-devkit-example-sdist
+uv build --wheel /tmp/mccann-hub-devkit-example-sdist/mccann_hub_devkit_example-0.2.0
 ```
 
 ## Select and explicitly authorize
@@ -87,7 +91,7 @@ Use the same interpreter and operator configuration:
 
 ```python
 from pathlib import Path
-from devkit.app import create_service
+from mccann_hub.devkit.app import create_service
 
 result = create_service(Path('/absolute/path/to/project')).execute(
     'example.readme', {'filename': 'README.md'})
@@ -95,7 +99,7 @@ print(result['result'])
 print(result['evidence_path'])
 ```
 
-For MCP, install the reviewed `devkit_mcp` wheel into this environment and start
+For MCP, install the reviewed `mccann_hub.devkit_mcp` wheel into this environment and start
 `.venv/bin/devkit-mcp --project /absolute/path/to/project`. Connect a standard MCP
 stdio client, call `list_tools`, then `call_tool('example.readme', {})`. The tool
 returns the same result envelope in structured content, including persisted
@@ -110,7 +114,7 @@ that reference its checks. Ask the operator to remove its trust and grants if
 no other project uses it. Then run:
 
 ```sh
-uv pip uninstall --python .venv/bin/python devkit-example
+uv pip uninstall --python .venv/bin/python mccann-hub-devkit-example
 .venv/bin/devkit --project /absolute/path/to/project plugins
 .venv/bin/devkit --project /absolute/path/to/project runs show RUN_UUID
 ```
@@ -118,3 +122,8 @@ uv pip uninstall --python .venv/bin/python devkit-example
 Historical evidence remains readable. Uninstalling a still-selected plugin causes
 an explicit activation error until configuration is corrected. Removal never
 rewrites unrelated project settings or deletes evidence.
+
+## License
+
+GNU GPL version 3 or, at your option, any later version published by the Free
+Software Foundation (`GPL-3.0-or-later`). See [LICENSE](LICENSE).

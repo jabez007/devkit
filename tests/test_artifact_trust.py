@@ -4,9 +4,9 @@ from importlib.metadata import Distribution
 from zipfile import ZipFile
 
 import pytest
-from devkit.contracts import DevkitError
-from devkit.discovery import Candidate, activate
-from devkit.policy import Policy, load_policy
+from mccann_hub.devkit.contracts import DevkitError
+from mccann_hub.devkit.discovery import Candidate, activate
+from mccann_hub.devkit.policy import Policy, load_policy
 
 
 @pytest.fixture
@@ -17,13 +17,13 @@ def installed_plugin(tmp_path, monkeypatch):
         "artifact_sample/__init__.py": (
             "from pathlib import Path\n"
             f"Path({str(tmp_path / 'imported')!r}).touch()\n"
-            "from devkit.contracts import Specialization\n"
+            "from mccann_hub.devkit.contracts import Specialization\n"
             "def register(): return Specialization('artifact', ())\n"
         ),
         f"{metadata}/METADATA": "Metadata-Version: 2.1\nName: artifact-sample\nVersion: 1.0\n",
         f"{metadata}/WHEEL": "Wheel-Version: 1.0\nRoot-Is-Purelib: true\nTag: py3-none-any\n",
         f"{metadata}/entry_points.txt": (
-            "[devkit.specializations.v1]\nartifact = artifact_sample:register\n"
+            "[mccann_hub.devkit.specializations.v1]\nartifact = artifact_sample:register\n"
         ),
         f"{metadata}/RECORD": "",
     }

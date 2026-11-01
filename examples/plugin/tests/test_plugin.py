@@ -7,10 +7,10 @@ from importlib.metadata import version
 from pathlib import Path
 from threading import Event
 
-import devkit_example
+import mccann_hub.devkit_example
 import pytest
-from devkit.app import create_service
-from devkit.contracts import CheckSpec, CommandResult, CommandSpec
+from mccann_hub.devkit.app import create_service
+from mccann_hub.devkit.contracts import CheckSpec, CommandResult, CommandSpec
 
 
 @pytest.fixture
@@ -26,7 +26,7 @@ def project(tmp_path, monkeypatch):
     )
     policy = config / "policy.toml"
     policy.write_text(
-        f"[trusted_plugins]\ndevkit-example={json.dumps(version('devkit-example'))}\n"
+        f"[trusted_plugins]\nmccann-hub-devkit-example={json.dumps(version('mccann-hub-devkit-example'))}\n"
         f'[commands."example.readme"]\nproject={json.dumps(str(root))}\n'
         'effects=["read_fs"]\nsurfaces=["python","cli","mcp"]\n'
     )
@@ -98,7 +98,7 @@ def test_cancellation_before_execution(project):
 
 
 def test_failed_prerequisite(project, monkeypatch):
-    plugin = devkit_example.register()
+    plugin = mccann_hub.devkit_example.register()
     prerequisite = CommandSpec(
         "example.environment",
         "Synthetic prerequisite",
@@ -107,7 +107,7 @@ def test_failed_prerequisite(project, monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        devkit_example,
+        mccann_hub.devkit_example,
         "register",
         lambda: replace(
             plugin,
@@ -126,7 +126,7 @@ def test_failed_prerequisite(project, monkeypatch):
 
 @pytest.mark.parametrize("broken", ["exception", "output"])
 def test_handler_failure_contract(project, monkeypatch, broken):
-    plugin = devkit_example.register()
+    plugin = mccann_hub.devkit_example.register()
 
     def handler(context, arguments):
         if broken == "exception":
@@ -134,7 +134,9 @@ def test_handler_failure_contract(project, monkeypatch, broken):
         return CommandResult("success", "Invalid output", {"lines": "not an integer"})
 
     command = replace(plugin.commands[0], handler=handler)
-    monkeypatch.setattr(devkit_example, "register", lambda: replace(plugin, commands=(command,)))
+    monkeypatch.setattr(
+        mccann_hub.devkit_example, "register", lambda: replace(plugin, commands=(command,))
+    )
     assert result(project)["reason"] == (
         "HANDLER_ERROR" if broken == "exception" else "INVALID_OUTPUT"
     )

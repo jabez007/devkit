@@ -9,7 +9,7 @@ from pathlib import Path
 from threading import Event, Timer
 
 import pytest
-from devkit.app import create_service
+from mccann_hub.devkit.app import create_service
 
 from tests.beads_helpers import REF, SCOPE, configure
 

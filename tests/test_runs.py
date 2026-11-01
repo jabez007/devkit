@@ -6,7 +6,7 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from devkit.app import create_service
+from mccann_hub.devkit.app import create_service
 
 
 @pytest.fixture
@@ -274,9 +274,9 @@ def test_profile_evidence_is_inspectable_and_pruned_as_a_family(runs):
     cli, _, project, _ = runs
     from dataclasses import replace
 
-    from devkit.contracts import CheckSpec, CommandResult, CommandSpec
-    from devkit.invocation import CommandService
-    from devkit.policy import Policy
+    from mccann_hub.devkit.contracts import CheckSpec, CommandResult, CommandSpec
+    from mccann_hub.devkit.invocation import CommandService
+    from mccann_hub.devkit.policy import Policy
 
     settings = replace(create_service(project).settings, profiles={"quick": ["test.check"]})
     command = CommandSpec("test.run", "Test", lambda ctx, args: CommandResult("success", "OK"))

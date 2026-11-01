@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 import pytest
-from devkit.app import create_service
+from mccann_hub.devkit.app import create_service
 
 
 def validate_xml(odoo_project, content, *, phase="data", filename="views.xml"):

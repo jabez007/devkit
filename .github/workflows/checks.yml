@@ -21,13 +21,13 @@ jobs:
       - run: uv run pytest
       - name: Install pinned Beads CLI for disposable acceptance workspaces
         run: |
-          mkdir -p "$RUNNER_TEMP/devkit-beads"
+          mkdir -p "$RUNNER_TEMP/mccann-hub-devkit-beads"
           curl --fail --silent --show-error --location \
             https://github.com/gastownhall/beads/releases/download/v1.3.2/beads_1.3.2_linux_amd64.tar.gz \
-            --output "$RUNNER_TEMP/devkit-beads/archive.tar.gz"
-          cd "$RUNNER_TEMP/devkit-beads"
+            --output "$RUNNER_TEMP/mccann-hub-devkit-beads/archive.tar.gz"
+          cd "$RUNNER_TEMP/mccann-hub-devkit-beads"
           echo 'c6ea3281f6ff82628351b2d0967c9eb85862c8a0ec0ebc24e63e645c8b02462e  archive.tar.gz' | sha256sum --check
           tar -xzf archive.tar.gz bd
       - run: uv run python scripts/check_wheels.py
         env:
-          DEVKIT_BEADS_BINARY: ${{ runner.temp }}/devkit-beads/bd
+          DEVKIT_BEADS_BINARY: ${{ runner.temp }}/mccann-hub-devkit-beads/bd

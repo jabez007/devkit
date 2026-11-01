@@ -3,19 +3,24 @@ requires = ["hatchling>=1.27,<2"]
 build-backend = "hatchling.build"
 
 [project]
-name = "devkit-beads"
+name = "mccann-hub-devkit-beads"
 version = "0.3.0"
 description = "Optional Beads task lifecycle and Devkit evidence associations"
 readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
-dependencies = ["devkit>=0.1.2,<0.2"]
+dependencies = ["mccann-hub-devkit>=0.2,<0.3"]
 
-[project.entry-points."devkit.specializations.v1"]
-beads = "devkit_beads:register"
+[project.entry-points."mccann_hub.devkit.specializations.v1"]
+beads = "mccann_hub.devkit_beads:register"
 
 [tool.uv.sources]
-devkit = {workspace = true}
+mccann-hub-devkit = {workspace = true}
 
 [project.urls]
 Source = "https://github.com/jabez007/devkit"
 Documentation = "https://github.com/jabez007/devkit/blob/main/docs/Getting_Started.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mccann_hub"]

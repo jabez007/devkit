@@ -1,8 +1,8 @@
 # Plugin contract 1.0
 
-The contract is implemented and tested locally but remains provisional before
-public distribution. The source of truth is
-[`contracts.py`](../packages/devkit/src/devkit/contracts.py); plugin API and
+The declaration contract is 1.0. Foundation 0.2.0 moves Python imports and the
+entry-point group into the McCann Hub namespace; see [migration guidance](Compatibility.md). The source of truth is
+[`contracts.py`](../packages/devkit/src/mccann_hub/devkit/contracts.py); plugin API and
 evidence schema versions are independent of distribution versions.
 The foundation wheel includes a `py.typed` marker for its inline annotations.
 Installed-consumer acceptance checks valid and invalid `CommandResult` statuses
@@ -14,12 +14,11 @@ plugin authors should use the contracts documented here.
 Copy [the example package](../examples/plugin). Rename its distribution, import
 package, entry-point name, and command namespace together. Build it with
 `uv build examples/plugin` from the repository root. Install it alongside the
-local foundation wheel; do not resolve the provisional foundation name from a
-public registry. Repository tests build and install the example independently.
+reviewed `mccann-hub-devkit` foundation wheel until an approved registry release exists. Repository tests build and install the example independently.
 
 ```toml
-[project.entry-points."devkit.specializations.v1"]
-example = "devkit_example:register"
+[project.entry-points."mccann_hub.devkit.specializations.v1"]
+example = "mccann_hub.devkit_example:register"
 ```
 
 `register()` returns a `Specialization` with its entry-point ID, commands, and
@@ -78,11 +77,11 @@ may omit it. Existing positional construction and plugin API 1.0 remain valid.
 Use `RunStore(context.state_root)` for evidence references, rather than resolving
 global configuration again.
 
-`devkit.processes.run_process(argv, context, environment=None)` provides bounded
+`mccann_hub.devkit.processes.run_process(argv, context, environment=None)` provides bounded
 capture, deadline enforcement and process-group cancellation on Linux. An explicit
 string mapping replaces the inherited environment completely; omit it to retain
 the existing filtered Go-compatible defaults. Plugins using these additions must
-require `devkit>=0.1.2,<0.2`. This helper follows the foundation package version,
+require `mccann-hub-devkit>=0.2,<0.3`. This helper follows the foundation package version,
 not a separate protocol version.
 Long-lived or untrusted work needs host isolation. Declared effects are policy
 inputs, not interception of Python filesystem or network calls.
@@ -106,7 +105,7 @@ offer arbitrary dependency graphs between checks.
 The [template tests](../examples/plugin/tests/test_plugin.py) are self-contained.
 Install your built wheel and pytest, then run them outside this repository with
 `python -I -m pytest -c pyproject.toml tests`. They write temporary project and
-operator configuration and call the public `devkit.app.create_service` entry
+operator configuration and call the public `mccann_hub.devkit.app.create_service` entry
 point. They do not construct internal settings/policy objects or import Devkit's
 repository-local helpers. No testing SDK or runtime pytest dependency is needed.
 

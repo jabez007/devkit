@@ -97,11 +97,11 @@ def beads_project(tmp_path, monkeypatch):
     monkeypatch.setenv("TEST_SECRET", "must-not-inherit")
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
-    from devkit_beads import register
+    from mccann_hub.devkit_beads import register
 
     policy = tmp_path / "config/devkit/policy.toml"
     policy.parent.mkdir(parents=True)
-    text = '[trusted_plugins]\ndevkit-beads="0.3.0"\n'
+    text = '[trusted_plugins]\nmccann-hub-devkit-beads="0.3.0"\n'
     for spec in register().commands:
         text += f'[commands."{spec.id}"]\nproject={json.dumps(str(project))}\n'
         text += f'effects={json.dumps(sorted(spec.effects))}\nsurfaces=["cli","python","mcp"]\n'

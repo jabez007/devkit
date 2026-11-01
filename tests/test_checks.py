@@ -1,9 +1,9 @@
 from dataclasses import replace
 
-from devkit.app import create_service
-from devkit.contracts import CheckSpec, CommandResult, CommandSpec
-from devkit.invocation import CommandService
-from devkit.policy import Policy
+from mccann_hub.devkit.app import create_service
+from mccann_hub.devkit.contracts import CheckSpec, CommandResult, CommandSpec
+from mccann_hub.devkit.invocation import CommandService
+from mccann_hub.devkit.policy import Policy
 
 
 def test_profiles_and_prerequisites_share_authorization(tmp_path, monkeypatch):

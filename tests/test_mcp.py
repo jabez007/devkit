@@ -7,7 +7,7 @@ from pathlib import Path
 
 import anyio
 import pytest
-from devkit.app import create_service
+from mccann_hub.devkit.app import create_service
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from mcp.shared.message import SessionMessage

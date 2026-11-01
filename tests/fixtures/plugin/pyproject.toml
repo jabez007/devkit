@@ -3,13 +3,15 @@ requires = ["hatchling>=1.27,<2"]
 build-backend = "hatchling.build"
 
 [project]
-name = "devkit-sample"
+name = "mccann-hub-devkit-sample"
 version = "0.1.0"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
-dependencies = ["devkit>=0.1,<0.2"]
+dependencies = ["mccann-hub-devkit>=0.2,<0.3"]
 
-[project.entry-points."devkit.specializations.v1"]
-sample = "devkit_sample:register"
+[project.entry-points."mccann_hub.devkit.specializations.v1"]
+sample = "mccann_hub.devkit_sample:register"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/devkit_sample"]
+packages = ["src/mccann_hub"]

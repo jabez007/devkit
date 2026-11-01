@@ -1,108 +1,120 @@
-# Compatibility and publication readiness
+# Compatibility, licensing and publication readiness
 
-Status: v0.8 working distributions, reviewed November 1, 2026. Publication is not
-part of this milestone. Package names remain provisional.
+The owner selected the `mccann-hub-devkit` distribution family, the native
+`mccann_hub` Python namespace and GPL-3.0-or-later on November 1, 2026. Registry
+publication and release ownership are separate approvals; no names have been
+reserved or packages published by this migration.
 
-## Supported public extension points
+## Public extension points
 
 | Interface | Compatibility commitment |
 | --- | --- |
-| `devkit.contracts` data classes, status/effect/surface values, specialization API `1.0` | Existing fields and meanings stay compatible within the current contract. Additive fields need defaults; incompatible contract changes require a new API version and entry-point group. |
-| `devkit.specializations.v1` registration | Installed metadata is discoverable without importing plugins. Selected code loads only after operator trust checks. |
-| `devkit.app.create_service(project, timeout=None)` and returned `.execute(command, arguments, cancellation=...)` | Supported Python invocation entry point. Use keyword arguments for optional behavior. Do not construct the internal service/settings/policy objects. |
-| `devkit.processes.run_process` and documented `RunStore` list/show/reference/prune methods | Supported helpers tied to the foundation distribution version; use a minimum dependency matching features used. |
-| Result/evidence envelope `1.0` and reference metadata | Existing fields retain meaning. Consumers must tolerate additive fields. Historical evidence stays readable without producing plugins. |
-| CLI and optional MCP command invocation | Same command validation, authorization and result semantics. Per-invocation IDs, timestamps and surface metadata differ. Text formatting is for humans; automate against JSON and reason codes. |
+| `mccann_hub.devkit.contracts`, specialization API `1.0` | Existing fields and meanings stay compatible within the contract. Additive fields need defaults; incompatible contract changes require a new API version. |
+| `mccann_hub.devkit.specializations.v1` entry-point group | Metadata discovery does not import plugins. Selected code loads only after operator trust checks. |
+| `mccann_hub.devkit.app.create_service(project, timeout=None)` and returned `.execute(command, arguments, cancellation=...)` | Supported Python invocation entry point. Use keywords for optional behavior, not internal service/settings/policy constructors. |
+| `mccann_hub.devkit.processes.run_process` and documented `RunStore` methods | Supported helpers tied to the foundation distribution version. |
+| Result/evidence envelope `1.0` and reference metadata | Existing meanings remain; consumers tolerate additive fields. Historical evidence is readable without its producing plugin. |
+| CLI and optional MCP | Shared command validation, authorization and results; IDs, timestamps and surface metadata differ per invocation. Automate against JSON and reason codes, not error prose. |
 
-Private names, registration internals, policy constructors, configuration loaders,
-error prose and service attributes are not extension contracts. The template uses
-only the documented interfaces. Its fixture does not depend on internal Devkit
-modules or repository tests. A passing conformance test is not a security audit.
+Private names, registration internals, configuration loaders and service attributes
+are not extension contracts. Tests using public interfaces do not certify arbitrary
+plugin code as safe. No testing SDK is needed.
 
-A foundation distribution version and plugin API version are different things.
-Foundation 0.1.3 adds diagnostic improvements without changing plugin API 1.0.
-The example package moves to 0.2.0 because its unpublished greeting command is
-replaced by the practical README check. Existing Go, Odoo, Beads and MCP command
-contracts remain unchanged.
+## Migration from the unpublished devkit distributions
 
-For changes to documented interfaces in the current 0.1.x line, preserve existing
-calls and fields. Before an incompatible change, document the replacement,
-affected versions and migration steps in the implementation plan and release
-notes. Prefer one documented compatible release before removal; do not invent a
-fixed calendar support period before a release process exists. Security fixes
-may need an explicitly documented exception. Any future contract 2.0 requires
-separate registration compatibility tests rather than silent interpretation as 1.0.
+Foundation 0.2.0 intentionally changes distribution/import names before public
+release. The declaration and evidence contracts remain 1.0. This supersedes the
+old 0.1.x Python import path; no top-level `devkit` compatibility shim is supplied
+because it would retain the collision with an unrelated package.
 
-## Python and dependencies
+| Previous distribution / import | Replacement distribution / import |
+| --- | --- |
+| `devkit` / `devkit` | `mccann-hub-devkit` / `mccann_hub.devkit` |
+| `devkit-go` / `devkit_go` | `mccann-hub-devkit-go` / `mccann_hub.devkit_go` |
+| `devkit-odoo` / `devkit_odoo` | `mccann-hub-devkit-odoo` / `mccann_hub.devkit_odoo` |
+| `devkit-beads` / `devkit_beads` | `mccann-hub-devkit-beads` / `mccann_hub.devkit_beads` |
+| `devkit-mcp` / `devkit_mcp` | `mccann-hub-devkit-mcp` / `mccann_hub.devkit_mcp` |
+| `devkit-example` / `devkit_example` | `mccann-hub-devkit-example` / `mccann_hub.devkit_example` |
 
-The qualified baseline is Linux with CPython 3.12, as exercised in hosted CI.
-`Requires-Python >=3.12` permits newer Python versions but does not certify them.
-Other Python versions and operating systems remain unqualified. The process
-supervisor, evidence locking and template file-safety checks use Linux facilities.
-No AI harness, Docker, Beads or Odoo is required by the foundation.
+1. Create a fresh virtual environment and install reviewed renamed wheels together.
+   Old and new Devkit environments can coexist separately. They expose the same
+   `devkit` and `devkit-mcp` executable names, so do not install both generations
+   into one environment. An unrelated top-level `devkit` import is not used by the
+   new foundation; unrelated packages with colliding executable names still need
+   separate environments.
+2. Rebuild external plugins with `mccann-hub-devkit>=0.2,<0.3`, the new imports and
+   entry-point group. Old `devkit.specializations.v1` registrations are ignored.
+   Plugin authors should choose their own distribution/import namespace; the McCann
+   Hub prefix is for this package family. The native `mccann_hub` root must have no
+   `__init__.py`, allowing independently installed siblings.
+3. Review each new artifact. Explicitly update distribution keys under
+   `[trusted_plugins]`, wheel filenames and SHA-256 pins in the external policy.
+   A grant trusting `devkit-go` does not trust `mccann-hub-devkit-go`. Trust is never
+   copied automatically, even where plugin versions are unchanged.
+4. Retain command grants, plugin selection IDs (`go`, `odoo`, `beads`), check
+   profiles, `devkit.toml`, XDG `devkit` directories and `DEVKIT_*` environment
+   variables. Command IDs and CLI syntax are unchanged. Do not rewrite evidence
+   or references: existing run identities and stored distribution provenance remain
+   historical facts. Retrieval and retention use the existing schemas.
+5. Run `plugins list --details`, `plugins validate` and a verification profile.
+   Check `runs show` and `runs list --reference` against pre-migration runs. Roll
+   back by using the previous environment and its separately retained operator
+   configuration; this migration requires no destructive evidence conversion.
 
-Runtime dependency ranges are declared in each distribution's `pyproject.toml`.
-The repository's `uv.lock` defines the exact development/acceptance versions.
-Ordinary installs resolve declared ranges; the tested lockfile does not prove
-that every allowed dependency version works. A lower-bound/newer-Python matrix is
-a useful next release prerequisite. Authors using the current context, process
-and evidence helpers should require `devkit>=0.1.2,<0.2`; older packages retain
-their existing ranges. Template pytest is an optional development extra only.
+Within the new 0.2.x line, preserve documented calls and fields. Document any future
+incompatible change, affected versions and replacement before removal; prefer one
+compatible migration release. Security exceptions must be explicit. A contract 2.0
+requires separate registration tests. Distribution versions do not automatically
+change the specialization API version.
 
-Use explicit reviewed foundation and specialization wheels together. Do not let
-a plugin's provisional `devkit` dependency resolve to a public package with the
-same name. The root package includes `py.typed`; installed consumer acceptance
-checks the contract annotations with strict mypy. This does not make all internal
-implementation modules supported extension points.
+## Licensing and provenance
 
-## Owner decisions before publication
+Devkit, its bundled specializations and the copyable template are licensed under
+**GPL-3.0-or-later**: GNU GPL version 3, or at the recipient's option any later
+version published by the Free Software Foundation. See [LICENSE](../LICENSE).
+Each distribution ships the GPLv3 text and an SPDX `License-Expression` plus
+`License-File` metadata. The template can be copied and adapted under those terms;
+retain its license and applicable notices when distributing derivatives.
 
-The following read-only registry checks were performed on November 1, 2026:
+Running Devkit on a project does not by itself change that project's license.
+Private use does not generally require publication. Plugins importing core
+contracts and exchanging objects need a licensing assessment as a combined
+program when distributed; separate wheels alone do not establish legal separation.
+Under the FSF's interpretation, such plugins need GPL-compatible licensing and
+GPL-compliant distribution. A permissive template license alone would not remove
+foundation integration obligations. See the [GNU plugin FAQ](https://www.gnu.org/licenses/gpl-faq.en.html#GPLAndPlugins).
 
-- [`devkit`](https://pypi.org/project/devkit/) already exists on PyPI as a different
-  project, version 0.0.12. Do not publish or install this repository under that
-  registry name without a separately approved naming plan.
-- JSON endpoints for `devkit-go`, `devkit-odoo`, `devkit-beads`, `devkit-mcp` and
-  `jabez-devkit` returned 404. Absence is a time-specific observation, not a
-  reservation, ownership claim or guarantee of future availability.
-- GitHub reports `jabez007` as repository owner and no detected license. No license
-  file is currently supplied. Public source access does not grant redistribution
-  rights. No legal license was selected in this milestone.
+Repository records describe a fresh implementation and synthetic Odoo fixtures,
+not vendored Odoo/OCA or Beads implementations. Git history and inspection cannot
+establish legal title by themselves; the owner authorizes this project's license.
+Third-party dependencies retain their own licenses. Release review must preserve
+applicable notices and review the exact dependency artifacts being distributed.
+The synthetic CI addon uses the matching GPL-3 manifest category.
 
-Recommended decisions, requiring owner approval:
+## Python, dependencies and release qualification
 
-1. Choose an owned distribution family, for example `jabez-devkit` and matching
-   specialization names. Before applying it, decide import and CLI names too;
-   retaining `devkit` imports would still conflict with an unrelated package using
-   that module. Rename dependency declarations, entry-point distributions, trust
-   examples and artifact acceptance together. Test old/new coexistence or explicitly
-   reject it. No namespace is claimed by these recommendations.
-2. Choose a license. Apache-2.0 is a candidate when an explicit patent grant is
-   wanted; MIT is a shorter permissive alternative. Have the owner confirm rights
-   to all shipped code. Then add the approved license text, SPDX metadata and
-   required notices to every wheel/sdist, including the reusable template.
-3. Approve release ownership and provenance. Set the registry organization/account,
-   protected release workflow and signing/attestation policy. Build from an approved
-   tag in CI, run the entire acceptance matrix, record wheel hashes and publish
-   only reviewed artifacts. Configure trusted publishing rather than embedding
-   long-lived tokens. No release or registry publishing workflow is enabled here.
+The qualified baseline is Linux with CPython 3.12. Metadata `Requires-Python >=3.12`
+allows newer versions but does not certify them. The process supervisor, evidence
+locking and template file checks use Linux facilities. No AI harness, Docker,
+Beads or Odoo is required by the foundation.
 
-Locally completed preparation includes package descriptions and READMEs, source
-URLs, independent wheel/sdist builds, installed type markers, template-owned tests,
-sdist rebuild acceptance and package-content validation. Metadata intentionally
-omits a license until the owner chooses one. No public release or namespace claim
-is needed to reproduce the authoring workflow with reviewed local artifacts.
+Runtime ranges are in each `pyproject.toml`; `uv.lock` fixes acceptance versions.
+Installed type-consumer tests verify the public annotations. Lower-bound dependency
+and newer-Python matrices remain future qualification work. No new runtime
+requirements were introduced by naming or licensing.
 
-## Trust and provenance limits
+The selected family follows existing `mccann-hub-*` distributions and
+`mccann_hub.*` imports. This is not an npm-style account scope or an ownership
+reservation. PyPI's unrelated `devkit` project remains independent. Before a
+release, approve registry ownership, exact name availability, protected release
+workflow, artifact hashes and attestations. Prefer trusted publishing to stored
+long-lived tokens. No publication workflow is enabled here.
 
-Installation, selection, trust and command grants are separate. Version trust
-checks distribution metadata; it is not executable identity. Existing optional
-wheel pins verify archive SHA-256 and installed payload before activation. Keep
-pins outside repositories and renew them for changed artifacts. They do not prove
-publisher identity, inspect transitive dependencies, or sandbox Python imports.
-Build systems and packages can execute code; run unknown builds in an isolated
-host environment. Installation must never grant permissions or alter policy.
+## Trust limits
 
-`plugins list --details` reports configured selection and trust only. It does not
-import plugins or verify wheel pins. `plugins validate` attempts activation and
-prerequisite checks through the existing service, where pins are enforced.
+Installation, selection, trust and command grants remain separate. Version trust
+is metadata, not executable identity. Optional wheel pins verify archive SHA-256
+and installed payload before activation; they do not attest transitive dependencies
+or sandbox Python code. `plugins list --details` reports configured trust without
+verifying pins; `plugins validate` attempts activation and prerequisites. Build
+unknown code in host isolation. Installation never grants permissions.

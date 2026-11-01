@@ -23,7 +23,7 @@ def go_project(tmp_path, monkeypatch, go_cache):
     config.mkdir(parents=True)
     policy = config / "policy.toml"
     policy.write_text(
-        '[trusted_plugins]\ndevkit-go="0.1.0"\n[commands."go.test"]\nproject='
+        '[trusted_plugins]\nmccann-hub-devkit-go="0.1.0"\n[commands."go.test"]\nproject='
         + json.dumps(str(project))
         + '\neffects=["read_fs","write_fs",'
         '"execute_process","network_read","network_write"]\nsurfaces=["python"]'
@@ -47,7 +47,7 @@ def odoo_project(tmp_path, monkeypatch):
     config.mkdir(parents=True)
     policy = config / "policy.toml"
     policy.write_text(
-        '[trusted_plugins]\ndevkit-odoo="0.5.0"\ndevkit-go="0.1.0"\n'
+        '[trusted_plugins]\nmccann-hub-devkit-odoo="0.5.0"\nmccann-hub-devkit-go="0.1.0"\n'
         '[commands."odoo.module.validate"]\nproject='
         + json.dumps(str(project))
         + '\neffects=["read_fs"]\nsurfaces=["python","cli","mcp"]'

@@ -5,7 +5,14 @@ import subprocess
 import tarfile
 from zipfile import ZipFile
 
-NAMES = ("devkit", "devkit_go", "devkit_odoo", "devkit_beads", "devkit_mcp", "devkit_example")
+NAMES = (
+    "mccann_hub.devkit",
+    "mccann_hub.devkit_go",
+    "mccann_hub.devkit_odoo",
+    "mccann_hub.devkit_beads",
+    "mccann_hub.devkit_mcp",
+    "mccann_hub.devkit_example",
+)
 
 
 def payload(wheel):
@@ -17,26 +24,34 @@ def payload(wheel):
 
 def check(wheels, root):
     for name in NAMES:
-        wheel = next(wheels.glob(f"{name}-*.whl"))
+        wheel = next(wheels.glob(f"{name.replace('.', '_')}-*.whl"))
         contents = payload(wheel)
         metadata = email.message_from_bytes(
             next(data for path, data in contents.items() if path.endswith("/METADATA"))
         )
         assert metadata["Summary"] and metadata["Requires-Python"] == ">=3.12"
         assert metadata["Description-Content-Type"] == "text/markdown"
+        assert metadata["Name"] == name.replace(".", "-").replace("_", "-")
+        assert metadata["License-Expression"] == "GPL-3.0-or-later"
+        assert "LICENSE" in metadata.get_all("License-File", [])
+        license_text = next(data for path, data in contents.items() if path.endswith("/LICENSE"))
+        assert b"GNU GENERAL PUBLIC LICENSE" in license_text
+        assert "mccann_hub/__init__.py" not in contents
+        assert all(not path.startswith("devkit/") for path in contents)
         assert "# " in metadata.get_payload()
-        if name == "devkit":
-            assert "devkit/py.typed" in contents
+        if name == "mccann_hub.devkit":
+            assert "mccann_hub/devkit/py.typed" in contents
             assert all("pytest" not in value for value in metadata.get_all("Requires-Dist", []))
-        if name not in {"devkit", "devkit_mcp"}:
+        if name not in {"mccann_hub.devkit", "mccann_hub.devkit_mcp"}:
             entries = next(
                 data for path, data in contents.items() if path.endswith("/entry_points.txt")
             )
-            assert b"devkit.specializations.v1" in entries
+            assert b"mccann_hub.devkit.specializations.v1" in entries
         destination = root / name
-        with tarfile.open(next(wheels.glob(f"{name}-*.tar.gz"))) as archive:
+        with tarfile.open(next(wheels.glob(f"{name.replace('.', '_')}-*.tar.gz"))) as archive:
             names = archive.getnames()
             assert any(path.endswith("/README.md") for path in names)
+            assert any(path.endswith("/LICENSE") for path in names)
             assert not any("/.venv/" in path or "/.git/" in path for path in names)
             archive.extractall(destination, filter="data")
         source = next(destination.iterdir())

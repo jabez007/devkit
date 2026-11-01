@@ -3,7 +3,7 @@
 The [combined example](../examples/ci/project/devkit.toml) runs real Go tests and
 validates a synthetic custom Odoo addon offline. It demonstrates profile results,
 wheel-artifact trust and evidence retrieval. It is not a production Odoo module
-or a validation of a client repository. Package versions are foundation 0.1.2,
+or a validation of a client repository. Package versions are foundation 0.2.0,
 Go 0.1.0 and Odoo 0.5.0.
 
 ## Run the pilot locally
@@ -13,9 +13,9 @@ Devkit checkout. Build only the packages used by the example:
 
 ```sh
 pilot_root=$(mktemp -d /tmp/devkit-ci.XXXXXXXX)
-uv build --package devkit --out-dir "$pilot_root/wheels"
-uv build --package devkit-go --out-dir "$pilot_root/wheels"
-uv build --package devkit-odoo --out-dir "$pilot_root/wheels"
+uv build --package mccann-hub-devkit --out-dir "$pilot_root/wheels"
+uv build --package mccann-hub-devkit-go --out-dir "$pilot_root/wheels"
+uv build --package mccann-hub-devkit-odoo --out-dir "$pilot_root/wheels"
 uv export --all-packages --no-dev --no-emit-workspace --no-hashes --frozen \
   --output-file "$pilot_root/constraints.txt"
 uv venv --python 3.12 "$pilot_root/venv"

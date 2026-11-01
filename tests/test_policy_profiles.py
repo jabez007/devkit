@@ -1,10 +1,10 @@
 import json
 
 import pytest
-from devkit.app import create_service
-from devkit.contracts import CommandResult, CommandSpec, DevkitError
-from devkit.invocation import CommandService
-from devkit.policy import load_policy
+from mccann_hub.devkit.app import create_service
+from mccann_hub.devkit.contracts import CommandResult, CommandSpec, DevkitError
+from mccann_hub.devkit.invocation import CommandService
+from mccann_hub.devkit.policy import load_policy
 
 
 @pytest.fixture

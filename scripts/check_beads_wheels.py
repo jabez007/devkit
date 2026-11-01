@@ -34,9 +34,22 @@ def snapshot(directory):
 
 def setup(root, wheels, constraints, domain, binary):
     project, env = install(
-        root, wheels, ["devkit", "devkit_beads", f"devkit_{domain}", "devkit_mcp"], constraints
+        root,
+        wheels,
+        [
+            "mccann_hub.devkit",
+            "mccann_hub.devkit_beads",
+            f"mccann_hub.devkit_{domain}",
+            "mccann_hub.devkit_mcp",
+        ],
+        constraints,
     )
-    absent(root, project, env, ["odoo", "docker", "devkit_odoo" if domain == "go" else "devkit_go"])
+    absent(
+        root,
+        project,
+        env,
+        ["odoo", "docker", "mccann_hub.devkit_odoo" if domain == "go" else "mccann_hub.devkit_go"],
+    )
     home = root / "home"
     home.mkdir()
     env.update(
@@ -94,7 +107,7 @@ def association_parity(root, project, env, arguments, expected):
     code = """
 import anyio, json, os, sys
 from pathlib import Path
-from devkit.app import create_service
+from mccann_hub.devkit.app import create_service
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 project, arguments, expected = Path(sys.argv[1]), json.loads(sys.argv[2]), json.loads(sys.argv[3])
@@ -182,8 +195,15 @@ def exercise(root, wheels, constraints, domain, binary):
     lifecycle(root, project, env, ref)
     # Copy the existing portable bundle, including references, into a foundation-only install.
     portable(root, wheels, constraints, env, check["run_id"], ref)
-    run("uv", "pip", "uninstall", "--python", str(root / "venv/bin/python"), "devkit-beads")
-    absent(root, project, env, ["devkit_beads"])
+    run(
+        "uv",
+        "pip",
+        "uninstall",
+        "--python",
+        str(root / "venv/bin/python"),
+        "mccann-hub-devkit-beads",
+    )
+    absent(root, project, env, ["mccann_hub.devkit_beads"])
     discovered = cli(root, project, env, "runs", "list", "--reference", ref)["result"]["data"]
     assert [row["run_id"] for row in discovered["runs"]] == [check["run_id"]]
     assert cli(root, project, env, "runs", "show", check["run_id"])["result"]["data"][
@@ -198,8 +218,13 @@ def exercise(root, wheels, constraints, domain, binary):
 def portable(root, wheels, constraints, source_env, run_id, reference):
     target = root / "portable"
     target.mkdir()
-    project, env = install(target, wheels, ["devkit"], constraints)
-    absent(target, project, env, ["devkit_beads", "devkit_go", "devkit_odoo", "mcp"])
+    project, env = install(target, wheels, ["mccann_hub.devkit"], constraints)
+    absent(
+        target,
+        project,
+        env,
+        ["mccann_hub.devkit_beads", "mccann_hub.devkit_go", "mccann_hub.devkit_odoo", "mcp"],
+    )
     shutil.copytree(
         Path(source_env["XDG_STATE_HOME"]) / "devkit/runs", target / "state/devkit/runs"
     )

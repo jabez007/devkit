@@ -20,7 +20,7 @@ def run(*args, **kwargs):
 
 def install(root, wheels, names, constraints):
     run("uv", "venv", "--python", sys.executable, str(root / "venv"))
-    selected = [str(next(wheels.glob(f"{name}-*.whl"))) for name in names]
+    selected = [str(next(wheels.glob(f"{name.replace('.', '_')}-*.whl"))) for name in names]
     run(
         "uv",
         "pip",
@@ -61,7 +61,9 @@ def policy(root, project, names, commands):
     path.parent.mkdir(parents=True, exist_ok=True)
     versions = {"odoo": "0.5.0", "beads": "0.3.0", "example": "0.2.0", "textcheck": "0.2.0"}
     text = "[trusted_plugins]\n" + "".join(
-        f'devkit-{name}="{versions.get(name, "0.1.0")}"\n' for name in names
+        f"{'author-demo-textcheck' if name == 'textcheck' else 'mccann-hub-devkit-' + name}"
+        f'="{versions.get(name, "0.1.0")}"\n'
+        for name in names
     )
     for command, effects in commands.items():
         text += f'\n[commands."{command}"]\nproject={json.dumps(str(project))}\n'
@@ -77,10 +79,61 @@ def absent(root, project, env, names):
     run(str(root / "venv/bin/python"), "-c", code, cwd=project, env=env)
 
 
+def exercise_namespace_coexistence(root, project, env, constraints):
+    source = root / "namespace-peer"
+    sibling = source / "src/mccann_hub/peer_fixture"
+    sibling.mkdir(parents=True)
+    (sibling / "__init__.py").write_text("VALUE = 42\n")
+    unrelated = source / "src/devkit"
+    unrelated.mkdir()
+    (unrelated / "__init__.py").write_text('raise AssertionError("Imported unrelated devkit")\n')
+    (source / "pyproject.toml").write_text(
+        '[build-system]\nrequires=["hatchling>=1.27,<2"]\n'
+        'build-backend="hatchling.build"\n[project]\n'
+        'name="namespace-peer-fixture"\nversion="0.1.0"\n'
+        '[project.entry-points."devkit.specializations.v1"]\nlegacy="devkit:register"\n'
+        '[tool.hatch.build.targets.wheel]\npackages=["src/mccann_hub", "src/devkit"]\n'
+    )
+    run("uv", "build", "--wheel", cwd=source)
+    python = str(root / "venv/bin/python")
+    run(
+        "uv",
+        "pip",
+        "install",
+        "--python",
+        python,
+        "--constraint",
+        str(constraints),
+        str(next((source / "dist").glob("*.whl"))),
+    )
+    assert not cli(root, project, env, "plugins")["result"]["data"]["plugins"]
+    assert cli(root, project, env, "doctor")["result"]["status"] == "success"
+    run("uv", "pip", "uninstall", "--python", python, "mccann-hub-devkit")
+    run(
+        python,
+        "-I",
+        "-c",
+        "from mccann_hub.peer_fixture import VALUE; assert VALUE == 42",
+        cwd=project,
+        env=env,
+    )
+    print("PASS: namespace coexistence, unrelated devkit isolation, legacy group ignored, removal")
+
+
 def exercise_foundation(root, wheels, constraints):
-    project, env = install(root, wheels, ["devkit"], constraints)
+    project, env = install(root, wheels, ["mccann_hub.devkit"], constraints)
     absent(
-        root, project, env, ["devkit_go", "devkit_odoo", "devkit_beads", "mcp", "docker", "odoo"]
+        root,
+        project,
+        env,
+        [
+            "mccann_hub.devkit_go",
+            "mccann_hub.devkit_odoo",
+            "mccann_hub.devkit_beads",
+            "mcp",
+            "docker",
+            "odoo",
+        ],
     )
     doctor = cli(root, project, env, "doctor")
     assert doctor["result"]["status"] == "success"
@@ -96,11 +149,12 @@ def exercise_foundation(root, wheels, constraints):
     cli(root, project, env, "runs", "unpin", run_id, "--reference", "work:active")
     assert cli(root, project, env, *pruning)["result"]["data"]["deleted"] == [run_id]
     print("PASS: foundation only")
+    exercise_namespace_coexistence(root, project, env, constraints)
 
 
 def exercise_go(root, wheels, constraints):
-    project, env = install(root, wheels, ["devkit", "devkit_go"], constraints)
-    absent(root, project, env, ["devkit_odoo", "devkit_beads", "mcp", "odoo"])
+    project, env = install(root, wheels, ["mccann_hub.devkit", "mccann_hub.devkit_go"], constraints)
+    absent(root, project, env, ["mccann_hub.devkit_odoo", "mccann_hub.devkit_beads", "mcp", "odoo"])
     (project / "devkit.toml").write_text('plugins=["go"]\ntimeout=90\n')
     (project / "go.mod").write_text("module example.test/wheel\ngo 1.22\n")
     test = project / "sample_test.go"
@@ -118,8 +172,15 @@ def exercise_go(root, wheels, constraints):
 
 
 def exercise_odoo(root, wheels, constraints):
-    project, env = install(root, wheels, ["devkit", "devkit_odoo"], constraints)
-    absent(root, project, env, ["devkit_go", "devkit_beads", "mcp", "odoo", "docker"])
+    project, env = install(
+        root, wheels, ["mccann_hub.devkit", "mccann_hub.devkit_odoo"], constraints
+    )
+    absent(
+        root,
+        project,
+        env,
+        ["mccann_hub.devkit_go", "mccann_hub.devkit_beads", "mcp", "odoo", "docker"],
+    )
     (project / "devkit.toml").write_text('plugins=["odoo"]\n[profiles]\nstatic=["odoo.manifests"]')
     module = project / "addons/example"
     module.mkdir(parents=True)
@@ -137,7 +198,9 @@ def exercise_odoo(root, wheels, constraints):
 
 
 def exercise_template(root, wheels, constraints):
-    project, env = install(root, wheels, ["devkit", "devkit_example"], constraints)
+    project, env = install(
+        root, wheels, ["mccann_hub.devkit", "mccann_hub.devkit_example"], constraints
+    )
     (project / "devkit.toml").write_text('plugins=["example"]')
     policy(root, project, ["example"], {"example.readme": ["read_fs"]})
     (project / "README.md").write_text("Clean text.\n")
@@ -147,7 +210,7 @@ def exercise_template(root, wheels, constraints):
     second.mkdir()
     (second / "devkit.toml").write_text('plugins=["example"]')
     (root / "config/devkit/policy.toml").write_text(
-        '[trusted_plugins]\ndevkit-example="0.2.0"\n[profiles.shared]\n'
+        '[trusted_plugins]\nmccann-hub-devkit-example="0.2.0"\n[profiles.shared]\n'
         f"projects={json.dumps([str(project), str(second)])}\n"
         '[profiles.shared.commands."example.readme"]\neffects=["read_fs"]\nsurfaces=["cli"]\n'
     )
@@ -158,21 +221,25 @@ def exercise_template(root, wheels, constraints):
 
 
 def exercise_artifact_pin(root, wheels, constraints):
-    project, env = install(root, wheels, ["devkit", "devkit_sample"], constraints)
+    project, env = install(
+        root, wheels, ["mccann_hub.devkit", "mccann_hub.devkit_sample"], constraints
+    )
     (project / "devkit.toml").write_text('plugins=["sample"]')
     marker = root / "imported"
     env["DEVKIT_TEST_IMPORT_MARKER"] = str(marker)
     policy(root, project, [], {"sample.inspect": []})
-    wheel = next(wheels.glob("devkit_sample-*.whl"))
+    wheel = next(wheels.glob("mccann_hub_devkit_sample-*.whl"))
     digest = hashlib.sha256(wheel.read_bytes()).hexdigest()
     with (root / "config/devkit/policy.toml").open("a") as stream:
-        stream.write('\n[trusted_plugins.devkit-sample]\nversion="0.1.0"\n')
+        stream.write('\n[trusted_plugins.mccann-hub-devkit-sample]\nversion="0.1.0"\n')
         stream.write(f'wheel={json.dumps(str(wheel))}\nsha256="{digest}"\n')
     result = cli(root, project, env, "run", "sample.inspect")
     assert result["producer"]["artifact_sha256"] == digest
     assert marker.exists()
     marker.unlink()
-    source = next((root / "venv/lib").glob("python*/site-packages/devkit_sample/__init__.py"))
+    source = next(
+        (root / "venv/lib").glob("python*/site-packages/mccann_hub/devkit_sample/__init__.py")
+    )
     source.unlink()  # Do not modify a file that could be hard-linked into an installer cache.
     source.write_text('raise RuntimeError("replaced distribution with the same version")')
     result = cli(root, project, env, "run", "sample.inspect", expected=3)
@@ -185,7 +252,13 @@ def exercise_mcp(root, wheels, constraints):
     project, env = install(
         root,
         wheels,
-        ["devkit", "devkit_go", "devkit_odoo", "devkit_mcp", "devkit_sample"],
+        [
+            "mccann_hub.devkit",
+            "mccann_hub.devkit_go",
+            "mccann_hub.devkit_odoo",
+            "mccann_hub.devkit_mcp",
+            "mccann_hub.devkit_sample",
+        ],
         constraints,
     )
     absent(root, project, env, ["odoo", "docker"])
@@ -233,7 +306,12 @@ anyio.run(check)
 
 
 def exercise_ci_pilot(root, wheels, constraints):
-    project, env = install(root, wheels, ["devkit", "devkit_go", "devkit_odoo"], constraints)
+    project, env = install(
+        root,
+        wheels,
+        ["mccann_hub.devkit", "mccann_hub.devkit_go", "mccann_hub.devkit_odoo"],
+        constraints,
+    )
     absent(root, project, env, ["odoo", "docker", "mcp"])
     exercise_pilot(root / "venv/bin/devkit", wheels, root / "cases", env)
 

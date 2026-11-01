@@ -1,5 +1,5 @@
 import pytest
-from devkit.app import create_service
+from mccann_hub.devkit.app import create_service
 
 
 def inspect(odoo_project, files, *, data=None, demo=None):

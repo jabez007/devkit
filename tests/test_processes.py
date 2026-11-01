@@ -3,8 +3,8 @@ import time
 from pathlib import Path
 from threading import Event, Timer
 
-from devkit.contracts import Context
-from devkit.processes import OUTPUT_LIMIT, run_process
+from mccann_hub.devkit.contracts import Context
+from mccann_hub.devkit.processes import OUTPUT_LIMIT, run_process
 
 
 def context(tmp_path, duration=3):

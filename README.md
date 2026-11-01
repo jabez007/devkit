@@ -16,11 +16,12 @@ artifacts, metadata-only selection/trust diagnostics and documented public
 compatibility. Start with [developer/operator onboarding](docs/Getting_Started.md)
 or the [plugin author guide](docs/Plugin_Authoring.md).
 The foundation requires no Beads, Odoo server, Docker, or model credentials.
-Package names and the plugin API remain provisional; nothing is published to a
-public package registry. Versions are foundation 0.1.3, Beads 0.3.0, Go/MCP 0.1.0, and
+The package family is `mccann-hub-devkit`, imported under `mccann_hub`.
+Nothing is published to a public package registry by this migration.
+Versions are foundation 0.2.0, Beads 0.3.0, Go/MCP 0.1.0, and
 Odoo 0.5.0. Plugin API 1.0 and evidence envelope 1.0 are unchanged.
-See [publication readiness](docs/Compatibility.md) for the naming, licensing and
-release-ownership decisions still needed before public distribution.
+See [publication readiness](docs/Compatibility.md) for migration instructions
+and the release-ownership decisions still needed before public distribution.
 
 ## Set up a development checkout
 
@@ -49,16 +50,15 @@ To install built distributions in another environment:
 ```sh
 uv build --all-packages
 uv venv /tmp/devkit-install --python 3.12
-uv pip install --python /tmp/devkit-install/bin/python dist/devkit-0.1.3-py3-none-any.whl
+uv pip install --python /tmp/devkit-install/bin/python dist/mccann_hub_devkit-0.2.0-py3-none-any.whl
 # Add only the plugins and adapters you need:
-uv pip install --python /tmp/devkit-install/bin/python dist/devkit_go-0.1.0-py3-none-any.whl
-uv pip install --python /tmp/devkit-install/bin/python dist/devkit_odoo-0.5.0-py3-none-any.whl
-uv pip install --python /tmp/devkit-install/bin/python dist/devkit_mcp-0.1.0-py3-none-any.whl
-uv pip install --python /tmp/devkit-install/bin/python dist/devkit_beads-0.3.0-py3-none-any.whl
+uv pip install --python /tmp/devkit-install/bin/python dist/mccann_hub_devkit_go-0.1.0-py3-none-any.whl
+uv pip install --python /tmp/devkit-install/bin/python dist/mccann_hub_devkit_odoo-0.5.0-py3-none-any.whl
+uv pip install --python /tmp/devkit-install/bin/python dist/mccann_hub_devkit_mcp-0.1.0-py3-none-any.whl
+uv pip install --python /tmp/devkit-install/bin/python dist/mccann_hub_devkit_beads-0.3.0-py3-none-any.whl
 ```
 
-Use the supplied foundation wheel, since the working distribution name is not an
-owned public namespace. The installed-wheel acceptance script constrains registry
+Use the supplied reviewed foundation wheel until an approved registry release exists. The installed-wheel acceptance script constrains registry
 dependencies to the lockfile; ordinary wheel installs use the declared ranges.
 
 ## Configure a project
@@ -96,7 +96,7 @@ replace the example project paths with the project's absolute path.
 
 ```toml
 [trusted_plugins]
-devkit-odoo = "0.5.0"
+mccann-hub-devkit-odoo = "0.5.0"
 
 [commands."odoo.module.validate"]
 project = "/absolute/path/to/project"
@@ -110,9 +110,9 @@ well. Keep the approved wheel available locally and obtain its SHA-256 from your
 trusted build or download process:
 
 ```toml
-[trusted_plugins.devkit-odoo]
+[trusted_plugins.mccann-hub-devkit-odoo]
 version = "0.5.0"
-wheel = "/absolute/operator/path/devkit_odoo-0.5.0-py3-none-any.whl"
+wheel = "/absolute/operator/path/mccann_hub_devkit_odoo-0.5.0-py3-none-any.whl"
 sha256 = "<64 lowercase hexadecimal characters>"
 ```
 
@@ -322,7 +322,7 @@ transaction. The next attempt preserves unreadable or incomplete evidence.
 
 ```python
 from pathlib import Path
-from devkit.app import create_service
+from mccann_hub.devkit.app import create_service
 
 result = create_service(Path("/absolute/path/to/project")).execute(
     "odoo.module.validate", {"module": "example"}
@@ -383,3 +383,10 @@ and later increments. The [v0.7 assessment](docs/v0.7_Assessment.md) records ver
 workflow behavior, worktree limitations and prioritized foundation improvements.
 Live Odoo, tracker imports, Beads server modes and administrative operations,
 and orchestration remain future work with separate integration prerequisites.
+
+## License
+
+Devkit, its bundled specializations and the copyable template are licensed under
+GNU GPL version 3 or, at your option, any later version published by the Free
+Software Foundation (`GPL-3.0-or-later`). See [LICENSE](LICENSE) and the
+[licensing and compatibility notes](docs/Compatibility.md#licensing-and-provenance).

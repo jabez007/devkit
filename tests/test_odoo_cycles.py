@@ -6,7 +6,7 @@ from pathlib import Path
 from threading import Event
 
 import pytest
-from devkit.app import create_service
+from mccann_hub.devkit.app import create_service
 
 
 def addon(project, name, depends, **fields):

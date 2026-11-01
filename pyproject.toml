@@ -22,16 +22,18 @@ max-complexity = 10
 python_version = "3.12"
 strict = true
 files = ["packages"]
+explicit_package_bases = true
+mypy_path = ["packages/devkit/src", "packages/devkit_go/src", "packages/devkit_odoo/src", "packages/devkit_beads/src", "packages/devkit_mcp/src"]
 
 [tool.importlinter]
-root_packages = ["devkit"]
+root_packages = ["mccann_hub"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "Foundation has no optional integrations"
 type = "forbidden"
-source_modules = ["devkit"]
-forbidden_modules = ["devkit_go", "devkit_odoo", "devkit_mcp", "devkit_beads", "odoo", "mcp", "docker"]
+source_modules = ["mccann_hub.devkit"]
+forbidden_modules = ["mccann_hub.devkit_go", "mccann_hub.devkit_odoo", "mccann_hub.devkit_mcp", "mccann_hub.devkit_beads", "odoo", "mcp", "docker"]
 
 [tool.ruff.lint.per-file-ignores]
 # Odoo manifests are intentionally bare dictionary expressions.

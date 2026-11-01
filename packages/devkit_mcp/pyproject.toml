@@ -3,19 +3,24 @@ requires = ["hatchling>=1.27,<2"]
 build-backend = "hatchling.build"
 
 [project]
-name = "devkit-mcp"
+name = "mccann-hub-devkit-mcp"
 version = "0.1.0"
 description = "Optional local stdio MCP presentation of the shared command service. Does not add authorization or orchestration."
 readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
-dependencies = ["devkit>=0.1,<0.2", "mcp>=1.30,<2", "anyio>=4.5,<5"]
+dependencies = ["mccann-hub-devkit>=0.2,<0.3", "mcp>=1.30,<2", "anyio>=4.5,<5"]
 
 [project.scripts]
-devkit-mcp = "devkit_mcp:main"
+devkit-mcp = "mccann_hub.devkit_mcp:main"
 
 [tool.uv.sources]
-devkit = {workspace = true}
+mccann-hub-devkit = {workspace = true}
 
 [project.urls]
 Source = "https://github.com/jabez007/devkit"
 Documentation = "https://github.com/jabez007/devkit/blob/main/docs/Getting_Started.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mccann_hub"]

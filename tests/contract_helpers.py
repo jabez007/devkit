@@ -3,9 +3,9 @@
 import json
 from pathlib import Path
 
-from devkit.contracts import CommandSpec
-from devkit.invocation import CommandService
-from devkit.policy import Policy
+from mccann_hub.devkit.contracts import CommandSpec
+from mccann_hub.devkit.invocation import CommandService
+from mccann_hub.devkit.policy import Policy
 
 
 def service_with_grants(settings, commands: tuple[CommandSpec, ...]):

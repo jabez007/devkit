@@ -1,8 +1,8 @@
 # Composable Developer Toolkit — Architectural Specification
 
-**Status:** Draft 0.8. Foundation, static validation, writable Beads integration and independent plugin authoring implemented; publication names and licensing remain owner decisions.\
+**Status:** Draft 0.8. Foundation, static validation, writable Beads integration and independent plugin authoring implemented; McCann Hub naming and GPL-3.0-or-later approved; registry publication remains separate.\
 **Date:** November 1, 2026\
-**Working project name:** `devkit` (placeholder, not a proposed public package name)\
+**Project:** Devkit; distribution family `mccann-hub-devkit`\
 **Design inspiration:** [Crpaxton4/devcontainer-features](https://github.com/Crpaxton4/devcontainer-features) and its [ADR-006](https://github.com/Crpaxton4/devcontainer-features/blob/main/docs/design/adr/ADR-006-workspace-three-layers-state-root.md)\
 **First-release specializations:** Go checks and offline Odoo validation\
 **Core architectural posture:** Build developer capabilities; integrate task tracking and orchestration rather than reinventing them.
@@ -13,7 +13,7 @@ Build a small, framework-agnostic developer-tool foundation from scratch in this
 
 Specialized behaviors are installed as **versioned Python packages** and activated per project. The first release proves the plugin contract with Go checks and offline Odoo 19 manifest validation. Live Odoo testing is a later increment. The later Odoo Project connector is a separate package. Development commands do not depend on it.
 
-The optional `devkit-beads` specialization provides inspection, explicit task lifecycle commands and verification evidence associations. Beads owns issue identity, statuses, dependencies, readiness, and synchronization. External trackers connect through scoped bridge packages. The core does not maintain a second task database or edit Dolt tables. Agent execution and scheduling belong to existing harnesses and optional orchestrators such as **Gas City**. Gas City packs consume installed domain capabilities; they are not the domain plugin format itself.
+The optional `mccann-hub-devkit-beads` specialization provides inspection, explicit task lifecycle commands and verification evidence associations. Beads owns issue identity, statuses, dependencies, readiness, and synchronization. External trackers connect through scoped bridge packages. The core does not maintain a second task database or edit Dolt tables. Agent execution and scheduling belong to existing harnesses and optional orchestrators such as **Gas City**. Gas City packs consume installed domain capabilities; they are not the domain plugin format itself.
 
 The upstream repository supplies design lessons. This project has its own implementation, package layout, tests, configuration, and release lifecycle. Compatibility with upstream commands, state, SDKs, and deployments is outside scope. The [implementation plan](Implementation_Plan.md) defines the delivery slices and their acceptance gates.
 
@@ -129,9 +129,11 @@ examples/                project settings, policy, and plugin template
 docs/
 ```
 
-These are working names, pending public namespace selection. `CommandService` is the shared invocation module. CLI and MCP adapters call its interface, while plugins depend on the public contract. The foundation discovers plugins through metadata and does not import a specialization by name.
+Repository container directories keep their existing names. Distribution names use
+`mccann-hub-devkit`; imports live under the native `mccann_hub` namespace, with no
+root `__init__.py`. The CLI names and persisted state paths remain `devkit`. `CommandService` is the shared invocation module. CLI and MCP adapters call its interface, while plugins depend on the public contract. The foundation discovers plugins through metadata and does not import a specialization by name.
 
-The optional `devkit-beads` distribution implements inspection and ordinary task lifecycle operations. Add tracker connector distributions only when separately implementing those integrations. A later Odoo capability may use a maintained client or a narrow transport adapter when a concrete operation needs RPC. The offline plugin requires neither an SDK nor a server. The Odoo Project connector may depend on the Beads adapter and an Odoo client, but the Odoo development plugin must not depend on the connector.
+The optional `mccann-hub-devkit-beads` distribution implements inspection and ordinary task lifecycle operations. Add tracker connector distributions only when separately implementing those integrations. A later Odoo capability may use a maintained client or a narrow transport adapter when a concrete operation needs RPC. The offline plugin requires neither an SDK nor a server. The Odoo Project connector may depend on the Beads adapter and an Odoo client, but the Odoo development plugin must not depend on the connector.
 
 The default CLI exposes basic operations such as `plugins`, `doctor`, `commands`, and `check`. Task commands become available when Beads integration is installed and configured.
 
@@ -139,28 +141,28 @@ The default CLI exposes basic operations such as `plugins`, `doctor`, `commands`
 
 ### 7.1 Distribution and discovery
 
-Use Python wheels and `importlib.metadata.entry_points()`; do **not** build a new package manager or registry in v1. The implemented entry point group is `devkit.specializations.v1`, pending public namespace review.
+Use Python wheels and `importlib.metadata.entry_points()`; do **not** build a new package manager or registry in v1. The implemented entry point group is `mccann_hub.devkit.specializations.v1`.
 
 ```toml
 # Current Odoo plugin registration
 [project]
-name = "devkit-odoo"
+name = "mccann-hub-devkit-odoo"
 version = "0.5.0"
-dependencies = ["devkit>=0.1,<0.2"]
+dependencies = ["mccann-hub-devkit>=0.2,<0.3"]
 
-[project.entry-points."devkit.specializations.v1"]
-odoo = "devkit_odoo:register"
+[project.entry-points."mccann_hub.devkit.specializations.v1"]
+odoo = "mccann_hub.devkit_odoo:register"
 ```
 
-Distribution names and the entry-point namespace are placeholders until public naming is settled. Installing a distribution makes it **discoverable**. Project activation is separate and explicit. Operator trust accepts either an exact version or a version plus an approved local wheel and SHA-256. Pinned activation verifies wheel bytes and the installed payload before importing any selected plugin. This supplements trusted installation and isolation; it does not attest dependencies, generated bytecode, or Python's entire import environment. Installers must not silently alter shared Claude, GitHub, Docker, or shell configuration.
+The owner selected the McCann Hub distribution and import names before publication. Installing a distribution makes it **discoverable**. Project activation is separate and explicit. Operator trust accepts either an exact version or a version plus an approved local wheel and SHA-256. Pinned activation verifies wheel bytes and the installed payload before importing any selected plugin. This supplements trusted installation and isolation; it does not attest dependencies, generated bytecode, or Python's entire import environment. Installers must not silently alter shared Claude, GitHub, Docker, or shell configuration.
 
-### 7.2 Implemented provisional contract
+### 7.2 Implemented contract
 
 Use a typed, data-first declaration with explicit schema version and identifiers; command handlers can be ordinary Python callables. Avoid a large inheritance hierarchy.
 
 ```python
 # A declaration using the implemented API
-from devkit.contracts import CheckSpec, CommandResult, CommandSpec, Context, Specialization
+from mccann_hub.devkit.contracts import CheckSpec, CommandResult, CommandSpec, Context, Specialization
 
 def inspect(context: Context, arguments: dict) -> CommandResult:
     return CommandResult("success", "Inspection complete", {"checked": True})
@@ -174,7 +176,7 @@ def register() -> Specialization:
     )
 ```
 
-The exact definitions live in [`contracts.py`](../packages/devkit/src/devkit/contracts.py), with authoring guidance in [Plugin_Contract.md](Plugin_Contract.md):
+The exact definitions live in [`contracts.py`](../packages/devkit/src/mccann_hub/devkit/contracts.py), with authoring guidance in [Plugin_Contract.md](Plugin_Contract.md):
 
 ```python
 # Field overview; defaults omitted
@@ -230,7 +232,7 @@ Multiple specializations may be active for one repository (e.g., Odoo + Python +
 The [plugin template](../examples/plugin) is a complete, independently buildable
 README check with schemas, explicit effects/surfaces, configuration examples and
 tests. Its tests use only installed packages and the documented
-`devkit.app.create_service(...).execute(...)` interface. Repository-local contract
+`mccann_hub.devkit.app.create_service(...).execute(...)` interface. Repository-local contract
 helpers remain internal; no external testing SDK or runtime test dependency is
 needed. Acceptance copies and renames the template outside this repository,
 rebuilds its wheel from its sdist and tests installation, trust, grants, all three
@@ -263,7 +265,7 @@ The foundation stores only references (e.g. `beads:<repository-scope>:<issue-id>
 
 ### 8.2 Implemented adapter and operator policy
 
-`devkit-beads` 0.3.0 uses Beads 1.3.2 at revision
+`mccann-hub-devkit-beads` 0.3.0 uses Beads 1.3.2 at revision
 `9b65b9e198acbcc98e7fd3a87a5d55baa065a572`, in a local embedded Git workspace, including sequential linked checkouts.
 It provides inspection, create, claim, ordinary update, comment and close through
 supported JSON CLI commands. Beads owns task lifecycle rules, atomic claims,
@@ -372,7 +374,7 @@ Keep static validation usable offline as runtime capabilities are added. Select 
 
 ### 9.2 Odoo development plugin is NOT the Odoo task connector
 
-`devkit-odoo` provides Odoo domain capabilities. `devkit-odoo-project` provides external task ingestion and optional authorized publishing. Either must be installable alone. A GitHub issue can drive Odoo development; an Odoo Project task can drive standalone Vue work.
+`mccann-hub-devkit-odoo` provides Odoo domain capabilities. `mccann-hub-devkit-odoo-project` provides external task ingestion and optional authorized publishing. Either must be installable alone. A GitHub issue can drive Odoo development; an Odoo Project task can drive standalone Vue work.
 
 ### 9.3 Verification evidence
 
@@ -447,7 +449,7 @@ The foundation specifies a **portable evidence envelope** and does not replace B
   "run_id": "<unique-run-id>",
   "work_item_ref": null,
   "parent_run_id": null,
-  "producer": {"distribution": "devkit-go", "version": "0.1.0"},
+  "producer": {"distribution": "mccann-hub-devkit-go", "version": "0.1.0"},
   "command": "go.test",
   "project_root": "/absolute/path/to/project",
   "project_id": "<sha256-of-resolved-project-path>",
@@ -561,6 +563,8 @@ State formats belong to this project. Future changes to persisted devkit state w
 - D14. The initial v0.6 slice implemented Beads inspection and evidence references. Foundation additions were limited to resolved evidence context and explicit child environments. D15 supersedes that delivery scope; read-only access is not a permanent architectural requirement.
 - D13. The CI adoption pilot composes existing profiles, exact operator grants, wheel identity checks and evidence maintenance. Provider artifact retention stays separate from local pin/prune rules. The pilot introduces no runtime adapter, package version or schema change.
 
+- D18. The owner selected the `mccann-hub-devkit` family, native `mccann_hub` imports and GPL-3.0-or-later. Foundation 0.2.0 records the prepublication naming break; declaration/evidence versions stay 1.0. CLI, command IDs and persisted paths are retained. Trust keys and artifact pins require explicit operator updates. See [migration and licensing](Compatibility.md).
+
 **Proposed decisions (approve or amend):**
 
 - D1. Default development task backend: Beads, but task features remain optional for local developer commands.
@@ -572,7 +576,7 @@ State formats belong to this project. Future changes to persisted devkit state w
 
 **Open questions:**
 
-1. Which public distribution names and entry-point namespace can the project use? Review the provisional API before publication.
+1. Who owns registry releases and approves the publication/provenance workflow? Naming and licensing are selected; no registry reservation or publication has been performed.
 2. Which additional Beads versions or server/concurrent configurations merit acceptance testing after the 1.3.2 embedded inspection and lifecycle profile?
 3. Which Odoo runtime environments and editions will support later isolated CI? Odoo 17 requires a separately tested profile.
 

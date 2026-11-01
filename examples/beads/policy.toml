@@ -1,8 +1,8 @@
 # Merge into the operator policy OUTSIDE the project, mode 0600.
 # Replace the path with the canonical project path. Include only needed surfaces.
 [trusted_plugins]
-devkit-beads = "0.3.0"
-devkit-go = "0.1.0"
+mccann-hub-devkit-beads = "0.3.0"
+mccann-hub-devkit-go = "0.1.0"
 
 # List each linked checkout explicitly. Main-checkout grants do not cover siblings.
 # Beads 0.3.0 qualifies sequential operation only; no concurrent-writer guarantee.

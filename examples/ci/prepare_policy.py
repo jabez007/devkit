@@ -16,11 +16,11 @@ def main(project, wheels):
     config.mkdir(parents=True, mode=0o700)  # Refuse to overwrite an existing operator setup.
     policy = []
     for name, version in (("go", "0.1.0"), ("odoo", "0.5.0")):
-        wheel = wheels / f"devkit_{name}-{version}-py3-none-any.whl"
+        wheel = wheels / f"mccann_hub_devkit_{name}-{version}-py3-none-any.whl"
         digest = hashlib.sha256(wheel.read_bytes()).hexdigest()
         policy.extend(
             [
-                f"[trusted_plugins.devkit-{name}]",
+                f"[trusted_plugins.mccann-hub-devkit-{name}]",
                 f"version={json.dumps(version)}",
                 f"wheel={json.dumps(str(wheel))}",
                 f"sha256={json.dumps(digest)}",

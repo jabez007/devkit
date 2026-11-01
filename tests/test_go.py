@@ -1,5 +1,5 @@
 import pytest
-from devkit.app import create_service
+from mccann_hub.devkit.app import create_service
 
 
 @pytest.mark.parametrize(
@@ -12,7 +12,7 @@ def test_real_go_tests(go_project, body, status):
     )
     result = create_service(go_project).execute("go.test")
     assert result["result"]["status"] == status, result
-    assert result["producer"]["distribution"] == "devkit-go"
+    assert result["producer"]["distribution"] == "mccann-hub-devkit-go"
     assert result["result"]["data"]["tool_version"].startswith("go version")
     count = {"success": "passed", "failed": "failed", "blocked": "skipped"}[status]
     assert result["result"]["data"]["tests"][count] == 1

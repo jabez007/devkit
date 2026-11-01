@@ -20,9 +20,18 @@ def build(root, wheels):
     )
     for path in source.rglob("*"):
         if path.suffix in {".py", ".toml", ".md"}:
-            path.write_text(path.read_text().replace("example", "textcheck"))
-    package = source / "src/devkit_textcheck"
-    (source / "src/devkit_example").rename(package)
+            path.write_text(
+                path.read_text()
+                .replace("mccann-hub-devkit-example", "author-demo-textcheck")
+                .replace("mccann_hub.devkit_example", "author_demo.textcheck")
+                .replace("src/mccann_hub/devkit_example", "src/author_demo/textcheck")
+                .replace('packages = ["src/mccann_hub"]', 'packages = ["src/author_demo"]')
+                .replace("example", "textcheck")
+            )
+    package = source / "src/author_demo/textcheck"
+    package.parent.mkdir()
+    (source / "src/mccann_hub/devkit_example").rename(package)
+    (source / "src/mccann_hub").rmdir()
     marker = root / "imported"
     implementation = package / "__init__.py"
     # Acceptance instrumentation only: an import is observable even if it then fails.
@@ -32,7 +41,7 @@ def build(root, wheels):
     )
     run("uv", "build", "--sdist", "--out-dir", str(wheels), cwd=source)
     unpacked = root / "sdist"
-    with tarfile.open(next(wheels.glob("devkit_textcheck-*.tar.gz"))) as archive:
+    with tarfile.open(next(wheels.glob("author_demo_textcheck-*.tar.gz"))) as archive:
         archive.extractall(unpacked, filter="data")
     rebuilt = next(unpacked.iterdir())
     run("uv", "build", "--wheel", "--out-dir", str(wheels), cwd=rebuilt)
@@ -60,8 +69,8 @@ def author_tests(root, project, env, source, constraints):
     code = """
 import sys
 from pathlib import Path
-import devkit, devkit_textcheck
-for module in (devkit, devkit_textcheck):
+import mccann_hub.devkit, author_demo.textcheck
+for module in (mccann_hub.devkit, author_demo.textcheck):
     assert Path(module.__file__).is_relative_to(Path(sys.prefix)), module.__file__
 assert all(not Path(p).is_relative_to(Path(sys.argv[1])) for p in sys.path if p)
 """
@@ -72,7 +81,7 @@ def parity(root, project, env, expected, arguments=None):
     code = """
 import anyio, json, os, sys
 from pathlib import Path
-from devkit.app import create_service
+from mccann_hub.devkit.app import create_service
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 project, expected = Path(sys.argv[1]), json.loads(sys.argv[2])
@@ -106,7 +115,7 @@ anyio.run(check)
 def typed_consumer(root, project, env):
     consumer = project / "consumer.py"
     consumer.write_text(
-        "from devkit.contracts import CommandResult\n"
+        "from mccann_hub.devkit.contracts import CommandResult\n"
         "def result() -> CommandResult:\n"
         "    return CommandResult('success', 'Typed consumer')\n"
     )
@@ -132,9 +141,22 @@ def main():
     root.mkdir()
     source, marker = build(root, wheels)
     project, env = install(
-        root, wheels, ["devkit", "devkit_textcheck", "devkit_example", "devkit_mcp"], constraints
+        root,
+        wheels,
+        [
+            "mccann_hub.devkit",
+            "author_demo.textcheck",
+            "mccann_hub.devkit_example",
+            "mccann_hub.devkit_mcp",
+        ],
+        constraints,
     )
-    absent(root, project, env, ["devkit_go", "devkit_odoo", "devkit_beads", "odoo"])
+    absent(
+        root,
+        project,
+        env,
+        ["mccann_hub.devkit_go", "mccann_hub.devkit_odoo", "mccann_hub.devkit_beads", "odoo"],
+    )
     assert not (root / "config/devkit/policy.toml").exists(), "Installation wrote policy"
     typed_consumer(root, project, env)
     (project / "README.md").write_text("# Project\nUseful verification.\n")
@@ -149,6 +171,16 @@ def main():
     untrusted = cli(root, project, env, "run", "textcheck.readme", expected=3)
     assert untrusted["result"]["reason"] == "UNTRUSTED_PLUGIN"
     assert not marker.exists(), "Untrusted selection imported the plugin"
+    policy(root, project, ["textcheck", "example"], {})
+    trust = root / "config/devkit/policy.toml"
+    trust.write_text(
+        trust.read_text()
+        .replace("mccann-hub-", "")
+        .replace("author-demo-textcheck", "devkit-textcheck")
+    )
+    legacy = cli(root, project, env, "run", "textcheck.readme", expected=3)
+    assert legacy["result"]["reason"] == "UNTRUSTED_PLUGIN"
+    assert not marker.exists(), "Legacy distribution trust authorized a renamed plugin"
     details = cli(root, project, env, "plugins", "list", "--details")["result"]["data"]
     assert next(item for item in details["plugins"] if item["id"] == "textcheck")["selected"]
     assert not marker.exists(), "Detailed inspection imported the plugin"
@@ -197,8 +229,16 @@ def main():
     marker.unlink(missing_ok=True)
     cli(root, project, env, "run", "example.readme")
     assert not marker.exists(), "Deactivated plugin was imported"
-    run("uv", "pip", "uninstall", "--python", str(root / "venv/bin/python"), "devkit-textcheck")
-    absent(root, project, env, ["devkit_textcheck"])
+    run(
+        "uv",
+        "pip",
+        "uninstall",
+        "--python",
+        str(root / "venv/bin/python"),
+        "author-demo-textcheck",
+    )
+    # This environment has no other author_demo distributions; the namespace disappears too.
+    absent(root, project, env, ["author_demo"])
     (project / "README.md").write_text("Clean text.\n")
     marker.unlink(missing_ok=True)
     cli(root, project, env, "run", "example.readme")

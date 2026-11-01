@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 from uuid import uuid4
 
-from devkit.app import create_service
-from devkit.runs import RunStore
+from mccann_hub.devkit.app import create_service
+from mccann_hub.devkit.runs import RunStore
 
 from tests.beads_helpers import REF, configure
 
@@ -34,7 +34,7 @@ def test_association_is_idempotent_and_protects_evidence(beads_project):
 
 
 def test_reference_failure_and_evidence_failure_retries(beads_project, monkeypatch):
-    from devkit import invocation, runs
+    from mccann_hub.devkit import invocation, runs
 
     service = create_service(beads_project)
     target = service.execute("core.doctor")

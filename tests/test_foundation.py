@@ -3,8 +3,8 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from devkit.app import create_service
-from devkit.contracts import CommandResult, CommandSpec
+from mccann_hub.devkit.app import create_service
+from mccann_hub.devkit.contracts import CommandResult, CommandSpec
 
 from tests.contract_helpers import service_with_grants
 
@@ -16,9 +16,10 @@ def test_doctor_without_git(tmp_path, monkeypatch):
     project.mkdir()
     result = create_service(project).execute("core.doctor")
     assert result["result"]["status"] == "success"
-    from devkit import __version__
+    from mccann_hub.devkit import __version__
 
     assert result["producer"]["version"] == __version__
+    assert result["producer"]["distribution"] == "mccann-hub-devkit"
     assert result["source"] == {"revision": None, "dirty": None}
     persisted = json.loads(Path(result["evidence_path"]).read_text())
     assert persisted["run_id"] == result["run_id"]

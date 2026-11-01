@@ -72,7 +72,7 @@ def _evidence(binary, wheels, project, root, env, envelope):
         assert record["parent_run_id"] == run_id
         assert record["result"] == child["result"]
         name, version = versions[record["command"]]
-        wheel = wheels / f"devkit_{name}-{version}-py3-none-any.whl"
+        wheel = wheels / f"mccann_hub_devkit_{name}-{version}-py3-none-any.whl"
         assert (
             record["producer"]["artifact_sha256"] == hashlib.sha256(wheel.read_bytes()).hexdigest()
         )

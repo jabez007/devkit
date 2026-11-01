@@ -2,8 +2,8 @@
 # (default ~/.config/devkit/policy.toml), mode 0600.
 # Replace every project value with the selected project's absolute path.
 [trusted_plugins]
-devkit-go = "0.1.0"
-devkit-odoo = "0.5.0"
+mccann-hub-devkit-go = "0.1.0"
+mccann-hub-devkit-odoo = "0.5.0"
 
 [commands."go.test"]
 project = "/absolute/path/to/project"

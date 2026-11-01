@@ -1215,3 +1215,35 @@ Recommended v0.9 priority: resolve owner naming/licensing decisions, then qualif
 the supported Python and dependency range with installed-artifact CI. Prepare a
 reviewable release/provenance procedure after those decisions. Keep additional
 specializations, orchestration and concurrent Beads support out of that scope.
+
+### Approved naming and licensing migration
+
+Reuse the existing native Python packaging, entry-point discovery, operator trust,
+RunStore and installed-wheel matrix. The owner selected the existing McCann Hub
+convention: `mccann-hub-devkit` distributions and `mccann_hub.devkit` imports, with
+sibling specializations such as `mccann_hub.devkit_go`. The outer `mccann_hub`
+directory is a native namespace package without an `__init__.py`, matching the
+owner's existing published packages. GPL-3.0-or-later is approved for this project,
+its specializations and its copyable template.
+
+Move the import packages and registration group together; all command behavior
+stays in CommandService. Foundation 0.2.0 records this prepublication Python/package
+name break. Plugin API and evidence schema remain 1.0. Existing command IDs, CLI
+executables, devkit.toml, XDG paths and references remain unchanged. Do not add a
+top-level devkit compatibility shim: that would preserve the import collision.
+Operators explicitly replace old distribution trust keys and wheel pins; no grants
+or trust are migrated automatically. Rebuild external plugins against the renamed
+foundation. Old environments can remain isolated while migration is tested.
+
+Ship the unmodified GPLv3 text plus explicit or-later notices and SPDX metadata in
+every wheel/sdist. Package copies of the license are necessary so each distribution
+and the template can build independently. Existing provenance records describe a
+fresh implementation and synthetic fixtures; repository inspection alone cannot
+establish legal title. Preserve dependency and upstream notices where applicable.
+
+Tests will cover namespaced wheel contents, coexistence with unrelated namespace
+siblings and a top-level devkit module, rejection of old trust keys, independent
+authoring, retained pre-migration evidence/references and all existing gates.
+Baseline Ruff, including complexity <=10, passed before changes. This is a public
+packaging migration, not a registry or authorization redesign. No unrelated files
+or the untracked .serena directory are part of the work.

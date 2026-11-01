@@ -37,7 +37,7 @@ def exercise_case(binary, root, case):
     policy = root / "config/devkit/policy.toml"
     policy.parent.mkdir(parents=True)
     policy.write_text(
-        f'[trusted_plugins]\ndevkit-odoo="{version}"\n'
+        f'[trusted_plugins]\nmccann-hub-devkit-odoo="{version}"\n'
         '[commands."odoo.module.validate"]\n'
         f'project={json.dumps(str(project))}\neffects=["read_fs"]\nsurfaces=["cli"]\n'
     )
@@ -106,7 +106,7 @@ def main(binary, selected=None):
     cases = json.loads((FIXTURES / "cases.json").read_text())
     if selected is not None:
         cases = [cases[int(selected)]]
-    with tempfile.TemporaryDirectory(prefix="devkit-odoo-fixtures-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="mccann-hub-devkit-odoo-fixtures-") as temporary:
         for index, case in enumerate(cases):
             exercise_case(Path(binary).resolve(), Path(temporary) / str(index), case)
     print(f"PASS: {len(cases)} Odoo CLI cases, persisted evidence, retrieval and text diagnostics")

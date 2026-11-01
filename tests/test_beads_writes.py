@@ -6,7 +6,7 @@ from pathlib import Path
 from threading import Event, Timer
 
 import pytest
-from devkit.app import create_service
+from mccann_hub.devkit.app import create_service
 
 from tests.beads_helpers import REF, configure
 
@@ -48,10 +48,10 @@ def test_write_commands_and_evidence(beads_project, operation, fields):
     ],
 )
 def test_restricted_policy_denies_each_mutation_before_execution(beads_project, operation, fields):
-    from devkit_beads import register
+    from mccann_hub.devkit_beads import register
 
     policy = Path(os.environ["XDG_CONFIG_HOME"]) / "devkit/policy.toml"
-    text = '[trusted_plugins]\ndevkit-beads="0.3.0"\n'
+    text = '[trusted_plugins]\nmccann-hub-devkit-beads="0.3.0"\n'
     for spec in register().commands:
         if spec.id.startswith("beads.item.") and spec.id != "beads.item.show":
             continue
@@ -184,7 +184,7 @@ def test_cancellation_during_write_is_not_replayed(beads_project):
 
 
 def test_write_success_survives_in_evidence_failure_diagnostic(beads_project, monkeypatch):
-    from devkit import invocation
+    from mccann_hub.devkit import invocation
 
     original = invocation.write_bundle
 
@@ -203,7 +203,7 @@ def test_write_success_survives_in_evidence_failure_diagnostic(beads_project, mo
 
 
 def test_write_effects_and_administrative_operations(beads_project):
-    from devkit_beads import register
+    from mccann_hub.devkit_beads import register
 
     specs = {spec.id: spec for spec in register().commands}
     for operation in ("create", "claim", "update", "comment", "close"):

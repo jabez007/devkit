@@ -1,9 +1,8 @@
 # Start using Devkit
 
 Choose the path matching your role. The qualified baseline is Linux and Python
-3.12. Devkit works from a shell or editor terminal without any AI harness. Public
-package names are provisional: obtain reviewed wheel artifacts from your operator,
-not the unrelated PyPI `devkit` package.
+3.12. Devkit works from a shell or editor terminal without any AI harness. Obtain reviewed `mccann-hub-devkit` wheel artifacts from your operator until
+an approved registry release exists. The PyPI `devkit` package is unrelated.
 
 ## Developer: verify a project
 
@@ -13,8 +12,8 @@ example uses the supplied README check, which needs no Go, Odoo or Beads:
 ```sh
 uv venv /tmp/devkit-user --python 3.12
 uv pip install --python /tmp/devkit-user/bin/python \
-  /path/to/wheels/devkit-0.1.3-py3-none-any.whl \
-  /path/to/wheels/devkit_example-0.2.0-py3-none-any.whl
+  /path/to/wheels/mccann_hub_devkit-0.2.0-py3-none-any.whl \
+  /path/to/wheels/mccann_hub_devkit_example-0.2.0-py3-none-any.whl
 /tmp/devkit-user/bin/devkit plugins
 ```
 
@@ -63,7 +62,7 @@ Replace the canonical project path. Do not overwrite unrelated grants:
 
 ```toml
 [trusted_plugins]
-devkit-example = "0.2.0"
+mccann-hub-devkit-example = "0.2.0"
 
 [commands."example.readme"]
 project = "/absolute/path/to/project"

@@ -3,19 +3,24 @@ requires = ["hatchling>=1.27,<2"]
 build-backend = "hatchling.build"
 
 [project]
-name = "devkit-odoo"
+name = "mccann-hub-devkit-odoo"
 version = "0.5.0"
 description = "Offline Odoo addon verification. Does not require an Odoo server, Go or Beads."
 readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
-dependencies = ["devkit>=0.1,<0.2"]
+dependencies = ["mccann-hub-devkit>=0.2,<0.3"]
 
-[project.entry-points."devkit.specializations.v1"]
-odoo = "devkit_odoo:register"
+[project.entry-points."mccann_hub.devkit.specializations.v1"]
+odoo = "mccann_hub.devkit_odoo:register"
 
 [tool.uv.sources]
-devkit = {workspace = true}
+mccann-hub-devkit = {workspace = true}
 
 [project.urls]
 Source = "https://github.com/jabez007/devkit"
 Documentation = "https://github.com/jabez007/devkit/blob/main/docs/Getting_Started.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mccann_hub"]

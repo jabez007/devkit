@@ -80,7 +80,7 @@ def test_plugin_details_do_not_verify_configured_pin(odoo_project):
     project, _ = odoo_project
     policy = Path(os.environ["XDG_CONFIG_HOME"]) / "devkit/policy.toml"
     policy.write_text(
-        '[trusted_plugins.devkit-odoo]\nversion="0.5.0"\n'
+        '[trusted_plugins.mccann-hub-devkit-odoo]\nversion="0.5.0"\n'
         'wheel="/nonexistent/reviewed.whl"\nsha256="' + "0" * 64 + '"\n'
     )
     completed = cli(project, "plugins", "list", "--details")
@@ -95,7 +95,7 @@ def test_plugin_details_report_missing_selection_and_version_mismatch(odoo_proje
     project, _ = odoo_project
     (project / "devkit.toml").write_text('plugins=["odoo", "absent"]\n')
     policy = Path(os.environ["XDG_CONFIG_HOME"]) / "devkit/policy.toml"
-    policy.write_text('[trusted_plugins]\ndevkit-odoo="0.0.0"\n')
+    policy.write_text('[trusted_plugins]\nmccann-hub-devkit-odoo="0.0.0"\n')
     completed = cli(project, "plugins", "list", "--details")
     assert completed.returncode == 0
     data = json.loads(completed.stdout)["result"]["data"]

@@ -1,7 +1,7 @@
 from dataclasses import replace
 from threading import Event
 
-from devkit.app import create_service
+from mccann_hub.devkit.app import create_service
 
 
 def test_non_module_entries_are_bounded_before_claiming_completeness(odoo_project):
