@@ -91,6 +91,8 @@ def _collect(
             if _file_full(stdout_file):
                 truncated = True
                 break
+    # A descendant can still write after the last check in the loop.
+    truncated |= _file_full(stdout_file)
     returncode = process.poll()
     return ProcessResult(
         returncode if returncode is not None else -1,

@@ -1,8 +1,10 @@
 import sys
+import tempfile
 import time
 from pathlib import Path
 from threading import Event, Timer
 
+from mccann_hub.devkit import processes
 from mccann_hub.devkit.contracts import Context
 from mccann_hub.devkit.processes import OUTPUT_LIMIT, run_process
 
@@ -67,3 +69,13 @@ def test_explicit_environment_replaces_inherited_environment(tmp_path, monkeypat
         environment={"BD_DISABLE_METRICS": "1"},
     )
     assert result.stdout.splitlines() == ["1", "None", "None"]
+
+
+def test_file_output_is_bounded(tmp_path, monkeypatch):
+    monkeypatch.setattr(processes, "FILE_OUTPUT_LIMIT", 1024)
+    with tempfile.TemporaryFile() as stdout:
+        result = run_process(
+            [sys.executable, "-c", 'print("x" * 4096)'], context(tmp_path), stdout_file=stdout
+        )
+    assert result.truncated
+    assert result.stdout == ""
