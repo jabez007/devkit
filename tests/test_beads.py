@@ -70,6 +70,8 @@ def test_any_beads_1_3_patch_release_is_supported(beads_project):
     [
         ({"version": "1.4.0", "context": {"bd_version": "1.4.0"}}, "UNSUPPORTED_BEADS_VERSION"),
         ({"version": "1.3", "context": {"bd_version": "1.3"}}, "UNSUPPORTED_BEADS_VERSION"),
+        # 1.3.0 lacks the list --include-ephemeral flag that item lookup passes.
+        ({"version": "1.3.0", "context": {"bd_version": "1.3.0"}}, "UNSUPPORTED_BEADS_VERSION"),
         ({"version": "1.3.7", "context": {"bd_version": "1.3.2"}}, "UNSUPPORTED_BEADS_WORKSPACE"),
     ],
 )

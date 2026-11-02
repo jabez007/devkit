@@ -10,8 +10,9 @@ from uuid import UUID
 from mccann_hub.devkit.contracts import Context, JSONObject, Status
 from mccann_hub.devkit.processes import ProcessResult, run_process
 
-# Patch releases keep the CLI JSON contract; 1.3.2 is the release the acceptance matrix runs.
-SUPPORTED_SERIES = re.compile(r"1\.3\.\d+\Z")
+# 1.3.1 added the list --include-ephemeral flag that item lookup passes. Later patch
+# releases keep the CLI JSON contract; 1.3.2 is the release the acceptance matrix runs.
+SUPPORTED_SERIES = re.compile(r"1\.3\.[1-9]\d*\Z")
 ISSUE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\Z")
 
 
@@ -114,7 +115,7 @@ class Beads:
         if result.reason:
             statuses: dict[str, Status] = {"MISSING_TOOL": "blocked", "CANCELLED": "cancelled"}
             status = statuses.get(result.reason, "error")
-            raise BeadsError(status, result.reason, "Beads did not run; install bd 1.3.x on PATH")
+            raise BeadsError(status, result.reason, "Beads did not run; install bd 1.3.1+ on PATH")
         if result.truncated:
             raise BeadsError("error", "OUTPUT_LIMIT", "Beads output exceeded the capture limit")
         if result.returncode:
@@ -159,7 +160,7 @@ class Beads:
         version = reported.get("version") if isinstance(reported, dict) else None
         if not isinstance(version, str) or not SUPPORTED_SERIES.match(version):
             raise BeadsError(
-                "blocked", "UNSUPPORTED_BEADS_VERSION", "This adapter requires Beads 1.3.x"
+                "blocked", "UNSUPPORTED_BEADS_VERSION", "This adapter requires Beads 1.3.1+"
             )
         self.version = version
         self.directory = main / ".beads"

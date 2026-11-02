@@ -9,10 +9,11 @@ Trusted developers and authorized agents can use the same commands.
 
 ## Supported environment
 
-The supported profile is Linux with Python 3.12+ and **Beads 1.3.x**, using an
+The supported profile is Linux with Python 3.12+ and **Beads 1.3.1 or later 1.3 releases**, using an
 initialized embedded Dolt workspace in a normal main Git checkout. Registered
 linked worktrees share that ledger and are supported for sequential operation.
-The adapter accepts any 1.3 patch release, and the workspace must report the
+Beads 1.3.0 lacks the `list --include-ephemeral` flag that item lookup uses, so the
+adapter refuses it. The workspace must report the
 same version as `bd version`. Acceptance tests run 1.3.2, at upstream revision
 [`9b65b9e198acbcc98e7fd3a87a5d55baa065a572`](https://github.com/gastownhall/beads/tree/9b65b9e198acbcc98e7fd3a87a5d55baa065a572).
 Other Beads minor versions, server modes, redirects, bare repositories, separate Git
