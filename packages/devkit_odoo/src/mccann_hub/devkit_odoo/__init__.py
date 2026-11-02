@@ -21,6 +21,14 @@ from mccann_hub.devkit_odoo.validation import checkpoint, inspect_module
 from mccann_hub.devkit_odoo.xml_inspection import LIMITS as XML_LIMITS
 from mccann_hub.devkit_odoo.xml_inspection import PARSER_VERSION, XMLInspection
 
+# Why a fresh install cannot find a reference, keyed by the resolver's reason.
+UNDEFINED_MESSAGES = {
+    "forward_definition": "is referenced before it is defined",
+    "demo_only_definition": "is defined only in demo data, which loads after data files",
+    "not_in_scanned_xml": "is not defined by this module",
+    "not_in_scanned_data": "is not defined by this module",
+}
+
 INPUT_SCHEMA: JSONObject = {
     "type": "object",
     "additionalProperties": False,
@@ -158,6 +166,7 @@ def _data(
             "dependency cycles among inspected manifests",
             "declared XML syntax",
             "literal XML/CSV reference ordering",
+            "model and field IDs generated from literal Python model names",
             "flat CSV structure and identifier declarations",
         ],
         "not_checked": [
@@ -296,12 +305,9 @@ def _summary(data: JSONObject, action: str) -> str:
     for finding in data["modules"]:
         issues = list(finding["errors"])
         issues.extend(
-            f"{file['path']}:{ref['line']}:{ref['column']}: XML ID {ref['value']} "
-            "is referenced before it is defined"
-            for kind in ("xml", "csv")
-            for file in finding[kind]["files"]
-            for ref in file["references"]
-            if ref["status"] == "undefined"
+            f"{path}:{ref['line']}:{ref['column']}: XML ID {ref['value']} "
+            + UNDEFINED_MESSAGES[ref["reason"]]
+            for path, ref in _undefined_references(finding)
         )
         issues.extend(
             f"{file['path']}:{file['line'] or '?'}:{file['column'] or '?'}: {file['message']}"
@@ -326,6 +332,31 @@ def _summary(data: JSONObject, action: str) -> str:
             lines.append(f"{finding['module']}: {'; '.join(issues)[:240]}")
     lines.extend([action, "Not checked: " + ", ".join(data["not_checked"])])
     return "\n".join(lines)[:4096]
+
+
+def _undefined_references(finding: JSONObject) -> list[tuple[str, JSONObject]]:
+    return [
+        (file["path"], ref)
+        for kind in ("xml", "csv")
+        for file in finding[kind]["files"]
+        for ref in file["references"]
+        if ref["status"] == "undefined"
+    ]
+
+
+def _undefined_outcome(data: JSONObject) -> CommandResult:
+    reasons = {ref["reason"] for m in data["modules"] for _, ref in _undefined_references(m)}
+    if reasons & {"forward_definition", "demo_only_definition"}:
+        action = (
+            "Move each definition into an earlier data file, or validate with "
+            'install_mode = "update" if the IDs come from an existing installation.'
+        )
+        return CommandResult("failed", _summary(data, action), data, "INVALID_LOAD_ORDER")
+    action = (
+        "Define each ID in a declared data file, prefix it with the module that owns it, "
+        'or validate with install_mode = "update" for an existing installation.'
+    )
+    return CommandResult("failed", _summary(data, action), data, "UNDEFINED_XML_ID")
 
 
 def _outcome(data: JSONObject, strict: bool) -> CommandResult:
@@ -353,16 +384,7 @@ def _outcome(data: JSONObject, strict: bool) -> CommandResult:
             f"INVALID_{invalid.upper()}",
         )
     if data["xml_reference_counts"]["undefined"] + data["csv_reference_counts"]["undefined"]:
-        return CommandResult(
-            "failed",
-            _summary(
-                data,
-                "Move each definition into an earlier data file, or validate with "
-                'install_mode = "update" if the IDs come from an existing installation.',
-            ),
-            data,
-            "INVALID_LOAD_ORDER",
-        )
+        return _undefined_outcome(data)
     if counts["missing"]:
         return CommandResult(
             "failed",

@@ -269,12 +269,11 @@
     },
     "xml_reference_counts": {
       "resolved": 0,
-      "unknown": 2,
-      "undefined": 1
+      "unknown": 1,
+      "undefined": 2
     },
     "reference_reasons": [
-      "external_module",
-      "demo_only_definition"
+      "external_module"
     ]
   },
   {
@@ -363,8 +362,8 @@
       "blocked": 0
     },
     "csv_reference_counts": {
-      "resolved": 0,
-      "unknown": 2,
+      "resolved": 1,
+      "unknown": 1,
       "undefined": 0
     },
     "xml_counts": {
@@ -379,7 +378,6 @@
     },
     "reference_reasons": [],
     "csv_reference_reasons": [
-      "not_in_scanned_data",
       "external_module"
     ]
   },
@@ -487,12 +485,10 @@
     },
     "xml_reference_counts": {
       "resolved": 0,
-      "unknown": 1,
-      "undefined": 0
+      "unknown": 0,
+      "undefined": 1
     },
-    "reference_reasons": [
-      "demo_only_definition"
-    ],
+    "reference_reasons": [],
     "csv_reference_reasons": []
   },
   {

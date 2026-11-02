@@ -102,7 +102,7 @@ def test_data_does_not_resolve_from_demo_but_demo_can_use_data(odoo_project):
         demo=["demo.xml"],
     )
     assert [(r["status"], r["reason"]) for r in references(xml)] == [
-        ("unknown", "demo_only_definition"),
+        ("undefined", "demo_only_definition"),
         ("resolved", "earlier_local_definition"),
     ]
 
@@ -297,7 +297,8 @@ def test_unseen_reference_stays_unknown_under_complete_module_inventory(odoo_pro
     base.mkdir()
     (base / "__manifest__.py").write_text("{'name': 'Base', 'depends': []}")
     result = create_service(project).execute(
-        "odoo.module.validate", {"inventory": {"complete": True}, "strict_dependencies": True}
+        "odoo.module.validate",
+        {"inventory": {"complete": True}, "strict_dependencies": True, "install_mode": "update"},
     )["result"]
     assert result["status"] == "success"
     assert result["data"]["xml_reference_counts"] == {"resolved": 0, "unknown": 1, "undefined": 0}

@@ -4,9 +4,17 @@ import re
 from collections.abc import Callable
 
 from mccann_hub.devkit.contracts import JSONObject
+from mccann_hub.devkit_odoo.models import ModelIndex
 
 CONTAINERS = {"odoo", "openerp", "data"}
 OPERATIONS = {"record", "menuitem", "template"}
+# Odoo 19 loader tags that call or delete records; neither can define an XML ID.
+NON_DEFINING = {"function", "delete"}
+# Odoo also generates these IDs from field selections and SQL constraints, which
+# this validator does not read, so their absence is never a confirmed defect.
+UNREAD_GENERATED = ("selection__", "constraint_")
+# Missing from the load sequence on a new database; "update" keeps them unknown.
+FRESH_UNDEFINED = {"forward_definition", "demo_only_definition"}
 LITERAL_ID = re.compile(r"[\w-]+(?:\.[\w-]+)?")
 
 
@@ -34,7 +42,8 @@ class LiteralReferences:
         self.stack.append(frame)
         if role == "ignored":
             if parent["role"] in {"container", "root"}:
-                self._emit("barrier", "unsupported_loader_operation", frame)
+                # The tag name decides later whether this operation could define an ID.
+                self._emit("barrier", "unsupported_loader_operation", frame, attribute=name)
             return
         self._attributes(role, attrs, frame)
 
@@ -99,9 +108,17 @@ def _identifier(module: str, event: JSONObject) -> str | None:
     return value if "." in value else f"{module}.{value}"
 
 
-def analyze_references(module: str, sections: dict[str, JSONObject], *, fresh: bool) -> None:
-    """Resolve literal references; a fresh install makes forward-only references undefined."""
+def analyze_references(
+    module: str,
+    sections: dict[str, JSONObject],
+    *,
+    fresh: bool,
+    models: ModelIndex,
+    hooks_define_ids: bool,
+) -> None:
+    """Resolve literal references; a fresh install marks confirmed absences undefined."""
     inspected = [file for section in sections.values() for file in section["files"]]
+    absence_certain = not hooks_define_ids and _all_definitions_visible(inspected, sections)
     files = sorted(
         inspected + sections["xml"]["skipped_files"], key=lambda item: item["load_index"]
     )
@@ -118,7 +135,8 @@ def analyze_references(module: str, sections: dict[str, JSONObject], *, fresh: b
         if file.get("status") != "valid":
             known.clear()
         counts = sections[file.get("format", "xml")]["reference_counts"]
-        _analyze_file(module, file, definitions, known, counts, fresh)
+        fresh_rules = {"models": models, "absence_certain": absence_certain} if fresh else None
+        _analyze_file(module, file, definitions, known, counts, fresh_rules)
     for section in sections.values():
         section["reference_basis"] = "earlier_same_module_literal_definition"
 
@@ -129,7 +147,7 @@ def _analyze_file(
     definitions: dict[str, list[JSONObject]],
     known: dict[str, JSONObject],
     counts: dict[str, int],
-    fresh: bool,
+    fresh_rules: JSONObject | None,
 ) -> None:
     file.update(definitions=[], references=[], unexamined=[])
     for index, event in enumerate(file.pop("events", [])):
@@ -153,9 +171,9 @@ def _analyze_file(
                 known,
                 (file["load_index"], index),
                 file.get("format", "xml"),
+                fresh_rules["models"] if fresh_rules else None,
             )
-            if fresh and reference["reason"] == "forward_definition":
-                # A new database has no earlier install that could supply this ID.
+            if fresh_rules and _undefined_on_new_database(module, reference, fresh_rules):
                 reference["status"] = "undefined"
             reference.update(location, value=event["value"], attribute=event["attribute"])
             file["references"].append(reference)
@@ -170,6 +188,7 @@ def _resolve(
     known: dict[str, JSONObject],
     position: tuple[int, int],
     source_format: str,
+    models: ModelIndex | None,
 ) -> JSONObject:
     result: JSONObject = {"xml_id": name, "status": "unknown", "target": None}
     if name is None:
@@ -193,7 +212,35 @@ def _resolve(
             reason = "forward_definition"
         else:
             reason = "unverified_effects"
+    elif models and (target := models.target(name.removeprefix(module + "."))):
+        reason = "orm_generated"
+        result.update(status="resolved", target=target)
     else:
         reason = "not_in_scanned_xml" if source_format == "xml" else "not_in_scanned_data"
     result["reason"] = reason
     return result
+
+
+def _all_definitions_visible(inspected: list[JSONObject], sections: dict[str, JSONObject]) -> bool:
+    """False when a skipped, unparsed or blocked file or an unknown loader tag might define IDs."""
+    if sections["xml"]["skipped_files"] or any(f["status"] != "valid" for f in inspected):
+        return False
+    return not any(
+        event["kind"] == "barrier"
+        and event["value"] == "unsupported_loader_operation"
+        and event["attribute"] not in NON_DEFINING
+        for file in inspected
+        for event in file.get("events", [])
+    )
+
+
+def _undefined_on_new_database(module: str, reference: JSONObject, rules: JSONObject) -> bool:
+    reason = reference["reason"]
+    if reason in FRESH_UNDEFINED:
+        return True
+    if reason not in {"not_in_scanned_xml", "not_in_scanned_data"} or not rules["absence_certain"]:
+        return False
+    local = reference["xml_id"].removeprefix(module + ".")
+    if local.startswith(UNREAD_GENERATED):
+        return False
+    return rules["models"].complete or not local.startswith(("model_", "field_"))

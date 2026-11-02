@@ -438,14 +438,43 @@ synthetic fixtures establish the cycle-failure behavior.
 ## Fresh-install load order
 
 Odoo resolves each `ref` when it loads the referencing record. On a new database,
-a reference to a same-module ID that only a later file or row defines fails the
+a reference to a same-module ID that has not been defined yet fails the
 installation. `install_mode` in `[options.odoo]` selects how validation treats
-those forward references:
+those references:
 
-| `install_mode` | Forward reference | Use it for |
+| `install_mode` | Same-module ID not yet defined | Use it for |
 | --- | --- | --- |
-| `fresh` (default) | Status `undefined`; the run fails with `INVALID_LOAD_ORDER`. | CI and any check that installs the module into a new database. |
-| `update` | Status `unknown` with reason `forward_definition`; the run can succeed. | Upgrades, where an earlier installation may already hold the ID. |
+| `fresh` (default) | Status `undefined`; the run fails. | CI and any check that installs the module into a new database. |
+| `update` | Status `unknown`; the run can succeed. | Upgrades, where an earlier installation may already hold the ID. |
+
+In fresh mode these references are `undefined`:
+
+| Reason | Run result | Example |
+| --- | --- | --- |
+| `forward_definition` | `INVALID_LOAD_ORDER` | A menu file listed before the file that defines its action. |
+| `demo_only_definition` | `INVALID_LOAD_ORDER` | A data file that references a demo record; demo files load after all data files. |
+| `not_in_scanned_xml`, `not_in_scanned_data` | `UNDEFINED_XML_ID` | A typo such as `action="acme_book_action_typo"`, or an ID that belongs to another module but has no module prefix. |
+
+When both kinds occur, the run reports `INVALID_LOAD_ORDER`.
+
+### Generated model and field IDs
+
+Odoo creates `model_<model>` and `field_<model>__<field>` IDs when it registers
+the models a module defines or extends, before any data file loads. The validator
+reads `_name` and `_inherit` from every `.py` file in the addon with Python's `ast`
+module. It never imports or executes them. A matching reference, such as
+`model_acme_book` in `ir.model.access.csv`, resolves with reason `orm_generated`,
+and its target is the class location. Field IDs resolve when the module defines
+or extends the model; field names are not checked.
+
+An absent ID stays `unknown` instead of `undefined` when the validator cannot rule
+out another source:
+
+- A declared data file was skipped, blocked or invalid.
+- A loader tag other than `record`, `menuitem`, `template`, `function` or `delete` appears.
+- The manifest declares a `pre_init_hook`, which runs before data files load.
+- The ID starts with `selection__` or `constraint_`, which Odoo generates from fields and SQL constraints the validator does not read.
+- For `model_` and `field_` IDs only, a Python file did not parse, a model name is not a literal, or the addon exceeds 1,000 Python files, 1 MiB per file or 16 MiB in total.
 
 A reference counts as forward only when every eligible definition comes after it.
 If an earlier definition exists but a dynamic operation such as `<function>` or
@@ -459,8 +488,11 @@ target_version = "19.0"
 install_mode = "update"
 ```
 
-Specialization data schema 1.5 adds top-level `install_mode` and an `undefined`
-key to `xml_reference_counts`, `csv_reference_counts` and each module's
-`reference_counts`. Consumers that match exact count dictionaries must accept the
-new key. Checks that relied on forward references succeeding need
-`install_mode = "update"`.
+Specialization data schema 1.5 adds:
+
+- top-level `install_mode`;
+- the reference status `undefined` and the reason `orm_generated`;
+- an `undefined` key in `xml_reference_counts`, `csv_reference_counts` and each module's `reference_counts`.
+
+Consumers that match exact count dictionaries must accept the new key. Checks
+that relied on these references succeeding need `install_mode = "update"`.

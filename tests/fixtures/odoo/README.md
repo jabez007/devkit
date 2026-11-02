@@ -30,13 +30,13 @@ persisted evidence and `runs show`. All fixture invocations remain offline.
 | malformed_dependencies | Paths, dotted names and nonstrings are invalid declarations. |
 | optional | Auto-install bridge plus unresolved module, Python and binary dependencies. |
 | xml_valid | Ordered records, repeated IDs, template inheritance and demo references. |
-| xml_ordering | Forward, external and demo-only references remain unknown. |
+| xml_ordering | Forward and demo-only references fail a fresh install and stay unknown in update mode; external references stay unknown. |
 | xml_malformed | Syntax failure with a file and source location. |
 | xml_dtd | DTD inspection blocks without fetching the external resource. |
 | xml_dynamic | CSV supplies an updated ID; Python expressions remain unexamined and are never executed. |
-| csv_access | Typical access-control IDs and references, followed by an XML lookup. |
+| csv_access | Typical access-control IDs and references, a `model_` ID resolved from a never-imported model file, and an XML lookup. |
 | csv_mixed | XML-to-CSV and CSV-to-XML references, plus a foreign-ID update. |
-| csv_ordering | Forward CSV references and data/demo separation. |
+| csv_ordering | Forward CSV references and data/demo separation, in fresh and update modes. |
 | csv_empty | Empty-file failure matching the loader's header requirement. |
 | csv_unsupported | Nested import layout blocks without partial declarations. |
 | csv_quotes | Commas, multiline values, repeated/empty IDs and inert code-like text. |

@@ -192,11 +192,13 @@ Success does not establish runtime, database, XML, asset, or external dependency
 compatibility. Declared data/demo XML is parsed automatically. Malformed XML
 fails with a file and location; unsupported features and inspection limits block
 coverage. Literal XML references report earlier local definitions or explain why
-resolution is unknown. Repeated IDs remain valid update candidates. A reference
-to a same-module ID that is only defined later fails with `INVALID_LOAD_ORDER`,
-because a fresh install cannot load it; set `install_mode = "update"` to treat it
-as unknown. Other unknown references are advisory, and `strict_dependencies`
-still concerns module names.
+resolution is unknown. Repeated IDs remain valid update candidates. Model and
+field IDs such as `model_acme_book` resolve from literal `_name` and `_inherit`
+declarations, read from Python sources without importing them. A same-module ID
+that a fresh install cannot find fails: `INVALID_LOAD_ORDER` when it is defined
+later or only in demo data, `UNDEFINED_XML_ID` when nothing defines it. Set
+`install_mode = "update"` to treat both as unknown. Other unknown references are
+advisory, and `strict_dependencies` still concerns module names.
 Declared CSV is also inspected for flat structure, UTF-8, IDs and direct relational
 references. XML can use earlier CSV declarations and CSV can use earlier XML or
 CSV declarations. Unsupported layouts block coverage; empty files and invalid

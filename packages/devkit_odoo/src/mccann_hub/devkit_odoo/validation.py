@@ -10,6 +10,7 @@ from mccann_hub.devkit.schemas import validate
 from mccann_hub.devkit_odoo.csv_inspection import CSVInspection
 from mccann_hub.devkit_odoo.data_references import analyze_references
 from mccann_hub.devkit_odoo.dependencies import external_dependencies, module_dependencies
+from mccann_hub.devkit_odoo.models import scan_models
 from mccann_hub.devkit_odoo.xml_inspection import XMLInspection
 
 STRINGS: JSONObject = {"type": "array", "items": {"type": "string", "minLength": 1}}
@@ -140,7 +141,12 @@ def inspect_module(
     _check_triggers(manifest, result)
     _check_files(module, manifest, context, result, inspectors)
     analyze_references(
-        name, {kind: result[kind] for kind in inspectors}, fresh=install_mode == "fresh"
+        name,
+        {kind: result[kind] for kind in inspectors},
+        fresh=install_mode == "fresh",
+        models=scan_models(module, lambda: checkpoint(context)),
+        # A pre-init hook runs before data files load and can create XML IDs.
+        hooks_define_ids="pre_init_hook" in manifest,
     )
     return result
 
