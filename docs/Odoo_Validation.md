@@ -232,7 +232,8 @@ certainty about earlier definitions. Later lookups may report `unverified_effect
 Module-inventory completeness does not imply XML-ID completeness. CSV data,
 model metadata, hooks and installed records can supply IDs. Unknown XML references
 therefore do not fail validation, and `strict_dependencies` continues to govern
-module dependencies only. Inspect `unexamined` and `skipped_files` alongside the
+module dependencies only. The exception is a forward reference during a fresh
+install; see [Fresh-install load order](#fresh-install-load-order). Inspect `unexamined` and `skipped_files` alongside the
 reference counts. `xml.complete` describes file inspection, not complete runtime
 reference verification. Reference collection is limited to 4,000 events per
 invocation; exceeding the limit blocks inspection and discards partial events
@@ -296,8 +297,8 @@ model existence and field types are not verified.
 
 Earlier same-module CSV declarations can resolve later XML references. CSV
 references can use earlier XML declarations or CSV rows. Definitions become
-available after the row's references. Foreign IDs, forward references and
-ambiguous values remain unknown. A quoted comma-separated reference value is not
+available after the row's references. Foreign IDs and ambiguous values remain
+unknown. Forward references fail in the default fresh install mode. A quoted comma-separated reference value is not
 split without relational field metadata. Successful source inspection does not
 establish database record existence, permissions or successful import.
 
@@ -433,3 +434,33 @@ strict validation still blocked with `INCOMPLETE_INVENTORY`. XML and CSV finding
 were unchanged from v0.4. CLI results matched persisted evidence and `runs show`,
 and both checkouts remained clean. These snapshots validate coverage reporting;
 synthetic fixtures establish the cycle-failure behavior.
+
+## Fresh-install load order
+
+Odoo resolves each `ref` when it loads the referencing record. On a new database,
+a reference to a same-module ID that only a later file or row defines fails the
+installation. `install_mode` in `[options.odoo]` selects how validation treats
+those forward references:
+
+| `install_mode` | Forward reference | Use it for |
+| --- | --- | --- |
+| `fresh` (default) | Status `undefined`; the run fails with `INVALID_LOAD_ORDER`. | CI and any check that installs the module into a new database. |
+| `update` | Status `unknown` with reason `forward_definition`; the run can succeed. | Upgrades, where an earlier installation may already hold the ID. |
+
+A reference counts as forward only when every eligible definition comes after it.
+If an earlier definition exists but a dynamic operation such as `<function>` or
+`<delete>` interrupted static certainty, the reference stays `unknown` with reason
+`unverified_effects` in both modes. A record that references its own ID without
+an earlier definition is also a forward reference.
+
+```toml
+[options.odoo]
+target_version = "19.0"
+install_mode = "update"
+```
+
+Specialization data schema 1.5 adds top-level `install_mode` and an `undefined`
+key to `xml_reference_counts`, `csv_reference_counts` and each module's
+`reference_counts`. Consumers that match exact count dictionaries must accept the
+new key. Checks that relied on forward references succeeding need
+`install_mode = "update"`.

@@ -35,6 +35,7 @@ INPUT_SCHEMA: JSONObject = {
         "module": {"type": "string", "pattern": r"^\w{1,256}$"},
         "target_version": {"const": "19.0"},
         "strict_dependencies": {"type": "boolean"},
+        "install_mode": {"enum": ["fresh", "update"]},
         "inventory": {
             "type": "object",
             "additionalProperties": False,
@@ -77,13 +78,15 @@ OUTPUT_SCHEMA: JSONObject = {
         "dependency_graph",
         "not_checked",
         "inspection_complete",
+        "install_mode",
         "xml_counts",
         "xml_reference_counts",
         "csv_counts",
         "csv_reference_counts",
     ],
     "properties": {
-        "validation_schema_version": {"const": "1.4"},
+        "validation_schema_version": {"const": "1.5"},
+        "install_mode": {"enum": ["fresh", "update"]},
         "inventory": {
             "type": "object",
             "required": ["complete", "complete_prefixes", "scan_complete", "paths", "module_count"],
@@ -136,9 +139,12 @@ OUTPUT_SCHEMA: JSONObject = {
 }
 
 
-def _data(inventory: Inventory, policy: JSONObject, *, scanned: bool = True) -> JSONObject:
+def _data(
+    inventory: Inventory, policy: JSONObject, install_mode: str, *, scanned: bool = True
+) -> JSONObject:
     return {
-        "validation_schema_version": "1.4",
+        "validation_schema_version": "1.5",
+        "install_mode": install_mode,
         "target_profile": "19.0",
         "validator_version": version("mccann-hub-devkit-odoo"),
         "modules": [],
@@ -167,11 +173,11 @@ def _data(inventory: Inventory, policy: JSONObject, *, scanned: bool = True) -> 
         ],
         "csv_counts": dict.fromkeys(("valid", "invalid", "blocked"), 0),
         "csv_limits": CSV_LIMITS,
-        "csv_reference_counts": {"resolved": 0, "unknown": 0},
+        "csv_reference_counts": {"resolved": 0, "unknown": 0, "undefined": 0},
         "xml_counts": dict.fromkeys(("valid", "invalid", "blocked"), 0),
         "xml_limits": XML_LIMITS,
         "xml_parser": {"name": "expat", "version": PARSER_VERSION},
-        "xml_reference_counts": {"resolved": 0, "unknown": 0},
+        "xml_reference_counts": {"resolved": 0, "unknown": 0, "undefined": 0},
         "dependency_graph": {"status": "not_checked", "scope": "inspected_manifests", "cycle": []},
         "dependency_counts": dict.fromkeys(("resolved", "missing", "unknown", "invalid"), 0),
     }
@@ -189,14 +195,16 @@ def check(context: Context, arguments: JSONObject) -> CommandResult:
             reason="INVALID_CONFIG",
         )
     policy = {"complete": False, "complete_prefixes": [], **options.get("inventory", {})}
+    # Fresh installs are the default: CI builds a new database, where load order is binding.
+    install_mode = options.get("install_mode", "fresh")
     inventory = Inventory()
     try:
         scan(context, options.get("addons_paths", ["addons"]), inventory)
     except DevkitError as exc:
-        return _scan_failure(exc, _data(inventory, policy, scanned=False))
+        return _scan_failure(exc, _data(inventory, policy, install_mode, scanned=False))
     selected = options.get("module")
     names = [selected] if selected else sorted(inventory.modules)
-    data = _data(inventory, policy)
+    data = _data(inventory, policy, install_mode)
     if not names or any(name not in inventory.modules for name in names):
         return CommandResult(
             "blocked", "No matching addons; check module and addons_paths", data, "MISSING_ADDONS"
@@ -238,6 +246,7 @@ def _inspect(
             context,
             data["inventory"],
             inspectors,
+            install_mode=data["install_mode"],
         )
         size += len(json.dumps(finding))
         if size > 600000:
@@ -287,6 +296,14 @@ def _summary(data: JSONObject, action: str) -> str:
     for finding in data["modules"]:
         issues = list(finding["errors"])
         issues.extend(
+            f"{file['path']}:{ref['line']}:{ref['column']}: XML ID {ref['value']} "
+            "is referenced before it is defined"
+            for kind in ("xml", "csv")
+            for file in finding[kind]["files"]
+            for ref in file["references"]
+            if ref["status"] == "undefined"
+        )
+        issues.extend(
             f"{file['path']}:{file['line'] or '?'}:{file['column'] or '?'}: {file['message']}"
             for kind in ("xml", "csv")
             for file in finding[kind]["files"]
@@ -334,6 +351,17 @@ def _outcome(data: JSONObject, strict: bool) -> CommandResult:
             _summary(data, f"Correct invalid {invalid.upper()} at the reported location."),
             data,
             f"INVALID_{invalid.upper()}",
+        )
+    if data["xml_reference_counts"]["undefined"] + data["csv_reference_counts"]["undefined"]:
+        return CommandResult(
+            "failed",
+            _summary(
+                data,
+                "Move each definition into an earlier data file, or validate with "
+                'install_mode = "update" if the IDs come from an existing installation.',
+            ),
+            data,
+            "INVALID_LOAD_ORDER",
         )
     if counts["missing"]:
         return CommandResult(

@@ -99,7 +99,8 @@ def _identifier(module: str, event: JSONObject) -> str | None:
     return value if "." in value else f"{module}.{value}"
 
 
-def analyze_references(module: str, sections: dict[str, JSONObject]) -> None:
+def analyze_references(module: str, sections: dict[str, JSONObject], *, fresh: bool) -> None:
+    """Resolve literal references; a fresh install makes forward-only references undefined."""
     inspected = [file for section in sections.values() for file in section["files"]]
     files = sorted(
         inspected + sections["xml"]["skipped_files"], key=lambda item: item["load_index"]
@@ -117,7 +118,7 @@ def analyze_references(module: str, sections: dict[str, JSONObject]) -> None:
         if file.get("status") != "valid":
             known.clear()
         counts = sections[file.get("format", "xml")]["reference_counts"]
-        _analyze_file(module, file, definitions, known, counts)
+        _analyze_file(module, file, definitions, known, counts, fresh)
     for section in sections.values():
         section["reference_basis"] = "earlier_same_module_literal_definition"
 
@@ -128,6 +129,7 @@ def _analyze_file(
     definitions: dict[str, list[JSONObject]],
     known: dict[str, JSONObject],
     counts: dict[str, int],
+    fresh: bool,
 ) -> None:
     file.update(definitions=[], references=[], unexamined=[])
     for index, event in enumerate(file.pop("events", [])):
@@ -152,6 +154,9 @@ def _analyze_file(
                 (file["load_index"], index),
                 file.get("format", "xml"),
             )
+            if fresh and reference["reason"] == "forward_definition":
+                # A new database has no earlier install that could supply this ID.
+                reference["status"] = "undefined"
             reference.update(location, value=event["value"], attribute=event["attribute"])
             file["references"].append(reference)
             counts[reference["status"]] += 1
@@ -184,7 +189,7 @@ def _resolve(
         eligible = [d for d in definitions[name] if phase == "demo" or d["phase"] == "data"]
         if not eligible:
             reason = "demo_only_definition"
-        elif any(d["position"] > position for d in eligible):
+        elif all(d["position"] > position for d in eligible):
             reason = "forward_definition"
         else:
             reason = "unverified_effects"

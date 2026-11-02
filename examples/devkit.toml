@@ -6,6 +6,9 @@ timeout = 90
 target_version = "19.0"
 addons_paths = ["addons"]
 strict_dependencies = false
+# "fresh" fails references to IDs that a later data file defines; use "update"
+# when validating an upgrade of an already installed module.
+install_mode = "fresh"
 # Declared XML/CSV files and dependency cycles among inspected manifests are checked.
 
 # A successful scan does not imply a complete inventory. Unknown dependencies

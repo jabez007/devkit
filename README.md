@@ -192,8 +192,11 @@ Success does not establish runtime, database, XML, asset, or external dependency
 compatibility. Declared data/demo XML is parsed automatically. Malformed XML
 fails with a file and location; unsupported features and inspection limits block
 coverage. Literal XML references report earlier local definitions or explain why
-resolution is unknown. Repeated IDs remain valid update candidates. Unknown XML
-references are advisory, and `strict_dependencies` still concerns module names.
+resolution is unknown. Repeated IDs remain valid update candidates. A reference
+to a same-module ID that is only defined later fails with `INVALID_LOAD_ORDER`,
+because a fresh install cannot load it; set `install_mode = "update"` to treat it
+as unknown. Other unknown references are advisory, and `strict_dependencies`
+still concerns module names.
 Declared CSV is also inspected for flat structure, UTF-8, IDs and direct relational
 references. XML can use earlier CSV declarations and CSV can use earlier XML or
 CSV declarations. Unsupported layouts block coverage; empty files and invalid
@@ -375,7 +378,7 @@ plugin environment checks installed foundation annotations with strict mypy.
 The Beads matrix needs the explicitly selected 1.3.2 test binary; see the
 [download/checksum and compatibility instructions](docs/Beads_Integration.md#reproduce-acceptance).
 Runtime users install only the optional tools they need. The Odoo-only
-environment also runs all 33 representative CLI fixture cases and evidence
+environment also runs all 35 representative CLI fixture cases and evidence
 retrieval. Stdio/process tests require a host runtime that
 supports child process communication; they do not complete in this agent's
 restricted execution sandbox.

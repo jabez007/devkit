@@ -83,6 +83,8 @@ def inspect_module(
     context: Context,
     policy: JSONObject,
     inspectors: dict[str, XMLInspection | CSVInspection],
+    *,
+    install_mode: str,
 ) -> JSONObject:
     result: JSONObject = {
         "module": name,
@@ -97,7 +99,7 @@ def inspect_module(
             kind: {
                 "files": [],
                 "complete": False,
-                "reference_counts": {"resolved": 0, "unknown": 0},
+                "reference_counts": {"resolved": 0, "unknown": 0, "undefined": 0},
             }
             for kind in inspectors
         },
@@ -137,7 +139,9 @@ def inspect_module(
     )
     _check_triggers(manifest, result)
     _check_files(module, manifest, context, result, inspectors)
-    analyze_references(name, {kind: result[kind] for kind in inspectors})
+    analyze_references(
+        name, {kind: result[kind] for kind in inspectors}, fresh=install_mode == "fresh"
+    )
     return result
 
 
