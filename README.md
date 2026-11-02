@@ -262,6 +262,8 @@ wheels, creates an external operator policy, preserves nonzero check results and
 retrieves parent/child evidence. The acceptance matrix tests seven recipe scenarios,
 including failed checks, blocked coverage, policy diagnostics and evidence-command
 failures. No Odoo server or new adapter is required.
+For Odoo alone, the `devkit-odoo` command needs no policy and fits a
+[pre-commit hook](docs/Odoo_Validation.md#run-as-a-pre-commit-hook-or-ci-step).
 
 ## Inspect and retain evidence
 

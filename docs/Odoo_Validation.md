@@ -28,6 +28,44 @@ checks while reporting those dependencies as **unknown**. Success does not claim
 that the addon is installable. Use `--json` before the subcommand for structured
 relationships, scanned paths, examined modules, diagnostics and unchecked areas.
 
+## Run as a pre-commit hook or CI step
+
+The `devkit-odoo` command, installed with the Odoo package, runs the same
+validator without plugin selection or operator policy. Those gates exist for
+commands with wider effects; this one only reads files. It reads
+`[options.odoo]` from `devkit.toml` when the file exists, and flags override it:
+
+```sh
+devkit-odoo --project . --addons-path addons
+devkit-odoo --module acme_sale --install-mode update --json
+```
+
+Exit codes match `devkit`: 0 success, 1 failed, 2 blocked, 3 error. No
+evidence record is written; use `devkit run odoo.module.validate` when you need
+one.
+
+To run it before each commit, add a local hook to `.pre-commit-config.yaml`.
+The packages are not on a package registry, so pre-commit installs both from
+Git. Replace `main` with a commit SHA to pin the version:
+
+```yaml
+repos:
+  - repo: local
+    hooks:
+      - id: devkit-odoo
+        name: Odoo addon validation
+        entry: devkit-odoo
+        language: python
+        additional_dependencies:
+          - "mccann-hub-devkit @ git+https://github.com/jabez007/devkit@main#subdirectory=packages/devkit"
+          - "mccann-hub-devkit-odoo @ git+https://github.com/jabez007/devkit@main#subdirectory=packages/devkit_odoo"
+        files: \.(py|xml|csv)$
+        pass_filenames: false
+```
+
+The hook validates every addon under the configured paths, not just the
+changed files, because a reference in one file depends on the others.
+
 ## Inventory and strict checks
 
 | Dependency status | Meaning |

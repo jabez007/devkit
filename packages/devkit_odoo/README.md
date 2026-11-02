@@ -13,6 +13,10 @@ authorizing them in the external operator policy, use:
 devkit --project /path/to/project run odoo.module.validate
 ```
 
+For pre-commit hooks and CI, `devkit-odoo --project /path/to/project` runs the
+same validator without plugin selection or operator policy. See
+[running it as a hook](https://github.com/jabez007/devkit/blob/main/docs/Odoo_Validation.md#run-as-a-pre-commit-hook-or-ci-step).
+
 See the [onboarding guide](https://github.com/jabez007/devkit/blob/main/docs/Getting_Started.md)
 for developer and operator setup, and the
 [plugin contract](https://github.com/jabez007/devkit/blob/main/docs/Plugin_Contract.md)
