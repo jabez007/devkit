@@ -175,9 +175,24 @@ devkit --project /absolute/path/to/go-project --timeout 120 --json run go.test
 ```
 
 Go runs `go test -json -count=1 ./...` with the locally installed toolchain,
-filtered environment, bounded output, and a shared deadline. Passing, failing,
-and skipped tests are counted separately. No executed tests produces `blocked`,
-including projects whose tests all skip. No toolchain is downloaded automatically.
+the caller's environment, and a shared deadline. Test events stream to a
+temporary file capped at 64 MiB, so large suites are not cut off. Passing,
+failing, and skipped tests are counted separately. A failure names each failing
+test in the summary, and `data.failures` keeps the last 4 KiB of its output, for
+up to 50 failures. No executed tests produces `blocked`, including projects whose
+tests all skip. `GOTOOLCHAIN` defaults to `local`, so no toolchain is downloaded
+unless you set it.
+
+Select what runs with `--args` or `[options.go]` in `devkit.toml`. Arguments
+override the file:
+
+```toml
+[options.go]
+packages = ["./internal/..."]  # default ["./..."]
+run = "^TestCheckout"          # passed as -run
+tags = ["integration"]         # passed as -tags
+race = true                    # passed as -race
+```
 
 Odoo validation parses bounded literal manifests without executing them. It
 checks selected field types, the version format, module names, duplicate addons,

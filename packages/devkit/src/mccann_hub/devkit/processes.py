@@ -7,10 +7,13 @@ import subprocess
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import BinaryIO
 
 from mccann_hub.devkit.contracts import Context
 
 OUTPUT_LIMIT = 262_144
+# Bounds disk use when stdout goes to a caller's file instead of memory.
+FILE_OUTPUT_LIMIT = 67_108_864
 ENVIRONMENT = {
     "PATH",
     "HOME",
@@ -62,13 +65,20 @@ def _read_output(selector: selectors.BaseSelector, buffers: dict[str, bytearray]
     return truncated
 
 
-def _collect(process: subprocess.Popen[bytes], context: Context) -> ProcessResult:
+def _file_full(stdout_file: BinaryIO | None) -> bool:
+    return stdout_file is not None and os.fstat(stdout_file.fileno()).st_size > FILE_OUTPUT_LIMIT
+
+
+def _collect(
+    process: subprocess.Popen[bytes], context: Context, stdout_file: BinaryIO | None
+) -> ProcessResult:
     buffers = {"stdout": bytearray(), "stderr": bytearray()}
     reason = None
     truncated = False
     with selectors.DefaultSelector() as selector:
-        assert process.stdout is not None and process.stderr is not None
-        selector.register(process.stdout, selectors.EVENT_READ, "stdout")
+        assert process.stderr is not None
+        if process.stdout is not None:
+            selector.register(process.stdout, selectors.EVENT_READ, "stdout")
         selector.register(process.stderr, selectors.EVENT_READ, "stderr")
         while selector.get_map() or process.poll() is None:
             if context.cancellation.is_set():
@@ -78,6 +88,9 @@ def _collect(process: subprocess.Popen[bytes], context: Context) -> ProcessResul
                 reason = "TIMEOUT"
                 break
             truncated |= _read_output(selector, buffers)
+            if _file_full(stdout_file):
+                truncated = True
+                break
     returncode = process.poll()
     return ProcessResult(
         returncode if returncode is not None else -1,
@@ -89,9 +102,17 @@ def _collect(process: subprocess.Popen[bytes], context: Context) -> ProcessResul
 
 
 def run_process(
-    argv: list[str], context: Context, *, environment: Mapping[str, str] | None = None
+    argv: list[str],
+    context: Context,
+    *,
+    environment: Mapping[str, str] | None = None,
+    stdout_file: BinaryIO | None = None,
 ) -> ProcessResult:
-    """Run with bounded capture and cancellation; an explicit environment replaces defaults."""
+    """Run with bounded capture and cancellation; an explicit environment replaces defaults.
+
+    With ``stdout_file``, stdout is written there instead of captured in memory, up to
+    FILE_OUTPUT_LIMIT bytes, and the result's stdout is empty.
+    """
     if environment is None:
         environment = {key: value for key, value in os.environ.items() if key in ENVIRONMENT}
         environment.update(GOENV="off", GOTOOLCHAIN="local")
@@ -101,7 +122,7 @@ def run_process(
             cwd=context.project_root,
             env=environment,
             stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
+            stdout=stdout_file or subprocess.PIPE,
             stderr=subprocess.PIPE,
             start_new_session=True,
         )
@@ -110,7 +131,7 @@ def run_process(
     except OSError:
         return ProcessResult(-1, "", "Cannot start executable", "PROCESS_ERROR")
     try:
-        return _collect(process, context)
+        return _collect(process, context, stdout_file)
     except KeyboardInterrupt:
         context.cancellation.set()
         return ProcessResult(-1, "", "", "CANCELLED")
