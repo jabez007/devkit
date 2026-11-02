@@ -163,3 +163,12 @@ def test_unknown_loader_tags_keep_absent_ids_unknown(odoo_project):
     )
     assert result["status"] == "success"
     assert by_value(result, "maybe_defined")["status"] == "unknown"
+
+
+def test_update_mode_also_resolves_generated_ids(odoo_project):
+    result = validate(
+        odoo_project,
+        {"models/book.py": BOOK, "security/ir.model.access.csv": ACCESS},
+        arguments={"install_mode": "update"},
+    )
+    assert by_value(result, "model_acme_book")["reason"] == "orm_generated"

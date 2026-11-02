@@ -496,3 +496,32 @@ Specialization data schema 1.5 adds:
 
 Consumers that match exact count dictionaries must accept the new key. Checks
 that relied on these references succeeding need `install_mode = "update"`.
+
+### Fresh-install public repository evaluation
+
+On November 2, 2026, the validator rechecked the pinned
+[OCA/server-tools](https://github.com/OCA/server-tools/tree/389daeb98a8e21fe11594bdddef873bb07d0cb61)
+and [OCA/sale-workflow](https://github.com/OCA/sale-workflow/tree/b2cb74591c66882b91264106abc5229e200f5bff)
+snapshots, 133 addons in total, without modifying them or executing addon code.
+
+| Snapshot | Fresh result | Undefined | Generated IDs resolved | Unknown local references |
+| --- | --- | --- | --- | --- |
+| server-tools | success | 0 | 80 | 30, all `unverified_effects` |
+| sale-workflow | success | 0 | 62 | 42: 34 `unverified_effects`, 8 `conditional_definition` |
+
+Fresh mode reported no false failures. OCA tests installation in CI, so no real
+defects were expected either. To measure detection, a script then planted one
+defect at a time in copies of the addons:
+
+| Planted defect | Planted | Caught | Result |
+| --- | --- | --- | --- |
+| Reference file moved before its defining file in the manifest | 17 | 17 | `INVALID_LOAD_ORDER` |
+| `_typo` appended to a resolved same-module reference | 178 | 168 | `UNDEFINED_XML_ID` |
+
+All 10 missed typos are in `sale_elaboration` and `sale_manual_delivery`. Both
+declare a `pre_init_hook`, so absent IDs stay unknown. Their hooks only add
+database columns. Seven of the 133 addons declare a pre-init hook.
+
+The same two defects, planted in a small sample addon, produced no reference
+finding from `oca-checks-odoo-module` in oca-odoo-pre-commit-hooks 0.2.27. Its
+checks cover syntax, duplicate IDs and style, not reference resolution.

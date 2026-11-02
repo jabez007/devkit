@@ -135,8 +135,8 @@ def analyze_references(
         if file.get("status") != "valid":
             known.clear()
         counts = sections[file.get("format", "xml")]["reference_counts"]
-        fresh_rules = {"models": models, "absence_certain": absence_certain} if fresh else None
-        _analyze_file(module, file, definitions, known, counts, fresh_rules)
+        rules = {"models": models, "absence_certain": absence_certain, "fresh": fresh}
+        _analyze_file(module, file, definitions, known, counts, rules)
     for section in sections.values():
         section["reference_basis"] = "earlier_same_module_literal_definition"
 
@@ -147,7 +147,7 @@ def _analyze_file(
     definitions: dict[str, list[JSONObject]],
     known: dict[str, JSONObject],
     counts: dict[str, int],
-    fresh_rules: JSONObject | None,
+    rules: JSONObject,
 ) -> None:
     file.update(definitions=[], references=[], unexamined=[])
     for index, event in enumerate(file.pop("events", [])):
@@ -171,9 +171,9 @@ def _analyze_file(
                 known,
                 (file["load_index"], index),
                 file.get("format", "xml"),
-                fresh_rules["models"] if fresh_rules else None,
+                rules["models"],
             )
-            if fresh_rules and _undefined_on_new_database(module, reference, fresh_rules):
+            if rules["fresh"] and _undefined_on_new_database(module, reference, rules):
                 reference["status"] = "undefined"
             reference.update(location, value=event["value"], attribute=event["attribute"])
             file["references"].append(reference)
@@ -188,7 +188,7 @@ def _resolve(
     known: dict[str, JSONObject],
     position: tuple[int, int],
     source_format: str,
-    models: ModelIndex | None,
+    models: ModelIndex,
 ) -> JSONObject:
     result: JSONObject = {"xml_id": name, "status": "unknown", "target": None}
     if name is None:
@@ -212,7 +212,7 @@ def _resolve(
             reason = "forward_definition"
         else:
             reason = "unverified_effects"
-    elif models and (target := models.target(name.removeprefix(module + "."))):
+    elif target := models.target(name.removeprefix(module + ".")):
         reason = "orm_generated"
         result.update(status="resolved", target=target)
     else:
