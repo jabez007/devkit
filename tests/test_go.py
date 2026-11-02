@@ -127,7 +127,7 @@ def test_invalid_arguments_are_rejected(go_project, arguments):
 
 
 def test_summary_counts_failures_beyond_those_it_lists(go_project):
-    write_tests(go_project, *['t.Fail()'] * 60)
+    write_tests(go_project, *["t.Fail()"] * 60)
     result = create_service(go_project).execute("go.test")["result"]
     assert result["summary"].endswith(", and 40 more")
     assert len(result["data"]["failures"]) == 50
