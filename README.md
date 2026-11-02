@@ -208,8 +208,8 @@ compatibility. Declared data/demo XML is parsed automatically. Malformed XML
 fails with a file and location; unsupported features and inspection limits block
 coverage. Literal XML references report earlier local definitions or explain why
 resolution is unknown. Repeated IDs remain valid update candidates. Model and
-field IDs such as `model_acme_book` resolve from literal `_name` and `_inherit`
-declarations, read from Python sources without importing them. A same-module ID
+field IDs such as `model_acme_book` resolve from literal `_name`, `_inherit` and
+`fields.<Type>(...)` declarations, read from Python sources without importing them. A same-module ID
 that a fresh install cannot find fails: `INVALID_LOAD_ORDER` when it is defined
 later or only in demo data, `UNDEFINED_XML_ID` when nothing defines it. Set
 `install_mode = "update"` to treat both as unknown. Other unknown references are

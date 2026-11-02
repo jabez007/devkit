@@ -215,6 +215,8 @@ def _resolve(
     elif target := models.target(name.removeprefix(module + ".")):
         reason = "orm_generated"
         result.update(status="resolved", target=target)
+    elif models.may_generate(name.removeprefix(module + ".")):
+        reason = "unverified_field_name"
     else:
         reason = "not_in_scanned_xml" if source_format == "xml" else "not_in_scanned_data"
     result["reason"] = reason

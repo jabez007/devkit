@@ -502,8 +502,11 @@ the models a module defines or extends, before any data file loads. The validato
 reads `_name` and `_inherit` from every `.py` file in the addon with Python's `ast`
 module. It never imports or executes them. A matching reference, such as
 `model_acme_book` in `ir.model.access.csv`, resolves with reason `orm_generated`,
-and its target is the class location. Field IDs resolve when the module defines
-or extends the model; field names are not checked.
+and its target is the class location. A field ID resolves when a class for that
+model assigns the field with `fields.<Type>(...)`, and its target is that line.
+Odoo also creates field IDs for fields a model gets from parents and mixins,
+which the scan cannot see. Any other field name on a model the module declares
+therefore stays `unknown` with reason `unverified_field_name`, never `undefined`.
 
 An absent ID stays `unknown` instead of `undefined` when the validator cannot rule
 out another source:
@@ -529,7 +532,7 @@ install_mode = "update"
 Specialization data schema 1.5 adds:
 
 - top-level `install_mode`;
-- the reference status `undefined` and the reason `orm_generated`;
+- the reference status `undefined` and the reasons `orm_generated` and `unverified_field_name`;
 - an `undefined` key in `xml_reference_counts`, `csv_reference_counts` and each module's `reference_counts`.
 
 Consumers that match exact count dictionaries must accept the new key. Checks

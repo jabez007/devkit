@@ -2,7 +2,9 @@
 
 Odoo creates ``<module>.model_<name>`` and ``<module>.field_<name>__<field>`` IDs when
 it registers the models a module defines or extends. Those IDs exist before any data
-file loads, so data files can reference them without defining them.
+file loads, so data files can reference them without defining them. A field ID exists
+for each field the module declares, which may include fields from parent models and
+mixins that this scan cannot see.
 """
 
 import ast
@@ -18,17 +20,33 @@ LIMITS = {"files": 1000, "file_bytes": 1_048_576, "total_bytes": 16_777_216}
 
 @dataclass
 class ModelIndex:
-    """Generated-ID targets; ``complete`` is false when any model name was unreadable."""
+    """Generated-ID targets; ``complete`` is false when any model name was unreadable.
+
+    Keys are model names with dots replaced by underscores, as in the generated IDs.
+    """
 
     targets: dict[str, JSONObject] = field(default_factory=dict)
+    fields: dict[str, dict[str, JSONObject]] = field(default_factory=dict)
     complete: bool = True
 
     def target(self, local_id: str) -> JSONObject | None:
+        """Where the ID's model, or its field declared by a literal assignment, is defined."""
         if local_id.startswith("model_"):
             return self.targets.get(local_id.removeprefix("model_"))
-        if local_id.startswith("field_") and "__" in local_id:
-            return self.targets.get(local_id.removeprefix("field_").split("__", 1)[0])
-        return None
+        model, name = _field_parts(local_id)
+        return self.fields.get(model, {}).get(name)
+
+    def may_generate(self, local_id: str) -> bool:
+        """A field ID on a model this module declares, for a field the scan did not find."""
+        model, _ = _field_parts(local_id)
+        return model in self.targets and self.target(local_id) is None
+
+
+def _field_parts(local_id: str) -> tuple[str, str]:
+    if local_id.startswith("field_") and "__" in local_id:
+        model, name = local_id.removeprefix("field_").split("__", 1)
+        return model, name
+    return "", ""
 
 
 def scan_models(module: Path, checkpoint: Callable[[], None]) -> ModelIndex:
@@ -88,14 +106,33 @@ def _scan_class(node: ast.ClassDef, relative: str, index: ModelIndex) -> None:
     if names is None:
         index.complete = False
         return
-    location = {
-        "path": relative,
-        "phase": "model",
-        "line": node.lineno,
-        "column": node.col_offset + 1,
+    fields = {
+        statement.targets[0].id: _location(relative, statement)
+        for statement in node.body
+        if isinstance(statement, ast.Assign)
+        and len(statement.targets) == 1
+        and isinstance(statement.targets[0], ast.Name)
+        and _is_field(statement.value)
     }
     for name in names:
-        index.targets.setdefault(name.replace(".", "_"), location)
+        key = name.replace(".", "_")
+        index.targets.setdefault(key, _location(relative, node))
+        for field_name, location in fields.items():
+            index.fields.setdefault(key, {}).setdefault(field_name, location)
+
+
+def _is_field(value: ast.expr) -> bool:
+    """``fields.Char(...)`` and the like, the form Odoo addons use to declare fields."""
+    return (
+        isinstance(value, ast.Call)
+        and isinstance(value.func, ast.Attribute)
+        and isinstance(value.func.value, ast.Name)
+        and value.func.value.id == "fields"
+    )
+
+
+def _location(relative: str, node: ast.stmt) -> JSONObject:
+    return {"path": relative, "phase": "model", "line": node.lineno, "column": node.col_offset + 1}
 
 
 def _literal_names(value: ast.expr | None) -> list[str] | None:

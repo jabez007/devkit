@@ -172,3 +172,17 @@ def test_update_mode_also_resolves_generated_ids(odoo_project):
         arguments={"install_mode": "update"},
     )
     assert by_value(result, "model_acme_book")["reason"] == "orm_generated"
+
+
+def test_field_ids_resolve_only_for_fields_the_module_declares(odoo_project):
+    rule = """<odoo>
+<record id="a" model="x"><field name="field_id" ref="field_acme_book__title"/></record>
+<record id="b" model="x"><field name="field_id" ref="field_acme_book__title_typo"/></record>
+</odoo>"""
+    result = validate(odoo_project, {"models/book.py": BOOK, "rules.xml": rule})
+    assert result["status"] == "success"
+    declared = by_value(result, "field_acme_book__title")
+    assert (declared["status"], declared["target"]["line"]) == ("resolved", 8)
+    # The name may come from a mixin or parent model, so it is unknown, not undefined.
+    typo = by_value(result, "field_acme_book__title_typo")
+    assert (typo["status"], typo["reason"]) == ("unknown", "unverified_field_name")
