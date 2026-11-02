@@ -176,9 +176,10 @@ devkit --project /absolute/path/to/go-project --timeout 120 --json run go.test
 
 Go runs `go test -json -count=1 ./...` with the locally installed toolchain,
 the caller's environment, and a shared deadline. Test events stream to a
-temporary file capped at 64 MiB, so large suites are not cut off. Passing,
-failing, and skipped tests are counted separately. A failure names each failing
-test in the summary, and `data.failures` keeps the last 4 KiB of its output, for
+temporary file instead of the 256 KiB in-memory capture. More than 64 MiB of
+events, passing-test output included, returns `error` with reason
+`OUTPUT_LIMIT`. Passing, failing, and skipped tests are counted separately. A
+failure names each failing test in the summary, and `data.failures` keeps the last 4 KiB of its output, for
 up to 50 failures. No executed tests produces `blocked`, including projects whose
 tests all skip. `GOTOOLCHAIN` defaults to `local`, so no toolchain is downloaded
 unless you set it.

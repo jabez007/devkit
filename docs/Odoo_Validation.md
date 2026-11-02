@@ -59,12 +59,13 @@ repos:
         additional_dependencies:
           - "mccann-hub-devkit @ git+https://github.com/jabez007/devkit@main#subdirectory=packages/devkit"
           - "mccann-hub-devkit-odoo @ git+https://github.com/jabez007/devkit@main#subdirectory=packages/devkit_odoo"
-        files: \.(py|xml|csv)$
+        files: (\.(py|xml|csv)|(^|/)devkit\.toml)$
         pass_filenames: false
 ```
 
-The hook validates every addon under the configured paths, not just the
-changed files, because a reference in one file depends on the others.
+The hook runs when a commit changes a Python, XML, CSV or `devkit.toml` file. It
+validates every addon under the configured paths, not just the changed files,
+because a reference in one file depends on the others.
 
 ## Inventory and strict checks
 
