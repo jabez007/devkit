@@ -1,6 +1,6 @@
 # Devkit Beads integration
 
-Optional task lifecycle and evidence associations through Beads 1.3.2. Sequential linked worktrees are supported; concurrent writers remain unqualified.
+Optional task lifecycle and evidence associations through Beads 1.3.x (tested on 1.3.2). Sequential linked worktrees are supported; concurrent writers remain unqualified.
 
 Install reviewed local wheels from the `mccann-hub-devkit` package family.
 The unrelated PyPI `devkit` project is not this foundation. Installation

@@ -9,12 +9,13 @@ Trusted developers and authorized agents can use the same commands.
 
 ## Supported environment
 
-The supported profile is Linux with Python 3.12+ and **Beads 1.3.2**, using an
+The supported profile is Linux with Python 3.12+ and **Beads 1.3.x**, using an
 initialized embedded Dolt workspace in a normal main Git checkout. Registered
 linked worktrees share that ledger and are supported for sequential operation.
-The tested upstream revision is
+The adapter accepts any 1.3 patch release, and the workspace must report the
+same version as `bd version`. Acceptance tests run 1.3.2, at upstream revision
 [`9b65b9e198acbcc98e7fd3a87a5d55baa065a572`](https://github.com/gastownhall/beads/tree/9b65b9e198acbcc98e7fd3a87a5d55baa065a572).
-Other Beads versions, server modes, redirects, bare repositories, separate Git
+Other Beads minor versions, server modes, redirects, bare repositories, separate Git
 directories and symlinked workspace paths remain blocked. Devkit does not install
 or initialize Beads, start servers or request administrative migrations.
 Ordinary writes retain native Beads hooks, maintenance and schema behavior.
