@@ -1,4 +1,4 @@
-"""Model names declared by an addon's Python sources, read with ast and never imported.
+"""Model names in reachable addon Python sources, read with ast and never imported.
 
 Odoo creates ``<module>.model_<name>`` and ``<module>.field_<name>__<field>`` IDs when
 it registers the models a module defines or extends. Those IDs exist before any data
@@ -8,19 +8,17 @@ mixins that this scan cannot see.
 """
 
 import ast
-import os
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from mccann_hub.devkit.contracts import JSONObject
-
-LIMITS = {"files": 1000, "file_bytes": 1_048_576, "total_bytes": 16_777_216}
+from mccann_hub.devkit_odoo.python_inspection import PythonImports
 
 
 @dataclass
 class ModelIndex:
-    """Generated-ID targets; ``complete`` is false when any model name was unreadable.
+    """Generated-ID targets; ``complete`` is false when imports or model names are uncertain.
 
     Keys are model names with dots replaced by underscores, as in the generated IDs.
     """
@@ -55,43 +53,13 @@ def _field_parts(local_id: str) -> list[tuple[str, str]]:
 
 def scan_models(module: Path, checkpoint: Callable[[], None]) -> ModelIndex:
     index = ModelIndex()
-    files = sorted(_python_files(module))
-    if len(files) > LIMITS["files"]:
-        index.complete = False
-        return index
-    total = 0
-    for path in files:
-        checkpoint()
-        size = path.stat().st_size
-        total += size
-        if size > LIMITS["file_bytes"] or total > LIMITS["total_bytes"]:
-            index.complete = False
-            return index
-        _scan_file(path, module, index)
+    imports = PythonImports(module, checkpoint)
+    for relative, tree in imports.sources():
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef):
+                _scan_class(node, relative, index)
+    index.complete &= imports.complete
     return index
-
-
-def _python_files(module: Path) -> list[Path]:
-    root = module.resolve()
-    found = []
-    for directory, _, names in os.walk(root):
-        for name in names:
-            path = Path(directory) / name
-            if name.endswith(".py") and path.resolve().is_relative_to(root):
-                found.append(path)
-    return found
-
-
-def _scan_file(path: Path, module: Path, index: ModelIndex) -> None:
-    try:
-        tree = ast.parse(path.read_bytes())
-    except (OSError, SyntaxError, ValueError, RecursionError):
-        index.complete = False
-        return
-    relative = path.relative_to(module.resolve()).as_posix()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ClassDef):
-            _scan_class(node, relative, index)
 
 
 def _scan_class(node: ast.ClassDef, relative: str, index: ModelIndex) -> None:

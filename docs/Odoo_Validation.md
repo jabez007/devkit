@@ -505,8 +505,13 @@ When both kinds occur, the run reports `INVALID_LOAD_ORDER`.
 
 Odoo creates `model_<model>` and `field_<model>__<field>` IDs when it registers
 the models a module defines or extends, before any data file loads. The validator
-reads `_name` and `_inherit` from every `.py` file in the addon with Python's `ast`
-module. It never imports or executes them. A matching reference, such as
+follows relative imports from the addon's `__init__.py`, including package
+initializers, and reads `_name` and `_inherit` with Python's `ast` module.
+It follows `from . import x` and `from .x import y`, including aliases and
+parent-relative imports inside the addon. It never imports or executes Python
+code. A model declared only in an unimported file supplies no generated IDs;
+references to those IDs are `undefined` in fresh mode and `unknown` in update
+mode. A matching reference from an imported file, such as
 `model_acme_book` in `ir.model.access.csv`, resolves with reason `orm_generated`,
 and its target is the class location. A field ID resolves when a class for that
 model assigns the field with `fields.<Type>(...)`, and its target is that line.
@@ -521,7 +526,11 @@ out another source:
 - A loader tag other than `record`, `menuitem`, `template`, `function` or `delete` appears.
 - The manifest declares a `pre_init_hook`, which runs before data files load.
 - The ID starts with `selection__` or `constraint_`, which Odoo generates from fields and SQL constraints the validator does not read.
-- For `model_` and `field_` IDs only, a Python file did not parse, a model name is not a literal, or the addon exceeds 1,000 Python files, 1 MiB per file or 16 MiB in total.
+- For `model_` and `field_` IDs only, a reachable Python file did not parse, a model name is not a literal, or the import scan exceeds 1,000 Python files, 1 MiB per file or 16 MiB in total.
+- For generated model and field IDs only, an import cannot be followed: dynamic,
+  conditional or deferred imports, wildcard imports, absolute imports of the
+  same addon, missing sources or paths escaping the addon. Independently resolved
+  IDs keep their result. Errors in unimported files do not reduce coverage.
 
 A reference counts as forward only when every eligible definition comes after it.
 If an earlier definition exists but a dynamic operation such as `<function>` or
