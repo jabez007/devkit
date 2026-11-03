@@ -402,8 +402,9 @@ The relationship is **domain capability package → optional orchestration pack*
 
 The [delivery-loop ADR](adr/0001-delivery-loop-runs-on-gas-city.md) proposes
 native Gas City formulas and sessions, Beads-owned workflow state, and separate
-stack packs. It remains proposed until the documented spike qualifies container
-execution, approval, check gating and hook composition. No Devkit job store,
+stack packs. Its local qualification spike passed container execution, approval,
+native check gating, retry, skill projection and hook composition. The ADR
+remains proposed pending review and merge. No Devkit job store,
 dispatcher or Python plugin-contract change follows from the proposal alone.
 The existing Beads adapter accepts embedded workspaces only; it does not yet
 support Gas City's server-backed workspace. Initial packs use native task-state

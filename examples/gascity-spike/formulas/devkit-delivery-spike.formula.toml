@@ -1,0 +1,30 @@
+formula = "devkit-delivery-spike"
+description = "Human approval, bounded implementation/check loop, draft-PR readiness"
+
+[requires]
+formula_compiler = ">=2.0.0"
+
+[[steps]]
+id = "approve"
+title = "Confirm the human-approved brief"
+
+[steps.gate]
+type = "human"
+
+[[steps]]
+id = "implement"
+title = "Fix the approved Odoo install-order defect"
+needs = ["approve"]
+
+[steps.check]
+max_attempts = 3
+
+[steps.check.check]
+mode = "exec"
+path = "../assets/validate.sh"
+timeout = "30s"
+
+[[steps]]
+id = "draft-pr"
+title = "Draft pull request may now be prepared"
+needs = ["implement"]

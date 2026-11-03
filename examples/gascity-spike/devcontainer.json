@@ -1,0 +1,5 @@
+{
+  "name": "Devkit delivery-loop spike",
+  "build": {"dockerfile": "Dockerfile", "context": "."},
+  "remoteUser": "spike"
+}

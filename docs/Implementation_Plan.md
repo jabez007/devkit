@@ -744,11 +744,12 @@ tracker discovery and crash-atomic family deletion remain outside this increment
 
 Issue #3's [delivery-loop ADR](adr/0001-delivery-loop-runs-on-gas-city.md)
 records the proposed core and stack-pack split and its qualification gates.
-The source audit is distinct from a passing live spike. Beads server-mode
-compatibility, a native check blocking downstream work, a real one-shot Claude
-session in the project's container, and guard composition need their own
-observations. Preserve the independently useful checks and current authorization
-contracts while those results are pending.
+The local live spike passed native approval and check gating, retry, a one-shot
+Claude session in the project's image, skill and MCP access, and guard
+composition. Native task commands worked with the proxied-server workspace;
+Devkit's embedded-only adapter correctly refused it. The ADR records that
+workaround and the unqualified production, resume and concurrency behavior.
+Keep the independently useful checks and current authorization contracts.
 
 The [Beads repository](https://github.com/gastownhall/beads) is the upstream starting point for its compatibility spike. Record the exact tested version and supported commands when implementing the adapter. Neither the first release nor this planning task requires adopting Beads as this project's task ledger.
 

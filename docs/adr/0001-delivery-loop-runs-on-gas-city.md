@@ -11,7 +11,8 @@ Gas City and Beads. Devkit supplies domain checks and stack packs. This preserve
 N1, N2, D1, D2 and section 10.2 of the
 [architecture](../Composable_Developer_Toolkit_Architecture.md).
 
-This decision remains proposed until the qualification below passes. A missing
+The qualification passed for the local profile below on November 3, 2026.
+This record remains proposed pending architecture review and merge. A missing
 prerequisite is an unrun check, not evidence that Gas City cannot support the
 loop. The implementation plan and issue descriptions must follow the accepted
 split before production loop code lands.
@@ -145,6 +146,50 @@ No production pull request, merge, force-push or remote branch deletion is
 needed for the spike. A local draft-PR sentinel can test readiness; it does not
 prove that GitHub created a draft pull request.
 
+## Qualification results
+
+The [repeatable driver](../../scripts/check_gascity_spike.py) and
+[fixture instructions](../../examples/gascity-spike/README.md) exercise native
+commands, not mocks. The final live run used Gas City 1.4.3 at the pinned
+revision, Beads 1.3.2, Dolt 2.6.0, devcontainer CLI 0.90.0, Docker 29.8.1 and
+Claude Code 2.1.317 with subscription authentication.
+
+| Check | Status | Observed result |
+|---|---|---|
+| Container and worktree | Passed | `gc worktree ensure` created the task branch and recorded provenance. `gc session new` launched a real one-shot Claude session through the upstream Docker runtime in the project's built image. |
+| Native check and retry | Passed | Broken manifest order kept the draft-PR step blocked and created iteration 2. After the agent fixed only the manifest, `gc convoy control` passed the check and made the draft-PR step ready. |
+| Human approval | Passed | The first implementation attempt was absent from `gc ready` before approval and present after the test driver explicitly closed the synthetic human gate and approval step. |
+| Skill and project MCP | Passed | The transcript records `Skill` invoking `spike.probe` and a call to `mcp__spike__marker`. The driver also checks the MCP marker artifact. |
+| Hook composition | Passed | Gas City's `SessionStart` and both `UserPromptSubmit` hooks returned exit code 0. The project guard refused exactly one `git push --force` request, alongside those hooks. |
+| One task store | Passed | Native commands used one `proxied-server` Beads workspace. The Devkit adapter returned `blocked / UNSUPPORTED_BEADS_WORKSPACE`, confirming that the initial pack must use the native task-state workaround. |
+
+The runtime profile needs explicit configuration:
+
+- Build `gc` with upstream's release setting `CGO_ENABLED=0`. The driver verifies
+  its exact source revision and clean-build metadata. The initial default host
+  build linked ICU 70, which was absent from the Debian project image and made
+  native hooks exit 127.
+- Give the one-shot launcher its own readiness marker. The inherited
+  interactive Claude prompt is not a readiness signal for `claude -p`.
+- Pass `--agent spike.worker` to native worktree creation, and mount the
+  reviewed pack directories read-only at the same paths inside the container.
+  Otherwise the materialized skill symlinks do not resolve there.
+- Load the generated Gas City settings alongside project settings and select
+  the project's MCP file explicitly. The live assertions inspect actual tool
+  calls and successful hook events, not just the agent's final summary.
+- Mount only the selected subscription credential file read-only, and exclude
+  API-key authentication. Isolate control, cache and state under the fixture
+  root. Mount neither the user's home directory nor the Docker socket.
+
+This qualifies one local Linux task with host networking, a Dockerfile image
+build and an explicit container user. The static check runs on the host against
+the shared task worktree. It does not qualify arbitrary devcontainer lifecycle
+commands, live Odoo tests, a production GitHub draft-PR operation, resume across
+answer rounds, or multiple hosts. The pinned Beads CLI also makes Gas City report
+best-effort session leases; this serial spike does not establish concurrent-
+writer guarantees. Those deployment and workflow checks remain with #5, #9,
+#10 and #11. No second Devkit job store is needed to proceed with those issues.
+
 ## Backlog after acceptance
 
 | Issue | Consequence |
@@ -173,4 +218,5 @@ The source audit used the pinned Gas City revision above:
 - [Agent configuration](https://github.com/gastownhall/gascity/blob/76843b86452109d9e7d150958cf220da81b9d01d/docs/guides/configuring-an-agent.md): native provider overrides and launch defaults.
 - [Exec runtime protocol](https://github.com/gastownhall/gascity/blob/76843b86452109d9e7d150958cf220da81b9d01d/docs/reference/exec-session-provider.md): one-shot sessions, work directories, overlays and copied files.
 - [Installation prerequisites](https://github.com/gastownhall/gascity/blob/76843b86452109d9e7d150958cf220da81b9d01d/docs/getting-started/installation.md): Dolt server requirements and tested Beads version.
+- [Release builds](https://github.com/gastownhall/gascity/blob/76843b86452109d9e7d150958cf220da81b9d01d/.goreleaser.yml): static Go build configuration for portable runtime binaries.
 - [Devkit Beads workspace validation](../../packages/devkit_beads/src/mccann_hub/devkit_beads/client.py): explicit embedded-mode and sequential-writer contract.

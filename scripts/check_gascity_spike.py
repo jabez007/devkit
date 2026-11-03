@@ -1,0 +1,545 @@
+"""Opt-in qualification for ADR 0001 using real Gas City, Beads and containers.
+
+All task state and artifacts stay under --root. The live stage uses an existing
+Claude subscription, with API-key authentication excluded. No remote Git writes
+or persistent supervisor service are required. Tools must already be installed.
+"""
+
+import argparse
+import importlib.metadata
+import json
+import os
+import shlex
+import shutil
+import subprocess
+import sys
+import time
+import tomllib
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+FIXTURE = ROOT / "examples/gascity-spike"
+GASCITY_REVISION = "76843b86452109d9e7d150958cf220da81b9d01d"
+
+
+class Spike:
+    def __init__(self, args):
+        self.args = args
+        self.root = args.root.resolve()
+        self.root.mkdir(parents=True, exist_ok=False)
+        self.city = self.root / "city"
+        self.repo = self.city / "repo"
+        self.worktree = self.city / "worktrees/task"
+        inherited = {
+            "PATH",
+            "HOME",
+            "USER",
+            "LOGNAME",
+            "LANG",
+            "LC_ALL",
+            "TMPDIR",
+            "TERM",
+            "SHELL",
+            "UV_CACHE_DIR",
+        }
+        self.env = {k: v for k, v in os.environ.items() if k in inherited}
+        self.env.pop("ANTHROPIC_API_KEY", None)
+        self.env.pop("ANTHROPIC_AUTH_TOKEN", None)
+        directories = [args.gc.parent, args.bd.parent, args.dolt.parent]
+        self.env.update(
+            PATH=":".join(map(str, directories)) + ":" + self.env["PATH"],
+            GC_HOME=str(self.root / "control"),
+            DOLT_ROOT_PATH=str(self.root / "dolt"),
+            XDG_CACHE_HOME=str(self.root / "cache"),
+            XDG_CONFIG_HOME=str(self.root / "config"),
+            XDG_STATE_HOME=str(self.root / "state"),
+            DO_NOT_TRACK="1",
+            BD_DISABLE_METRICS="1",
+        )
+        self.report = {"gascity_revision": GASCITY_REVISION, "live": args.live}
+
+    def run(self, *arguments, cwd=None, structured=False, timeout=120):
+        result = subprocess.run(
+            list(map(str, arguments)),
+            cwd=cwd or self.city,
+            env=self.env,
+            text=True,
+            capture_output=True,
+            timeout=timeout,
+        )
+        assert result.returncode == 0, (arguments, result.stdout[-4000:], result.stderr[-4000:])
+        return json.loads(result.stdout) if structured else result.stdout
+
+    def gc(self, *arguments, **kwargs):
+        return self.run(self.args.gc, "--city", self.city, *arguments, **kwargs)
+
+    def prepare_city(self):
+        revision = self.run("git", "-C", self.args.gascity_source, "rev-parse", "HEAD", cwd=ROOT)
+        assert revision.strip() == GASCITY_REVISION, revision
+        assert not self.run(
+            "git", "-C", self.args.gascity_source, "status", "--porcelain", cwd=ROOT
+        ).strip()
+        build_info = self.run("go", "version", "-m", self.args.gc, cwd=ROOT)
+        assert f"vcs.revision={GASCITY_REVISION}" in build_info, "Wrong gc binary revision"
+        assert "vcs.modified=false" in build_info, "gc binary was built from modified sources"
+        assert "CGO_ENABLED=0" in build_info, (
+            "Use the upstream static release build for the container"
+        )
+        self.report["gc_version"] = self.run(self.args.gc, "version", cwd=ROOT).strip()
+        for key, value in (("user.name", "Devkit Spike"), ("user.email", "spike@example.invalid")):
+            self.run(self.args.dolt, "config", "--global", "--add", key, value, cwd=self.root)
+        self.run(
+            self.args.gc, "init", self.city, "--template", "empty", "--no-start", cwd=self.root
+        )
+        sources = {
+            "core": self.args.gascity_source / "internal/bootstrap/packs/core",
+            "bd": self.args.gascity_source / "examples/bd",
+            "spike": FIXTURE,
+        }
+        imports = "".join(
+            f"\n[imports.{key}]\nsource={json.dumps(str(path))}\n" for key, path in sources.items()
+        )
+        (self.city / "pack.toml").write_text(
+            '[pack]\nname="devkit-spike-city"\nschema=2\n' + imports
+        )
+        (self.city / "city.toml").write_text('[workspace]\n\n[beads]\nnative_transport="off"\n')
+
+    def prepare_repository(self):
+        addon = self.repo / "addons/example"
+        addon.mkdir(parents=True)
+        (addon / "__init__.py").write_text("")
+        (addon / "__manifest__.py").write_text(
+            repr({"name": "Example", "depends": ["base"], "data": ["menu.xml", "action.xml"]})
+        )
+        (addon / "action.xml").write_text(
+            '<odoo><record id="example_action" model="ir.actions.act_window"/></odoo>\n'
+        )
+        (addon / "menu.xml").write_text(
+            '<odoo><menuitem id="example_menu" action="example_action"/></odoo>\n'
+        )
+        (self.repo / ".gitignore").write_text(
+            ".devcontainer/wheels/\n.devcontainer/constraints.txt\n.spike/\n.claude/\n.mcp.json\n"
+        )
+        build = self.repo / ".devcontainer"
+        build.mkdir()
+        for name in ("Dockerfile", "devcontainer.json"):
+            shutil.copy2(FIXTURE / name, build / name)
+        self.run("git", "init", "--quiet", self.repo)
+        self.run("git", "add", ".", cwd=self.repo)
+        self.run(
+            "git",
+            "-c",
+            "core.hooksPath=/dev/null",
+            "-c",
+            "user.name=Devkit Spike",
+            "-c",
+            "user.email=spike@example.invalid",
+            "commit",
+            "-qm",
+            "Synthetic install-order defect",
+            cwd=self.repo,
+        )
+
+    def cook_worktree(self):
+        recipe = self.gc("formula", "show", "devkit-delivery-spike", "--json", structured=True)
+        assert recipe["ok"], recipe
+        cooked = self.gc("formula", "cook", "devkit-delivery-spike", "--json", structured=True)
+        assert cooked["ok"], cooked
+        self.ids = cooked["id_mapping"]
+        self.root_id = cooked["root_id"]
+        self.gc(
+            "worktree",
+            "ensure",
+            "--repo",
+            self.repo,
+            "--root",
+            self.worktree.parent,
+            "--path",
+            self.worktree,
+            "--base",
+            "HEAD",
+            "--bead",
+            self.root_id,
+            "--branch",
+            f"task-{self.root_id}",
+            "--store-ref",
+            "city",
+            "--owner",
+            "devkit-spike",
+            "--creator",
+            "gc-worktree-ensure",
+            "--generation",
+            "spike-1",
+            "--agent",
+            "spike.worker",
+            "--json",
+            structured=True,
+        )
+        self.gc(
+            "bd",
+            "update",
+            self.root_id,
+            "--set-metadata",
+            f"gc.work_dir={self.worktree}",
+            "--json",
+            structured=True,
+        )
+        self.report["root_bead"] = self.root_id
+
+    def identifier(self, suffix):
+        return self.ids["devkit-delivery-spike." + suffix]
+
+    def ready(self):
+        return {item["id"] for item in self.gc("ready", "--json", structured=True)}
+
+    def close(self, identifier):
+        self.gc(
+            "bd",
+            "close",
+            identifier,
+            "--reason",
+            "Synthetic spike transition",
+            "--json",
+            structured=True,
+        )
+
+    def check_approval(self):
+        before = self.ready()
+        assert self.identifier("implement.iteration.1") not in before
+        assert self.identifier("draft-pr") not in before
+        self.close(self.identifier("gate-approve"))
+        self.close(self.identifier("approve"))
+        assert self.identifier("implement.iteration.1") in self.ready()
+        self.report["approval_gate"] = "passed"
+
+    def check_retry(self):
+        command = ROOT / ".venv/bin/devkit-odoo"
+        gate = self.city / "validate.sh"
+        gate.write_text(
+            f'#!/bin/sh\nexec {shlex.quote(str(command))} --project "$GC_WORK_DIR" --json\n'
+        )
+        gate.chmod(0o755)
+        self.close(self.identifier("implement.iteration.1"))
+        self.gc("convoy", "control", self.identifier("implement"))
+        assert self.identifier("draft-pr") not in self.ready()
+        items = self.gc(
+            "bd", "list", "--all", "--include-ephemeral", "--limit", "0", "--json", structured=True
+        )
+        attempts = [
+            item
+            for item in items
+            if item.get("metadata", {}).get("gc.step_ref") == "implement.iteration.2"
+            or item.get("metadata", {}).get("gc.step_ref", "").endswith(".implement.iteration.2")
+        ]
+        assert len(attempts) == 1, [(item["id"], item.get("metadata")) for item in items]
+        self.attempt = attempts[0]["id"]
+        self.report["failed_check_blocks_draft"] = "passed"
+        self.report["native_retry"] = "passed"
+
+    def build_container(self):
+        build = self.repo / ".devcontainer"
+        wheels = build / "wheels"
+        self.run("uv", "build", "--all-packages", "--out-dir", wheels, cwd=ROOT, timeout=300)
+        lock = tomllib.loads((ROOT / "uv.lock").read_text())
+        constraints = [
+            f"{p['name']}=={p['version']}" for p in lock["package"] if "registry" in p["source"]
+        ]
+        (build / "constraints.txt").write_text("\n".join(constraints) + "\n")
+        self.image = "devkit-adr-spike:" + self.root_id
+        self.run(
+            self.args.devcontainer,
+            "build",
+            "--workspace-folder",
+            self.repo,
+            "--image-name",
+            self.image,
+            timeout=600,
+        )
+
+    def check_server_boundary(self):
+        self.run("git", "init", "--quiet", self.city)
+        native = self.gc("bd", "context", "--json", structured=True)
+        assert native["bd_version"] == "1.3.2", native.get("bd_version")
+        assert native["dolt_mode"] != "embedded", native.get("dolt_mode")
+        (self.city / "devkit.toml").write_text('plugins=["beads"]\n')
+        config = self.root / "operator/devkit"
+        config.mkdir(parents=True)
+        version = importlib.metadata.version("mccann-hub-devkit-beads")
+        policy = config / "policy.toml"
+        policy.write_text(
+            f'[trusted_plugins]\nmccann-hub-devkit-beads="{version}"\n'
+            '[commands."beads.workspace"]\n'
+            f"project={json.dumps(str(self.city))}\n"
+            'effects=["read_fs","write_fs","execute_process","network_read"]\n'
+            'surfaces=["cli"]\n'
+        )
+        policy.chmod(0o600)
+        result = subprocess.run(
+            [
+                str(ROOT / ".venv/bin/devkit"),
+                "--project",
+                str(self.city),
+                "--json",
+                "run",
+                "beads.workspace",
+            ],
+            env={
+                **self.env,
+                "XDG_CONFIG_HOME": str(config.parent),
+                "XDG_STATE_HOME": str(self.root / "evidence"),
+            },
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert result.returncode == 2, result.stdout + result.stderr
+        reason = json.loads(result.stdout)["result"]["reason"]
+        assert reason == "UNSUPPORTED_BEADS_WORKSPACE", reason
+        self.report["native_beads_mode"] = native["dolt_mode"]
+        self.report["devkit_server_adapter"] = reason
+
+    def prepare_session(self):
+        probe = self.worktree / ".spike"
+        probe.mkdir()
+        for name in ("guard.py", "mcp_server.py"):
+            shutil.copy2(FIXTURE / name, probe / name)
+        settings = {
+            "hooks": {
+                "PreToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [{"type": "command", "command": "python .spike/guard.py"}],
+                    }
+                ]
+            }
+        }
+        claude = self.worktree / ".claude"
+        claude.mkdir(exist_ok=True)
+        (claude / "settings.json").write_text(json.dumps(settings))
+        (self.worktree / ".mcp.json").write_text(
+            json.dumps(
+                {
+                    "mcpServers": {
+                        "spike": {"command": "python", "args": [str(probe / "mcp_server.py")]}
+                    }
+                }
+            )
+        )
+        self.write_launcher()
+        mounts = {
+            self.args.claude: "/usr/local/bin/claude",
+            self.args.gc: str(self.args.gc),
+            self.args.bd: str(self.args.bd),
+            self.args.dolt: str(self.args.dolt),
+            self.args.credentials: "/home/spike/.claude/.credentials.json",
+            FIXTURE: str(FIXTURE),
+            self.args.gascity_source / "internal/bootstrap/packs/core": str(
+                self.args.gascity_source / "internal/bootstrap/packs/core"
+            ),
+            self.args.gascity_source / "examples/bd": str(self.args.gascity_source / "examples/bd"),
+        }
+        extra = " ".join(
+            f"--mount=type=bind,src={path},dst={target},readonly" for path, target in mounts.items()
+        )
+        for path in (
+            self.root / "control",
+            self.root / "cache",
+            self.root / "config",
+            self.root / "state",
+        ):
+            path.mkdir(parents=True, exist_ok=True)
+            extra += f" --mount=type=bind,src={path},dst={path}"
+        profile = self.root / "dolt"
+        extra += f" --mount=type=bind,src={profile},dst={profile},readonly"
+        self.env.update(
+            GC_SESSION="exec:" + str(self.args.gascity_source / "scripts/gc-session-docker"),
+            DEVKIT_UNATTENDED="1",
+        )
+        with (self.city / "city.toml").open("a") as stream:
+            stream.write("\n[workspace.env]\n")
+            for key, value in {
+                "GC_DOCKER_IMAGE": self.image,
+                "GC_DOCKER_HOME_MOUNT": "false",
+                "GC_DOCKER_USER": "1000:1000",
+                "GC_DOCKER_NETWORK": "host",
+                "GC_DOCKER_EXTRA": extra,
+                "CLAUDE_CONFIG_DIR": "/home/spike/.claude",
+                "DEVKIT_UNATTENDED": "1",
+                "DOLT_ROOT_PATH": str(profile),
+                "DO_NOT_TRACK": "1",
+                "BD_DISABLE_METRICS": "1",
+            }.items():
+                stream.write(f"{key}={json.dumps(value)}\n")
+
+    def write_launcher(self):
+        args = [
+            "claude",
+            "--print",
+            (FIXTURE / "prompt.md").read_text(),
+            "--no-session-persistence",
+            "--setting-sources",
+            "project",
+            "--settings",
+            str(self.city / ".gc/settings.json"),
+            "--strict-mcp-config",
+            "--mcp-config",
+            str(self.worktree / ".mcp.json"),
+            "--output-format",
+            "stream-json",
+            "--verbose",
+            "--include-hook-events",
+            "--permission-prompts",
+            "none",
+            "--allowedTools",
+            "Read",
+            "Edit",
+            "Skill",
+            "mcp__spike__marker",
+            "Bash(git push --force)",
+            "Bash(devkit-odoo *)",
+        ]
+        (self.city / "claude-arguments.json").write_text(json.dumps(args))
+        hooks = json.loads((self.city / ".gc/settings.json").read_text()).get("hooks", {})
+        assert "SessionStart" in hooks and "UserPromptSubmit" in hooks, hooks.keys()
+        shutil.copy2(FIXTURE / "launch.py", self.city / "launch.py")
+
+    def run_session(self):
+        session = self.gc(
+            "session",
+            "new",
+            "spike.worker",
+            "--alias",
+            "devkit-spike",
+            "--title",
+            "Disposable ADR qualification",
+            "--no-attach",
+            "--json",
+            structured=True,
+        )
+        self.report["session_created"] = bool(session)
+        deadline = time.monotonic() + 600
+        while not (self.city / "agent.exit").exists():
+            assert time.monotonic() < deadline, "Live session did not finish within 600 seconds"
+            time.sleep(0.5)
+        assert (self.city / "agent.exit").read_text() == "0", (
+            self.city / "agent.stderr"
+        ).read_text()[-2000:]
+        events = [json.loads(line) for line in (self.city / "agent.jsonl").read_text().splitlines()]
+        results = [event for event in events if event.get("type") == "result"]
+        assert results and not results[-1].get("is_error"), results
+        native_hooks = [
+            event
+            for event in events
+            if event.get("subtype") == "hook_response"
+            and event.get("hook_event") in {"SessionStart", "UserPromptSubmit"}
+        ]
+        assert {event["hook_event"] for event in native_hooks} == {
+            "SessionStart",
+            "UserPromptSubmit",
+        }
+        failures = [
+            {key: event.get(key) for key in ("hook_event", "exit_code", "stderr")}
+            for event in native_hooks
+            if event.get("exit_code") != 0
+        ]
+        assert not failures, failures
+        assert "DEVKIT_PACK_SKILL_OK" in results[-1].get("result", ""), results[-1].get("result")
+        calls = [
+            block
+            for event in events
+            for block in event.get("message", {}).get("content", [])
+            if isinstance(block, dict) and block.get("type") == "tool_use"
+        ]
+        assert any(
+            call.get("name") == "Skill" and call.get("input", {}).get("skill") == "spike.probe"
+            for call in calls
+        )
+        assert any(call.get("name") == "mcp__spike__marker" for call in calls)
+        force_pushes = [
+            call
+            for call in calls
+            if call.get("name") == "Bash"
+            and call.get("input", {}).get("command", "").strip() == "git push --force"
+        ]
+        assert len(force_pushes) == 1, force_pushes
+        assert (self.worktree / ".spike/mcp-observed").exists()
+        assert (self.worktree / ".spike/guard-denied").exists()
+        changed = self.run("git", "diff", "--name-only", cwd=self.worktree).splitlines()
+        assert changed == ["addons/example/__manifest__.py"], changed
+        assert not self.run("git", "remote", cwd=self.worktree).strip()
+        self.report.update(
+            container_session="passed",
+            pack_skill="passed",
+            project_mcp="passed",
+            guard_hook="passed",
+            native_hook_composition="passed",
+        )
+
+    def check_success(self):
+        self.close(self.attempt)
+        self.gc("convoy", "control", self.identifier("implement"))
+        assert self.identifier("draft-pr") in self.ready()
+        self.report["fixed_check_releases_draft"] = "passed"
+
+    def cleanup(self):
+        if self.args.live:
+            subprocess.run(
+                [str(self.args.gc), "--city", str(self.city), "session", "close", "devkit-spike"],
+                env=self.env,
+                capture_output=True,
+                timeout=60,
+            )
+        subprocess.run(
+            [str(self.args.bd), "-C", str(self.city), "dolt", "stop"],
+            env=self.env,
+            capture_output=True,
+            timeout=60,
+        )
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    for name in (
+        "root",
+        "gc",
+        "gascity-source",
+        "bd",
+        "dolt",
+        "devcontainer",
+        "claude",
+        "credentials",
+    ):
+        parser.add_argument("--" + name, type=lambda value: Path(value).resolve(), required=True)
+    parser.add_argument(
+        "--live", action="store_true", help="Run a real subscription-authenticated Claude session"
+    )
+    args = parser.parse_args()
+    paths = [ROOT, *[value for value in vars(args).values() if isinstance(value, Path)]]
+    if any(any(character.isspace() for character in str(path)) for path in paths):
+        parser.error("Tool, source and output paths must not contain whitespace")
+    spike = Spike(args)
+    try:
+        for stage in (
+            spike.prepare_city,
+            spike.prepare_repository,
+            spike.cook_worktree,
+            spike.check_approval,
+            spike.check_retry,
+            spike.check_server_boundary,
+        ):
+            print(f"Running {stage.__name__}", file=sys.stderr, flush=True)
+            stage()
+        if args.live:
+            print("Building project devcontainer", file=sys.stderr, flush=True)
+            spike.build_container()
+            spike.prepare_session()
+            print("Starting live native session", file=sys.stderr, flush=True)
+            spike.run_session()
+            spike.check_success()
+        print(json.dumps(spike.report, indent=2))
+    finally:
+        spike.cleanup()
+
+
+if __name__ == "__main__":
+    main()
