@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "rules": {
+    "no-force-push": {},
+    "no-pr-publish": {},
+    "no-protected-push": {"branches": ["main", "master"]},
+    "no-remote-delete": {},
+    "no-background": {},
+    "no-credential-access": {"paths": ["~/.claude/.credentials.json"]},
+    "literal-shell": {}
+  }
+}

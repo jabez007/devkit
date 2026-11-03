@@ -2,7 +2,14 @@
 members = ["packages/*"]
 
 [dependency-groups]
-dev = ["pytest>=8,<9", "ruff>=0.14,<0.15", "mypy>=1.18,<2", "types-jsonschema>=4", "import-linter>=2,<3"]
+dev = [
+    "pytest>=8,<9",
+    "ruff>=0.14,<0.15",
+    "mypy>=1.18,<2",
+    "types-jsonschema>=4",
+    "import-linter>=2,<3",
+    "bashlex==0.18",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
