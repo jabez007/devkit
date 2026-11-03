@@ -245,6 +245,11 @@ def test_relative_import_forms_register_models(odoo_project, root_imports):
         "from importlib import import_module as load\nload('.models.book', __name__)\n",
         "from builtins import __import__ as load\nload(__name__ + '.models.book')\n",
         "import importlib\nload = importlib.import_module\nload('.models.book', __name__)\n",
+        "import importlib\ngetattr(importlib, 'import_module')('.models.book', __name__)\n",
+        "import importlib as loader\ngetattr(loader, 'import_module')('.models.book', __name__)\n",
+        "import builtins\ngetattr(builtins, '__import__')(__name__ + '.models.book')\n",
+        "import importlib\nload = getattr(importlib, 'import_module')\n"
+        "load('.models.book', __name__)\n",
         "__import__(__name__ + '.models.book')\n",
         "from .models import *\n",
         "if enabled:\n    from .models import book\n",
@@ -267,6 +272,33 @@ def test_unfollowed_imports_keep_generated_ids_unknown(odoo_project, root_import
     assert result["status"] == "success"
     assert reference["status"] == "unknown"
     assert reference["target"] is None
+
+
+@pytest.mark.parametrize("name", ["eval", "exec", "import_module", "__import__"])
+def test_dynamic_import_names_as_fields_do_not_hide_undefined_ids(odoo_project, name):
+    result = validate(
+        odoo_project,
+        {
+            **BOOK_FILES,
+            "models/book.py": BOOK + f"    {name} = fields.Char()\n",
+            "security/ir.model.access.csv": ACCESS.replace("model_acme_book", "model_acme_missing"),
+        },
+    )
+    assert (result["status"], result["reason"]) == ("failed", "UNDEFINED_XML_ID")
+    assert by_value(result, "model_acme_missing")["status"] == "undefined"
+
+
+def test_ordinary_getattr_does_not_hide_undefined_ids(odoo_project):
+    result = validate(
+        odoo_project,
+        {
+            **BOOK_FILES,
+            "models/book.py": BOOK + "    label = getattr(fields, 'Char')()\n",
+            "security/ir.model.access.csv": ACCESS.replace("model_acme_book", "model_acme_missing"),
+        },
+    )
+    assert (result["status"], result["reason"]) == ("failed", "UNDEFINED_XML_ID")
+    assert by_value(result, "model_acme_missing")["status"] == "undefined"
 
 
 def test_relative_parent_imports_and_cycles_terminate(odoo_project):
@@ -312,6 +344,21 @@ def test_import_scan_limits_keep_generated_ids_unknown(odoo_project, monkeypatch
 
     monkeypatch.setitem(python_inspection.LIMITS, limit, 1)
     result = validate(odoo_project, {**BOOK_FILES, "security/ir.model.access.csv": ACCESS})
+    assert result["status"] == "success"
+    assert by_value(result, "model_acme_book")["status"] == "unknown"
+
+
+def test_import_scan_total_byte_limit_accumulates_across_files(odoo_project, monkeypatch):
+    from mccann_hub.devkit_odoo import python_inspection
+
+    initializers = {name: source + "#" * len(BOOK) + "\n" for name, source in BOOK_IMPORTS.items()}
+    # Each source fits alone; the initializers exhaust the budget before book.py.
+    total_bytes = sum(len(source.encode()) for source in initializers.values())
+    monkeypatch.setitem(python_inspection.LIMITS, "total_bytes", total_bytes)
+    result = validate(
+        odoo_project,
+        {**initializers, "models/book.py": BOOK, "security/ir.model.access.csv": ACCESS},
+    )
     assert result["status"] == "success"
     assert by_value(result, "model_acme_book")["status"] == "unknown"
 

@@ -98,9 +98,19 @@ class PythonImports:
 
 
 def _dynamic_reference(node: ast.AST, names: set[str]) -> bool:
-    return (isinstance(node, ast.Name) and node.id in names) or (
-        isinstance(node, ast.Attribute) and node.attr in {"import_module", "__import__"}
-    )
+    if isinstance(node, ast.Name):
+        return isinstance(node.ctx, ast.Load) and node.id in names
+    if isinstance(node, ast.Attribute):
+        return node.attr in {"import_module", "__import__"}
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "getattr"
+        and len(node.args) >= 2
+    ):
+        attribute = node.args[1]
+        return isinstance(attribute, ast.Constant) and attribute.value in DYNAMIC_NAMES
+    return False
 
 
 def _absolute_addon_import(node: ast.AST, addon: str) -> bool:
