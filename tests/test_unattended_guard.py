@@ -75,6 +75,10 @@ def invoke(project, tool="Bash", tool_input=None, *, rules=None, unattended="1",
         "bash -c 'git push -f origin feature'",
         "sh -lc 'git push -f origin feature'",
         "git send-pack --force origin feature",
+        "timeout 5 git push -f origin feature",
+        "nice -n 5 git push -f origin feature",
+        "stdbuf -oL git push --force origin feature",
+        "git-send-pack --force origin feature",
     ],
 )
 def test_force_push_forms_are_denied(guard_project, command):
@@ -158,6 +162,9 @@ def test_known_github_mcp_publication_is_denied(guard_project, tool, arguments):
         "gh pr view 1",
         "gh pr create --draft --title 'Example'",
         "pytest -q",
+        "timeout 5 pytest -q",
+        "nice -n5 pytest -q",
+        "stdbuf -oL pytest -q",
         "printf '%s' '&'",
         "printf '%s' 'git push --force'",
         "git --version",
@@ -225,6 +232,8 @@ def test_git_alias_and_configured_mirror_are_denied(guard_project):
         "gh alias set publish 'pr merge'",
         "gh --repo example/project pr merge 1",
         '"$program" push origin feature',
+        "trap 'git push -f origin feature' EXIT",
+        "find . -exec git push -f origin feature ';'",
     ],
 )
 def test_uninspectable_command_indirection_is_denied(guard_project, command):
@@ -235,6 +244,16 @@ def test_hook_watchdog_refuses_a_blocked_rule_read(guard_project):
     pipe = guard_project / "rules.pipe"
     os.mkfifo(pipe)
     assert "guard-timeout" in invoke(guard_project, rules=pipe, tool_input={"command": "true"})
+
+
+def test_stack_prefix_rules_apply_to_git_aliases(guard_project):
+    configuration = json.loads((ASSETS / "base-rules.json").read_text())
+    configuration["rules"]["stack.no-push"] = {"command_prefix": ["git", "push"]}
+    path = guard_project / "rules.json"
+    path.write_text(json.dumps(configuration))
+    subprocess.run(["git", "config", "alias.publish", "push"], cwd=guard_project, check=True)
+    reason = invoke(guard_project, rules=path, tool_input={"command": "git publish origin feature"})
+    assert reason and "stack.no-push" in reason
 
 
 def test_invalid_active_input_is_denied_without_echoing_it(guard_project):
@@ -267,6 +286,9 @@ def test_rules_can_add_commands_and_protected_branch_patterns(guard_project):
     path.write_text(json.dumps(configuration))
     assert "stack.no-publish" in invoke(
         guard_project, rules=path, tool_input={"command": "npm publish"}
+    )
+    assert "stack.no-publish" in invoke(
+        guard_project, rules=path, tool_input={"command": "timeout 5 npm publish"}
     )
     assert "no-protected-push" in invoke(
         guard_project, rules=path, tool_input={"command": "git push origin HEAD:release/19.0"}

@@ -5,7 +5,7 @@ import os
 import shlex
 import subprocess
 
-from _rules import Refusal
+from _rules import Refusal, check_prefix
 
 
 def read(cwd, *arguments):
@@ -102,6 +102,7 @@ def inspect(words, cwd, rules, depth=0):
     if not arguments:
         return
     command, *arguments = arguments
+    check_prefix(["git", command, *arguments], rules)
     if command in {"push", "send-pack", "http-push"}:
         _inspect_push(arguments, cwd, rules)
     else:

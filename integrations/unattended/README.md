@@ -53,7 +53,10 @@ Installing these assets does not register or activate the hook.
 
 The shell parser never executes the submitted command. It visits nested command
 and process substitutions, pipelines and compound commands. Literal `bash -c`
-wrappers and Git aliases are inspected too. Git queries only read local metadata,
+wrappers and Git aliases are inspected too. The `timeout`, `nice` and `stdbuf`
+launchers are normalized before base and stack rules apply. Stack prefixes also
+apply to resolved Git aliases. Other known command indirection, including shell
+traps and `find -exec`, is refused. Git queries only read local metadata,
 with filesystem monitoring disabled and a two-second timeout. They never contact
 a remote. A five-second watchdog returns a refusal before the hook's ten-second
 timeout. Invalid input, missing dependencies and invalid rules also refuse the

@@ -83,3 +83,10 @@ def load(path=None):
         if not _strings(value["command_prefix"]):
             raise Refusal(f"{name}: command_prefix must contain literal words")
     return rules
+
+
+def check_prefix(words, rules):
+    for name, rule in rules.items():
+        prefix = rule.get("command_prefix")
+        if prefix and words[: len(prefix)] == prefix:
+            raise Refusal(f"{name}: stack command is forbidden")

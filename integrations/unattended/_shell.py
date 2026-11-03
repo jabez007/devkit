@@ -4,7 +4,46 @@ from pathlib import Path
 
 import bashlex
 from _git import inspect as inspect_git
-from _rules import Refusal
+from _rules import Refusal, check_prefix
+
+LAUNCHERS = {
+    "timeout": {
+        "values": {"-s", "--signal", "-k", "--kill-after"},
+        "flags": {"--foreground", "--preserve-status", "--verbose"},
+        "positional": 1,
+    },
+    "nice": {"values": {"-n", "--adjustment"}, "flags": set(), "positional": 0},
+    "stdbuf": {
+        "values": {"-i", "--input", "-o", "--output", "-e", "--error"},
+        "flags": set(),
+        "positional": 0,
+    },
+}
+
+
+def _launcher(program, arguments):
+    options = LAUNCHERS[program]
+    while arguments and arguments[0].startswith("-"):
+        argument = arguments.pop(0)
+        name, separator, _ = argument.partition("=")
+        if name == "--":
+            break
+        if name in options["flags"]:
+            continue
+        if name in options["values"]:
+            if not separator and arguments:
+                arguments.pop(0)
+        elif not any(
+            option.startswith("-")
+            and not option.startswith("--")
+            and argument.startswith(option)
+            and len(argument) > len(option)
+            for option in options["values"]
+        ):
+            raise Refusal("literal-shell: unsupported launcher option")
+    if len(arguments) <= options["positional"]:
+        raise Refusal("literal-shell: launcher must name its command")
+    return arguments[options["positional"] :]
 
 
 def _assignment(word):
@@ -21,6 +60,9 @@ def _assignment(word):
 def _unwrap(words):
     while words:
         words[0] = Path(words[0]).name
+        if words[0] in LAUNCHERS:
+            words = _launcher(words[0], words[1:])
+            continue
         if words[0] not in {"env", "command", "exec", "builtin"}:
             break
         wrapper, *words = words
@@ -142,6 +184,9 @@ class Inspection(bashlex.ast.nodevisitor):
 
     def _inspect(self, arguments, nodes):
         program = arguments[0]
+        if program in {"git-send-pack", "git-http-push"}:
+            arguments = ["git", program.removeprefix("git-"), *arguments[1:]]
+            program = "git"
         if program in {"nohup", "disown", "bg", "setsid", "daemonize"}:
             raise Refusal("no-background: detached processes are forbidden")
         if program in {
@@ -155,8 +200,15 @@ class Inspection(bashlex.ast.nodevisitor):
             "unalias",
             "unset",
             "enable",
+            "trap",
+            "ionice",
+            "chrt",
         }:
             raise Refusal("literal-shell: indirect commands cannot be inspected")
+        if program == "find" and any(
+            word in {"-exec", "-execdir", "-ok", "-okdir"} for word in arguments[1:]
+        ):
+            raise Refusal("literal-shell: find command execution cannot be inspected")
         if program in {"bash", "sh", "zsh", "dash"}:
             self._shell(arguments)
         elif program in {"git", "gh"}:
@@ -166,10 +218,7 @@ class Inspection(bashlex.ast.nodevisitor):
                 inspect_git(arguments, self.cwd, self.rules)
             else:
                 _pr(arguments)
-        for name, rule in self.rules.items():
-            prefix = rule.get("command_prefix")
-            if prefix and arguments[: len(prefix)] == prefix:
-                raise Refusal(f"{name}: stack command is forbidden")
+        check_prefix(arguments, self.rules)
 
     def _shell(self, arguments):
         if len(arguments) < 3 or arguments[1] not in {"-c", "-lc", "-ec", "-lec"}:
