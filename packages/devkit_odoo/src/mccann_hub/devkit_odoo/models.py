@@ -33,20 +33,24 @@ class ModelIndex:
         """Where the ID's model, or its field declared by a literal assignment, is defined."""
         if local_id.startswith("model_"):
             return self.targets.get(local_id.removeprefix("model_"))
-        model, name = _field_parts(local_id)
-        return self.fields.get(model, {}).get(name)
+        for model, name in _field_parts(local_id):
+            if location := self.fields.get(model, {}).get(name):
+                return location
+        return None
 
     def may_generate(self, local_id: str) -> bool:
         """A field ID on a model this module declares, for a field the scan did not find."""
-        model, _ = _field_parts(local_id)
-        return model in self.targets and self.target(local_id) is None
+        models = (model for model, _ in _field_parts(local_id))
+        return any(model in self.targets for model in models) and self.target(local_id) is None
 
 
-def _field_parts(local_id: str) -> tuple[str, str]:
-    if local_id.startswith("field_") and "__" in local_id:
-        model, name = local_id.removeprefix("field_").split("__", 1)
-        return model, name
-    return "", ""
+def _field_parts(local_id: str) -> list[tuple[str, str]]:
+    """Every (model, field) split; model and field names may themselves contain ``__``."""
+    if not local_id.startswith("field_"):
+        return []
+    rest = local_id.removeprefix("field_")
+    starts = [index for index in range(len(rest)) if rest.startswith("__", index)]
+    return [(rest[:index], rest[index + 2 :]) for index in starts]
 
 
 def scan_models(module: Path, checkpoint: Callable[[], None]) -> ModelIndex:

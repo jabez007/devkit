@@ -186,3 +186,13 @@ def test_field_ids_resolve_only_for_fields_the_module_declares(odoo_project):
     # The name may come from a mixin or parent model, so it is unknown, not undefined.
     typo = by_value(result, "field_acme_book__title_typo")
     assert (typo["status"], typo["reason"]) == ("unknown", "unverified_field_name")
+
+
+def test_field_ids_resolve_when_the_model_name_contains_a_double_underscore(odoo_project):
+    rule = """<odoo>
+<record id="a" model="x"><field name="field_id" ref="field_acme__book__title"/></record>
+</odoo>"""
+    book = BOOK.replace('"acme.book"', '"acme__book"')
+    result = validate(odoo_project, {"models/book.py": book, "rules.xml": rule})
+    assert result["status"] == "success"
+    assert by_value(result, "field_acme__book__title")["status"] == "resolved"
