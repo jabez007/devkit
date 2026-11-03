@@ -9,6 +9,7 @@ from mccann_hub.devkit_odoo.file_inspection import FileBudget
 
 LIMITS = {"files": 1000, "file_bytes": 1_048_576, "total_bytes": 16_777_216}
 IMPORT_FUNCTIONS = {"importlib": {"import_module"}, "builtins": {"__import__", "exec", "eval"}}
+DYNAMIC_NAMES = frozenset(name for names in IMPORT_FUNCTIONS.values() for name in names)
 
 
 class PythonImports:
@@ -53,7 +54,7 @@ class PythonImports:
             self.complete = False
 
     def _imports(self, path: Path, tree: ast.Module) -> None:
-        dynamic = {"__import__", "exec", "eval", "import_module"}
+        dynamic = set(DYNAMIC_NAMES)
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom) and not node.level:
                 imported = IMPORT_FUNCTIONS.get(node.module or "", set())
