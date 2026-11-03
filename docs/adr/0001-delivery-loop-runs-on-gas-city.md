@@ -11,8 +11,9 @@ Gas City and Beads. Devkit supplies domain checks and stack packs. This preserve
 N1, N2, D1, D2 and section 10.2 of the
 [architecture](../Composable_Developer_Toolkit_Architecture.md).
 
-The qualification passed for the local profile below on November 3, 2026.
-This record remains proposed pending architecture review and merge. A missing
+On November 3, 2026, checks 1 to 4 and 6 passed for the local profile below.
+Check 5 needs a live rerun with the driver's tool-result assertion. This record
+remains proposed until that rerun passes and the architecture review is done. A missing
 prerequisite is an unrun check, not evidence that Gas City cannot support the
 loop. The implementation plan and issue descriptions must follow the accepted
 split before production loop code lands.
@@ -160,7 +161,7 @@ Claude Code 2.1.317 with subscription authentication.
 | Native check and retry | Passed | Broken manifest order kept the draft-PR step blocked and created iteration 2. After the agent fixed only the manifest, `gc convoy control` passed the check and made the draft-PR step ready. |
 | Human approval | Passed | The first implementation attempt was absent from `gc ready` before approval and present after the test driver explicitly closed the synthetic human gate and approval step. |
 | Skill and project MCP | Passed | The transcript records `Skill` invoking `spike.probe` and a call to `mcp__spike__marker`. The driver also checks the MCP marker artifact. |
-| Hook composition | Passed | Gas City's `SessionStart` and both `UserPromptSubmit` hooks returned exit code 0. The project guard refused exactly one `git push --force` request, alongside those hooks. |
+| Hook composition | Rerun needed | Gas City's `SessionStart` and both `UserPromptSubmit` hooks returned exit code 0. The project guard returned a deny decision for exactly one `git push --force` request, alongside those hooks. That run checked only the guard's marker file. The fixture has no remote, so an executed push would also have failed. The driver now also requires the tool result for that call to carry the guard's reason, and no live run has used that check yet. |
 | One task store | Passed | Native commands used one `proxied-server` Beads workspace. The Devkit adapter returned `blocked / UNSUPPORTED_BEADS_WORKSPACE`, confirming that the initial pack must use the native task-state workaround. |
 
 The runtime profile needs explicit configuration:

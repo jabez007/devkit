@@ -745,8 +745,8 @@ tracker discovery and crash-atomic family deletion remain outside this increment
 Issue #3's [delivery-loop ADR](adr/0001-delivery-loop-runs-on-gas-city.md)
 records the proposed core and stack-pack split and its qualification gates.
 The local live spike passed native approval and check gating, retry, a one-shot
-Claude session in the project's image, skill and MCP access, and guard
-composition. Native task commands worked with the proxied-server workspace;
+Claude session in the project's image, and skill and MCP access. Guard
+composition needs a live rerun that checks the blocked tool call. Native task commands worked with the proxied-server workspace;
 Devkit's embedded-only adapter correctly refused it. The ADR records that
 workaround and the unqualified production, resume and concurrency behavior.
 Keep the independently useful checks and current authorization contracts.

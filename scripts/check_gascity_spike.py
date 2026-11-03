@@ -20,6 +20,35 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "examples/gascity-spike"
 GASCITY_REVISION = "76843b86452109d9e7d150958cf220da81b9d01d"
+GUARD_REASON = "DEVKIT_SPIKE_FORCE_PUSH_DENIED"
+LIVE_CHECKS = (
+    "session_created",
+    "container_session",
+    "pack_skill",
+    "project_mcp",
+    "guard_hook",
+    "native_hook_composition",
+    "fixed_check_releases_draft",
+)
+
+
+class QualificationFailed(Exception):
+    """A failed check; raised explicitly so ``python -O`` cannot skip it as it skips asserts."""
+
+
+def require(condition, detail=None):
+    if not condition:
+        raise QualificationFailed(detail)
+
+
+def content_blocks(events, kind):
+    """Message content blocks of one type, such as ``tool_use`` or ``tool_result``."""
+    return [
+        block
+        for event in events
+        for block in event.get("message", {}).get("content", [])
+        if isinstance(block, dict) and block.get("type") == kind
+    ]
 
 
 class Spike:
@@ -67,7 +96,7 @@ class Spike:
             capture_output=True,
             timeout=timeout,
         )
-        assert result.returncode == 0, (arguments, result.stdout[-4000:], result.stderr[-4000:])
+        require(result.returncode == 0, (arguments, result.stdout[-4000:], result.stderr[-4000:]))
         return json.loads(result.stdout) if structured else result.stdout
 
     def gc(self, *arguments, **kwargs):
@@ -75,15 +104,17 @@ class Spike:
 
     def prepare_city(self):
         revision = self.run("git", "-C", self.args.gascity_source, "rev-parse", "HEAD", cwd=ROOT)
-        assert revision.strip() == GASCITY_REVISION, revision
-        assert not self.run(
-            "git", "-C", self.args.gascity_source, "status", "--porcelain", cwd=ROOT
-        ).strip()
+        require(revision.strip() == GASCITY_REVISION, revision)
+        require(
+            not self.run(
+                "git", "-C", self.args.gascity_source, "status", "--porcelain", cwd=ROOT
+            ).strip()
+        )
         build_info = self.run("go", "version", "-m", self.args.gc, cwd=ROOT)
-        assert f"vcs.revision={GASCITY_REVISION}" in build_info, "Wrong gc binary revision"
-        assert "vcs.modified=false" in build_info, "gc binary was built from modified sources"
-        assert "CGO_ENABLED=0" in build_info, (
-            "Use the upstream static release build for the container"
+        require(f"vcs.revision={GASCITY_REVISION}" in build_info, "Wrong gc binary revision")
+        require("vcs.modified=false" in build_info, "gc binary was built from modified sources")
+        require(
+            "CGO_ENABLED=0" in build_info, "Use the upstream static release build for the container"
         )
         self.report["gc_version"] = self.run(self.args.gc, "version", cwd=ROOT).strip()
         for key, value in (("user.name", "Devkit Spike"), ("user.email", "spike@example.invalid")):
@@ -142,9 +173,9 @@ class Spike:
 
     def cook_worktree(self):
         recipe = self.gc("formula", "show", "devkit-delivery-spike", "--json", structured=True)
-        assert recipe["ok"], recipe
+        require(recipe["ok"], recipe)
         cooked = self.gc("formula", "cook", "devkit-delivery-spike", "--json", structured=True)
-        assert cooked["ok"], cooked
+        require(cooked["ok"], cooked)
         self.ids = cooked["id_mapping"]
         self.root_id = cooked["root_id"]
         self.gc(
@@ -205,11 +236,11 @@ class Spike:
 
     def check_approval(self):
         before = self.ready()
-        assert self.identifier("implement.iteration.1") not in before
-        assert self.identifier("draft-pr") not in before
+        require(self.identifier("implement.iteration.1") not in before)
+        require(self.identifier("draft-pr") not in before)
         self.close(self.identifier("gate-approve"))
         self.close(self.identifier("approve"))
-        assert self.identifier("implement.iteration.1") in self.ready()
+        require(self.identifier("implement.iteration.1") in self.ready())
         self.report["approval_gate"] = "passed"
 
     def check_retry(self):
@@ -221,7 +252,7 @@ class Spike:
         gate.chmod(0o755)
         self.close(self.identifier("implement.iteration.1"))
         self.gc("convoy", "control", self.identifier("implement"))
-        assert self.identifier("draft-pr") not in self.ready()
+        require(self.identifier("draft-pr") not in self.ready())
         items = self.gc(
             "bd", "list", "--all", "--include-ephemeral", "--limit", "0", "--json", structured=True
         )
@@ -231,7 +262,7 @@ class Spike:
             if item.get("metadata", {}).get("gc.step_ref") == "implement.iteration.2"
             or item.get("metadata", {}).get("gc.step_ref", "").endswith(".implement.iteration.2")
         ]
-        assert len(attempts) == 1, [(item["id"], item.get("metadata")) for item in items]
+        require(len(attempts) == 1, [(item["id"], item.get("metadata")) for item in items])
         self.attempt = attempts[0]["id"]
         self.report["failed_check_blocks_draft"] = "passed"
         self.report["native_retry"] = "passed"
@@ -259,8 +290,8 @@ class Spike:
     def check_server_boundary(self):
         self.run("git", "init", "--quiet", self.city)
         native = self.gc("bd", "context", "--json", structured=True)
-        assert native["bd_version"] == "1.3.2", native.get("bd_version")
-        assert native["dolt_mode"] != "embedded", native.get("dolt_mode")
+        require(native["bd_version"] == "1.3.2", native.get("bd_version"))
+        require(native["dolt_mode"] != "embedded", native.get("dolt_mode"))
         (self.city / "devkit.toml").write_text('plugins=["beads"]\n')
         config = self.root / "operator/devkit"
         config.mkdir(parents=True)
@@ -292,9 +323,9 @@ class Spike:
             text=True,
             timeout=30,
         )
-        assert result.returncode == 2, result.stdout + result.stderr
+        require(result.returncode == 2, result.stdout + result.stderr)
         reason = json.loads(result.stdout)["result"]["reason"]
-        assert reason == "UNSUPPORTED_BEADS_WORKSPACE", reason
+        require(reason == "UNSUPPORTED_BEADS_WORKSPACE", reason)
         self.report["native_beads_mode"] = native["dolt_mode"]
         self.report["devkit_server_adapter"] = reason
 
@@ -400,7 +431,7 @@ class Spike:
         ]
         (self.city / "claude-arguments.json").write_text(json.dumps(args))
         hooks = json.loads((self.city / ".gc/settings.json").read_text()).get("hooks", {})
-        assert "SessionStart" in hooks and "UserPromptSubmit" in hooks, hooks.keys()
+        require("SessionStart" in hooks and "UserPromptSubmit" in hooks, hooks.keys())
         shutil.copy2(FIXTURE / "launch.py", self.city / "launch.py")
 
     def run_session(self):
@@ -419,54 +450,35 @@ class Spike:
         self.report["session_created"] = bool(session)
         deadline = time.monotonic() + 600
         while not (self.city / "agent.exit").exists():
-            assert time.monotonic() < deadline, "Live session did not finish within 600 seconds"
+            require(time.monotonic() < deadline, "Live session did not finish within 600 seconds")
             time.sleep(0.5)
-        assert (self.city / "agent.exit").read_text() == "0", (
-            self.city / "agent.stderr"
-        ).read_text()[-2000:]
+        require(
+            (self.city / "agent.exit").read_text() == "0",
+            (self.city / "agent.stderr").read_text()[-2000:],
+        )
         events = [json.loads(line) for line in (self.city / "agent.jsonl").read_text().splitlines()]
         results = [event for event in events if event.get("type") == "result"]
-        assert results and not results[-1].get("is_error"), results
+        require(results and not results[-1].get("is_error"), results)
         native_hooks = [
             event
             for event in events
             if event.get("subtype") == "hook_response"
             and event.get("hook_event") in {"SessionStart", "UserPromptSubmit"}
         ]
-        assert {event["hook_event"] for event in native_hooks} == {
-            "SessionStart",
-            "UserPromptSubmit",
-        }
+        require(
+            {event["hook_event"] for event in native_hooks} == {"SessionStart", "UserPromptSubmit"}
+        )
         failures = [
             {key: event.get(key) for key in ("hook_event", "exit_code", "stderr")}
             for event in native_hooks
             if event.get("exit_code") != 0
         ]
-        assert not failures, failures
-        assert "DEVKIT_PACK_SKILL_OK" in results[-1].get("result", ""), results[-1].get("result")
-        calls = [
-            block
-            for event in events
-            for block in event.get("message", {}).get("content", [])
-            if isinstance(block, dict) and block.get("type") == "tool_use"
-        ]
-        assert any(
-            call.get("name") == "Skill" and call.get("input", {}).get("skill") == "spike.probe"
-            for call in calls
-        )
-        assert any(call.get("name") == "mcp__spike__marker" for call in calls)
-        force_pushes = [
-            call
-            for call in calls
-            if call.get("name") == "Bash"
-            and call.get("input", {}).get("command", "").strip() == "git push --force"
-        ]
-        assert len(force_pushes) == 1, force_pushes
-        assert (self.worktree / ".spike/mcp-observed").exists()
-        assert (self.worktree / ".spike/guard-denied").exists()
+        require(not failures, failures)
+        require("DEVKIT_PACK_SKILL_OK" in results[-1].get("result", ""), results[-1].get("result"))
+        self.check_tool_calls(events)
         changed = self.run("git", "diff", "--name-only", cwd=self.worktree).splitlines()
-        assert changed == ["addons/example/__manifest__.py"], changed
-        assert not self.run("git", "remote", cwd=self.worktree).strip()
+        require(changed == ["addons/example/__manifest__.py"], changed)
+        require(not self.run("git", "remote", cwd=self.worktree).strip())
         self.report.update(
             container_session="passed",
             pack_skill="passed",
@@ -475,10 +487,37 @@ class Spike:
             native_hook_composition="passed",
         )
 
+    def check_tool_calls(self, events):
+        calls = content_blocks(events, "tool_use")
+        require(
+            any(
+                call.get("name") == "Skill" and call.get("input", {}).get("skill") == "spike.probe"
+                for call in calls
+            )
+        )
+        require(any(call.get("name") == "mcp__spike__marker" for call in calls))
+        force_pushes = [
+            call
+            for call in calls
+            if call.get("name") == "Bash"
+            and call.get("input", {}).get("command", "").strip() == "git push --force"
+        ]
+        require(len(force_pushes) == 1, force_pushes)
+        # The marker file shows the guard chose to deny. Without a remote, an executed push
+        # also fails, so only the tool result shows that Claude Code blocked the call.
+        denials = [
+            result
+            for result in content_blocks(events, "tool_result")
+            if result.get("tool_use_id") == force_pushes[0].get("id")
+        ]
+        require(len(denials) == 1 and GUARD_REASON in json.dumps(denials[0]), denials)
+        require((self.worktree / ".spike/mcp-observed").exists())
+        require((self.worktree / ".spike/guard-denied").exists())
+
     def check_success(self):
         self.close(self.attempt)
         self.gc("convoy", "control", self.identifier("implement"))
-        assert self.identifier("draft-pr") in self.ready()
+        require(self.identifier("draft-pr") in self.ready())
         self.report["fixed_check_releases_draft"] = "passed"
 
     def cleanup(self):
@@ -536,6 +575,8 @@ def main():
             print("Starting live native session", file=sys.stderr, flush=True)
             spike.run_session()
             spike.check_success()
+        else:
+            spike.report.update(dict.fromkeys(LIVE_CHECKS, "not run"))
         print(json.dumps(spike.report, indent=2))
     finally:
         spike.cleanup()
