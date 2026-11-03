@@ -115,7 +115,11 @@ class Beads:
         if result.reason:
             statuses: dict[str, Status] = {"MISSING_TOOL": "blocked", "CANCELLED": "cancelled"}
             status = statuses.get(result.reason, "error")
-            raise BeadsError(status, result.reason, "Beads did not run; install bd 1.3.1+ on PATH")
+            raise BeadsError(
+                status,
+                result.reason,
+                "Beads did not run; install bd 1.3.1 or a later 1.3 release on PATH",
+            )
         if result.truncated:
             raise BeadsError("error", "OUTPUT_LIMIT", "Beads output exceeded the capture limit")
         if result.returncode:
@@ -160,7 +164,9 @@ class Beads:
         version = reported.get("version") if isinstance(reported, dict) else None
         if not isinstance(version, str) or not SUPPORTED_SERIES.match(version):
             raise BeadsError(
-                "blocked", "UNSUPPORTED_BEADS_VERSION", "This adapter requires Beads 1.3.1+"
+                "blocked",
+                "UNSUPPORTED_BEADS_VERSION",
+                "This adapter requires Beads 1.3.1 or a later 1.3 release",
             )
         self.version = version
         self.directory = main / ".beads"
