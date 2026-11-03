@@ -1,22 +1,21 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Keep delivery orchestration in Gas City and stack behavior in Devkit packs
 
 [Issue #3](https://github.com/jabez007/devkit/issues/3) decides how to deliver
 [the loop in #2](https://github.com/jabez007/devkit/issues/2) without duplicating
-an orchestrator. The proposed split keeps scheduling, sessions and task state in
+an orchestrator. The split keeps scheduling, sessions and task state in
 Gas City and Beads. Devkit supplies domain checks and stack packs. This preserves
 N1, N2, D1, D2 and section 10.2 of the
 [architecture](../Composable_Developer_Toolkit_Architecture.md).
 
-On November 3, 2026, checks 1 to 4 and 6 passed for the local profile below.
-Check 5 needs a live rerun with the driver's tool-result assertion. This record
-remains proposed until that rerun passes and the architecture review is done. A missing
-prerequisite is an unrun check, not evidence that Gas City cannot support the
-loop. The implementation plan and issue descriptions must follow the accepted
-split before production loop code lands.
+On November 3, 2026, all six qualification checks passed for the local
+profile below, and the decision was accepted. A
+missing prerequisite is an unrun check, not evidence that Gas City cannot
+support the loop. The implementation plan and issue descriptions must follow
+this split before production loop code lands.
 
 ## Runtime
 
@@ -151,7 +150,8 @@ prove that GitHub created a draft pull request.
 
 The [repeatable driver](../../scripts/check_gascity_spike.py) and
 [fixture instructions](../../examples/gascity-spike/README.md) exercise native
-commands, not mocks. The final live run used Gas City 1.4.3 at the pinned
+commands, not mocks. The final live run, with the driver at commit `09a38c0`,
+used Gas City 1.4.3 at the pinned
 revision, Beads 1.3.2, Dolt 2.6.0, devcontainer CLI 0.90.0, Docker 29.8.1 and
 Claude Code 2.1.317 with subscription authentication.
 
@@ -161,7 +161,7 @@ Claude Code 2.1.317 with subscription authentication.
 | Native check and retry | Passed | Broken manifest order kept the draft-PR step blocked and created iteration 2. After the agent fixed only the manifest, `gc convoy control` passed the check and made the draft-PR step ready. |
 | Human approval | Passed | The first implementation attempt was absent from `gc ready` before approval and present after the test driver explicitly closed the synthetic human gate and approval step. |
 | Skill and project MCP | Passed | The transcript records `Skill` invoking `spike.probe` and a call to `mcp__spike__marker`. The driver also checks the MCP marker artifact. |
-| Hook composition | Rerun needed | Gas City's `SessionStart` and both `UserPromptSubmit` hooks returned exit code 0. The project guard returned a deny decision for exactly one `git push --force` request, alongside those hooks. That run checked only the guard's marker file. The fixture has no remote, so an executed push would also have failed. The driver now also requires the tool result for that call to carry the guard's reason, and no live run has used that check yet. |
+| Hook composition | Passed | Gas City's `SessionStart` and both `UserPromptSubmit` hooks returned exit code 0. The project guard returned a deny decision for exactly one `git push --force` request, alongside those hooks. The tool result for that call was an error carrying the guard's reason, `DEVKIT_SPIKE_FORCE_PUSH_DENIED`, so Claude Code blocked the push. An earlier run checked only the guard's marker file, which could not tell a blocked push from a failed one, because the fixture has no remote. |
 | One task store | Passed | Native commands used one `proxied-server` Beads workspace. The Devkit adapter returned `blocked / UNSUPPORTED_BEADS_WORKSPACE`, confirming that the initial pack must use the native task-state workaround. |
 
 The runtime profile needs explicit configuration:
@@ -196,7 +196,7 @@ writer guarantees. Those deployment and workflow checks remain with #5, #9,
 | Issue | Consequence |
 |---|---|
 | #2 | Update its ownership table and dependency order to this split. |
-| #4, #6 | Superseded by native Gas City state and dispatch if qualification passes. |
+| #4, #6 | Superseded by native Gas City state and dispatch. |
 | #5 | Keep the base guard hook and composition tests. |
 | #7 | Replace proposed Python loop slots with native Gas City stack packs. |
 | #8 | Implement brief prompts and a human approval gate in the pack. |
@@ -206,9 +206,9 @@ writer guarantees. Those deployment and workflow checks remain with #5, #9,
 | #12 | Deliver the Vue pack and record any proven core changes here. |
 | #13 | Review packages against their independent callers and the working loop. |
 
-These are proposed dispositions. Do not close issues or advertise the loop as
-implemented before qualification and review. Each downstream issue links the
-section of this record it implements after the decision is merged.
+These dispositions apply once this record merges. Do not advertise the loop
+as implemented until the Odoo pack in #10 works. Each downstream issue links
+the section of this record it implements.
 
 ## Sources
 
