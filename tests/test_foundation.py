@@ -1,12 +1,92 @@
 import json
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from mccann_hub.devkit.app import create_service
 from mccann_hub.devkit.contracts import CommandResult, CommandSpec
 
 from tests.contract_helpers import service_with_grants
+
+
+@pytest.fixture
+def interrupted_command(tmp_path, monkeypatch):
+    from mccann_hub.devkit import invocation
+
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    clock = [1000.0]
+    monkeypatch.setattr(invocation, "time", SimpleNamespace(monotonic=lambda: clock[0]))
+    settings = create_service(tmp_path).settings
+
+    def execute(outcome, reason):
+        def handler(context, arguments):
+            if reason == "CANCELLED":
+                context.cancellation.set()
+            else:
+                clock[0] = context.deadline + 1
+                if reason == "BOTH":
+                    context.cancellation.set()
+            return outcome
+
+        command = CommandSpec("test.cleanup", "Clean up an interrupted operation", handler)
+        return service_with_grants(settings, (command,)).execute(command.id)
+
+    return execute
+
+
+@pytest.mark.parametrize("status,reason", [("cancelled", "CANCELLED"), ("error", "TIMEOUT")])
+def test_acknowledged_interruption_retains_cleanup_evidence(interrupted_command, status, reason):
+    data = {"database": "devkit_owned_fixture", "cleanup": {"status": "removed"}}
+    envelope = interrupted_command(CommandResult(status, "Cleanup finished", data, reason), reason)
+    assert envelope["result"] == {
+        "status": status,
+        "summary": "Cleanup finished",
+        "data": data,
+        "reason": reason,
+    }
+    saved = json.loads(Path(envelope["evidence_path"]).read_text())
+    assert saved["result"] == envelope["result"]
+
+
+@pytest.mark.parametrize("reason", ["CANCELLED", "TIMEOUT"])
+def test_interrupted_success_is_still_refused(interrupted_command, reason):
+    envelope = interrupted_command(CommandResult("success", "Ignored interruption"), reason)
+    assert envelope["result"]["reason"] == reason
+    assert envelope["result"]["status"] != "success"
+
+
+@pytest.mark.parametrize("status,reason", [("cancelled", "CANCELLED"), ("error", "TIMEOUT")])
+def test_interrupted_result_metadata_still_requires_valid_json(interrupted_command, status, reason):
+    outcome = CommandResult(status, "Invalid cleanup metadata", {"invalid": object()}, reason)
+    assert interrupted_command(outcome, reason)["result"]["reason"] == "INVALID_OUTPUT"
+
+
+@pytest.mark.parametrize("status,reason", [("cancelled", "CANCELLED"), ("error", "TIMEOUT")])
+def test_interrupted_result_metadata_remains_bounded(interrupted_command, status, reason):
+    outcome = CommandResult(status, "Oversized cleanup metadata", {"log": "x" * 2_000_000}, reason)
+    assert interrupted_command(outcome, reason)["result"]["reason"] == "INVALID_OUTPUT"
+
+
+def test_expired_deadline_keeps_precedence_over_cancellation(interrupted_command):
+    data = {"cleanup": {"status": "removed"}}
+    outcome = CommandResult("error", "Deadline cleanup finished", data, "TIMEOUT")
+    result = interrupted_command(outcome, "BOTH")["result"]
+    assert (result["status"], result["reason"], result["data"]) == ("error", "TIMEOUT", data)
+
+
+def test_interrupted_result_metadata_is_redacted(interrupted_command, monkeypatch):
+    monkeypatch.setenv("TEST_TOKEN", "synthetic-cleanup-sensitive-value")
+    outcome = CommandResult(
+        "cancelled",
+        "Cleanup finished",
+        {"detail": "synthetic-cleanup-sensitive-value"},
+        "CANCELLED",
+    )
+    envelope = interrupted_command(outcome, "CANCELLED")
+    assert envelope["result"]["data"]["detail"] == "[REDACTED]"
+    assert "synthetic-cleanup-sensitive-value" not in Path(envelope["evidence_path"]).read_text()
 
 
 def test_doctor_without_git(tmp_path, monkeypatch):

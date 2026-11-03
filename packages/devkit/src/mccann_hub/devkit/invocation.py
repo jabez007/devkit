@@ -234,9 +234,14 @@ class CommandService:
             return CommandResult("cancelled", "Command interrupted", reason="CANCELLED")
         except Exception:
             return CommandResult("error", "Command handler failed", reason="HANDLER_ERROR")
-        if time.monotonic() > context.deadline:
+        expired = time.monotonic() > context.deadline
+        if expired and not _reported_interruption(result, "error", "TIMEOUT"):
             return CommandResult("error", "Command deadline exceeded", reason="TIMEOUT")
-        if context.cancellation.is_set():
+        if (
+            not expired
+            and context.cancellation.is_set()
+            and not _reported_interruption(result, "cancelled", "CANCELLED")
+        ):
             return CommandResult("cancelled", "Command cancelled", reason="CANCELLED")
         try:
             validate(asdict(result), RESULT_SCHEMA)
@@ -247,6 +252,11 @@ class CommandService:
         except Exception:
             return CommandResult("error", "Invalid handler result", reason="INVALID_OUTPUT")
         return result
+
+
+def _reported_interruption(result: object, status: str, reason: str) -> bool:
+    """A handler may already acknowledge interruption and supply cleanup evidence."""
+    return isinstance(result, CommandResult) and result.status == status and result.reason == reason
 
 
 def _json_arguments(value: JSONObject) -> JSONObject | None:
