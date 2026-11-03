@@ -505,8 +505,13 @@ When both kinds occur, the run reports `INVALID_LOAD_ORDER`.
 
 Odoo creates `model_<model>` and `field_<model>__<field>` IDs when it registers
 the models a module defines or extends, before any data file loads. The validator
-reads `_name` and `_inherit` from every `.py` file in the addon with Python's `ast`
-module. It never imports or executes them. A matching reference, such as
+follows relative imports from the addon's `__init__.py`, including package
+initializers, and reads `_name` and `_inherit` with Python's `ast` module.
+It follows `from . import x` and `from .x import y`, including aliases and
+parent-relative imports inside the addon. It never imports or executes Python
+code. A model declared only in an unimported file supplies no generated IDs;
+references to those IDs are `undefined` in fresh mode and `unknown` in update
+mode. A matching reference from an imported file, such as
 `model_acme_book` in `ir.model.access.csv`, resolves with reason `orm_generated`,
 and its target is the class location. A field ID resolves when a class for that
 model assigns the field with `fields.<Type>(...)`, and its target is that line.
@@ -521,7 +526,11 @@ out another source:
 - A loader tag other than `record`, `menuitem`, `template`, `function` or `delete` appears.
 - The manifest declares a `pre_init_hook`, which runs before data files load.
 - The ID starts with `selection__` or `constraint_`, which Odoo generates from fields and SQL constraints the validator does not read.
-- For `model_` and `field_` IDs only, a Python file did not parse, a model name is not a literal, or the addon exceeds 1,000 Python files, 1 MiB per file or 16 MiB in total.
+- For `model_` and `field_` IDs only, a reachable Python file did not parse, a model name is not a literal, or the import scan exceeds 1,000 Python files, 1 MiB per file or 16 MiB in total.
+- For generated model and field IDs only, an import cannot be followed: dynamic,
+  conditional or deferred imports, wildcard imports, absolute imports of the
+  same addon, missing sources or paths escaping the addon. Independently resolved
+  IDs keep their result. Errors in unimported files do not reduce coverage.
 
 A reference counts as forward only when every eligible definition comes after it.
 If an earlier definition exists but a dynamic operation such as `<function>` or
@@ -546,7 +555,7 @@ that relied on these references succeeding need `install_mode = "update"`.
 
 ### Fresh-install public repository evaluation
 
-On November 2, 2026, the validator rechecked the pinned
+On November 3, 2026, the validator rechecked the pinned
 [OCA/server-tools](https://github.com/OCA/server-tools/tree/389daeb98a8e21fe11594bdddef873bb07d0cb61)
 and [OCA/sale-workflow](https://github.com/OCA/sale-workflow/tree/b2cb74591c66882b91264106abc5229e200f5bff)
 snapshots, 133 addons in total, without modifying them or executing addon code.
@@ -556,19 +565,41 @@ snapshots, 133 addons in total, without modifying them or executing addon code.
 | server-tools | success | 0 | 80 | 30, all `unverified_effects` |
 | sale-workflow | success | 0 | 62 | 42: 34 `unverified_effects`, 8 `conditional_definition` |
 
-Fresh mode reported no false failures. OCA tests installation in CI, so no real
-defects were expected either. To measure detection, a script then planted one
-defect at a time in copies of the addons:
+Fresh mode reported no false failures. The repeatable
+[evaluation script](../scripts/evaluate_odoo_fresh.py) then planted one defect
+at a time in copied addons. It checks each distinct referring/defining file
+pair in the same manifest phase, and each distinct resolved reference value
+per data or demo file. It also empties the root `__init__.py` of each addon
+whose references resolve to generated model IDs, leaving its model files intact.
+Each trial restores the changed file before the next trial. Both source
+checkouts remained clean.
+
+Run it against clean checkouts at the revisions linked above:
+
+```sh
+uv run python scripts/evaluate_odoo_fresh.py \
+  --server-tools /path/to/server-tools \
+  --sale-workflow /path/to/sale-workflow
+```
+
+The script verifies both revisions and reports JSON counts. This matrix is
+broader than the November 2 sample of 17 load-order swaps and 178 ID typos;
+the detection ratios measure different sets of planted defects.
 
 | Planted defect | Planted | Caught | Result |
 | --- | --- | --- | --- |
-| Reference file moved before its defining file in the manifest | 17 | 17 | `INVALID_LOAD_ORDER` |
-| `_typo` appended to a resolved same-module reference | 178 | 168 | `UNDEFINED_XML_ID` |
+| Referring and defining files swapped in the same manifest phase | 29 | 29 | `INVALID_LOAD_ORDER` |
+| `_typo` appended to a resolved same-module reference | 193 | 180 | `UNDEFINED_XML_ID` |
+| Addon initializer emptied, leaving model files unimported | 35 | 33 | `UNDEFINED_XML_ID` |
 
-All 10 missed typos are in `sale_elaboration` and `sale_manual_delivery`. Both
-declare a `pre_init_hook`, so absent IDs stay unknown. Their hooks only add
-database columns. Seven of the 133 addons declare a pre-init hook.
+The 13 missed typos and two omitted-import cases are in `sale_elaboration`
+(nine typos) and `sale_manual_delivery` (four typos). Both declare a
+`pre_init_hook`, so absent IDs stay unknown. None of the 35 omitted-import
+cases retained an `orm_generated` resolution. Seven of the 133 addons declare
+a pre-init hook. These static checks do not establish successful installation
+or test execution in Odoo.
 
-The same two defects, planted in a small sample addon, produced no reference
-finding from `oca-checks-odoo-module` in oca-odoo-pre-commit-hooks 0.2.27. Its
-checks cover syntax, duplicate IDs and style, not reference resolution.
+In the November 2 comparison, `oca-checks-odoo-module` from
+oca-odoo-pre-commit-hooks 0.2.27 reported no reference findings for load-order
+and ID-typo defects in a small sample addon. Its checks cover syntax, duplicate
+IDs and style, not reference resolution.
