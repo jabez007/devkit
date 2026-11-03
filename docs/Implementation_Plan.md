@@ -742,6 +742,14 @@ tracker discovery and crash-atomic family deletion remain outside this increment
 | Optional orchestration | Stable domain commands and the integrations the pack actually needs | Build one Gas City pack that invokes existing commands. Verify equivalent evidence for manual and orchestrated execution. Keep scheduling and agent sessions outside the foundation. |
 | Additional packaging and interfaces | Demonstrated user need | Add native agent packages, Dev Container installation, or UI adapters individually. Each consumes the established invocation interface. |
 
+Issue #3's [delivery-loop ADR](adr/0001-delivery-loop-runs-on-gas-city.md)
+records the proposed core and stack-pack split and its qualification gates.
+The source audit is distinct from a passing live spike. Beads server-mode
+compatibility, a native check blocking downstream work, a real one-shot Claude
+session in the project's container, and guard composition need their own
+observations. Preserve the independently useful checks and current authorization
+contracts while those results are pending.
+
 The [Beads repository](https://github.com/gastownhall/beads) is the upstream starting point for its compatibility spike. Record the exact tested version and supported commands when implementing the adapter. Neither the first release nor this planning task requires adopting Beads as this project's task ledger.
 
 ## Decisions still needed
