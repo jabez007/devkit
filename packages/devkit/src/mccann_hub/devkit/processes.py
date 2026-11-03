@@ -12,7 +12,10 @@ from typing import BinaryIO
 from mccann_hub.devkit.contracts import Context
 
 OUTPUT_LIMIT = 262_144
-# Bounds disk use when stdout goes to a caller's file instead of memory.
+# Stops a run whose stdout file grows past this size. The child writes the file
+# directly and the size is checked every 50 ms, so the file can exceed the limit
+# by what the child writes in that interval. RLIMIT_FSIZE would bound it exactly
+# but would also cap every other file the child writes, such as Go build output.
 FILE_OUTPUT_LIMIT = 67_108_864
 ENVIRONMENT = {
     "PATH",
@@ -112,8 +115,9 @@ def run_process(
 ) -> ProcessResult:
     """Run with bounded capture and cancellation; an explicit environment replaces defaults.
 
-    With ``stdout_file``, stdout is written there instead of captured in memory, up to
-    FILE_OUTPUT_LIMIT bytes, and the result's stdout is empty.
+    With ``stdout_file``, the child writes stdout there instead of to the in-memory
+    capture, and the result's stdout is empty. A file past FILE_OUTPUT_LIMIT stops the
+    run with ``truncated`` set; the file can overshoot the limit before that check.
     """
     if environment is None:
         environment = {key: value for key, value in os.environ.items() if key in ENVIRONMENT}

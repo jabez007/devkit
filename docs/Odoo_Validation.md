@@ -63,9 +63,12 @@ repos:
         pass_filenames: false
 ```
 
-The hook runs when a commit changes a Python, XML, CSV or `devkit.toml` file. It
-validates every addon under the configured paths, not just the changed files,
-because a reference in one file depends on the others.
+The hook runs when a commit adds, modifies or renames a Python, XML, CSV or
+`devkit.toml` file. It validates every addon under the configured paths, not
+just the changed files, because a reference in one file depends on the others.
+pre-commit does not pass deleted files to the `files` filter, so a commit that
+only deletes files skips the hook. Run `devkit-odoo --project .` in CI as well
+to cover those commits.
 
 ## Inventory and strict checks
 
