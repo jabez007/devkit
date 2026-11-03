@@ -8,6 +8,7 @@ from mccann_hub.devkit.contracts import DevkitError
 from mccann_hub.devkit_odoo.file_inspection import FileBudget
 
 LIMITS = {"files": 1000, "file_bytes": 1_048_576, "total_bytes": 16_777_216}
+IMPORT_FUNCTIONS = {"importlib": {"import_module"}, "builtins": {"__import__", "exec", "eval"}}
 
 
 class PythonImports:
@@ -54,8 +55,9 @@ class PythonImports:
     def _imports(self, path: Path, tree: ast.Module) -> None:
         dynamic = {"__import__", "exec", "eval", "import_module"}
         for node in ast.walk(tree):
-            if isinstance(node, ast.ImportFrom) and node.module == "importlib":
-                dynamic.update(a.asname or a.name for a in node.names if a.name == "import_module")
+            if isinstance(node, ast.ImportFrom) and not node.level:
+                imported = IMPORT_FUNCTIONS.get(node.module or "", set())
+                dynamic.update(a.asname or a.name for a in node.names if a.name in imported)
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom) and node.level:
                 if node in tree.body:
@@ -63,7 +65,7 @@ class PythonImports:
                 else:
                     # Conditional and deferred imports do not establish registration.
                     self.complete = False
-            elif isinstance(node, ast.Call) and _dynamic_call(node.func, dynamic):
+            elif _dynamic_reference(node, dynamic):
                 self.complete = False
             elif _absolute_addon_import(node, self.root.name):
                 self.complete = False
@@ -86,7 +88,7 @@ class PythonImports:
                 self._module(package / alias.name)
 
     def _module(self, path: Path) -> bool:
-        """Load package initializers before their children; a file has no submodules."""
+        """Queue package initializers along with submodules; a file has no submodules."""
         if path.is_dir():
             self._enqueue(path / "__init__.py", required=False)
             return True
@@ -94,9 +96,9 @@ class PythonImports:
         return False
 
 
-def _dynamic_call(function: ast.expr, names: set[str]) -> bool:
-    return (isinstance(function, ast.Name) and function.id in names) or (
-        isinstance(function, ast.Attribute) and function.attr in {"import_module", "__import__"}
+def _dynamic_reference(node: ast.AST, names: set[str]) -> bool:
+    return (isinstance(node, ast.Name) and node.id in names) or (
+        isinstance(node, ast.Attribute) and node.attr in {"import_module", "__import__"}
     )
 
 

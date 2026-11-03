@@ -243,6 +243,8 @@ def test_relative_import_forms_register_models(odoo_project, root_imports):
     [
         "import importlib\nimportlib.import_module('.models.book', __name__)\n",
         "from importlib import import_module as load\nload('.models.book', __name__)\n",
+        "from builtins import __import__ as load\nload(__name__ + '.models.book')\n",
+        "import importlib\nload = importlib.import_module\nload('.models.book', __name__)\n",
         "__import__(__name__ + '.models.book')\n",
         "from .models import *\n",
         "if enabled:\n    from .models import book\n",
