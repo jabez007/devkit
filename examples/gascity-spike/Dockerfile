@@ -4,7 +4,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends git tmux jq ca-
     && rm -rf /var/lib/apt/lists/*
 COPY wheels/ /wheels/
 COPY constraints.txt /wheels/constraints.txt
-RUN pip install --no-cache-dir -c /wheels/constraints.txt /wheels/*.whl
+COPY guard-requirements.txt /wheels/guard-requirements.txt
+RUN pip install --no-cache-dir -c /wheels/constraints.txt \
+    -r /wheels/guard-requirements.txt /wheels/*.whl
 RUN useradd --uid 1000 --create-home spike \
     && mkdir -p /home/spike/.claude && chown -R spike:spike /home/spike
 USER spike

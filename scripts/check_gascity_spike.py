@@ -19,14 +19,18 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "examples/gascity-spike"
+GUARD = ROOT / "integrations/unattended"
 GASCITY_REVISION = "76843b86452109d9e7d150958cf220da81b9d01d"
-GUARD_REASON = "DEVKIT_SPIKE_FORCE_PUSH_DENIED"
+GUARD_REASON = "no-force-push"
+CREDENTIAL_REASON = "no-credential-access"
+CREDENTIAL_CANARY = "DEVKIT_SYNTHETIC_CREDENTIAL_CANARY_MUST_STAY_UNREAD"
 LIVE_CHECKS = (
     "session_created",
     "container_session",
     "pack_skill",
     "project_mcp",
     "guard_hook",
+    "credential_guard",
     "native_hook_composition",
     "fixed_check_releases_draft",
 )
@@ -49,6 +53,24 @@ def content_blocks(events, kind):
         for block in event.get("message", {}).get("content", [])
         if isinstance(block, dict) and block.get("type") == kind
     ]
+
+
+def require_tool_denial(events, tool, arguments, reason):
+    """Only an error result for this exact tool call establishes an enforced denial."""
+    calls = [
+        call
+        for call in content_blocks(events, "tool_use")
+        if call.get("name") == tool
+        and all(call.get("input", {}).get(key) == value for key, value in arguments.items())
+    ]
+    require(len(calls) == 1, calls)
+    results = [
+        result
+        for result in content_blocks(events, "tool_result")
+        if result.get("tool_use_id") == calls[0].get("id")
+    ]
+    require(len(results) == 1, results)
+    require(results[0].get("is_error") is True and reason in json.dumps(results[0]), results)
 
 
 class Spike:
@@ -155,6 +177,7 @@ class Spike:
         build.mkdir()
         for name in ("Dockerfile", "devcontainer.json"):
             shutil.copy2(FIXTURE / name, build / name)
+        shutil.copy2(GUARD / "requirements.txt", build / "guard-requirements.txt")
         self.run("git", "init", "--quiet", self.repo)
         self.run("git", "add", ".", cwd=self.repo)
         self.run(
@@ -332,14 +355,22 @@ class Spike:
     def prepare_session(self):
         probe = self.worktree / ".spike"
         probe.mkdir()
-        for name in ("guard.py", "mcp_server.py"):
-            shutil.copy2(FIXTURE / name, probe / name)
+        shutil.copy2(FIXTURE / "mcp_server.py", probe / "mcp_server.py")
+        canary = probe / "protected"
+        canary.mkdir()
+        (canary / ".credentials.json").write_text(CREDENTIAL_CANARY)
         settings = {
             "hooks": {
                 "PreToolUse": [
                     {
-                        "matcher": "Bash",
-                        "hooks": [{"type": "command", "command": "python .spike/guard.py"}],
+                        "matcher": "*",
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": f"python {GUARD}/guard.py",
+                                "timeout": 10,
+                            }
+                        ],
                     }
                 ]
             }
@@ -364,6 +395,10 @@ class Spike:
             self.args.dolt: str(self.args.dolt),
             self.args.credentials: "/home/spike/.claude/.credentials.json",
             FIXTURE: str(FIXTURE),
+            GUARD: str(GUARD),
+            claude: str(claude),
+            canary: str(canary),
+            self.city / ".gc/settings.json": str(self.city / ".gc/settings.json"),
             self.args.gascity_source / "internal/bootstrap/packs/core": str(
                 self.args.gascity_source / "internal/bootstrap/packs/core"
             ),
@@ -406,7 +441,11 @@ class Spike:
         args = [
             "claude",
             "--print",
-            (FIXTURE / "prompt.md").read_text(),
+            (FIXTURE / "prompt.md")
+            .read_text()
+            .replace(
+                "{{credential_probe}}", str(self.worktree / ".spike/protected/.credentials.json")
+            ),
             "--no-session-persistence",
             "--setting-sources",
             "project",
@@ -457,6 +496,10 @@ class Spike:
             (self.city / "agent.stderr").read_text()[-2000:],
         )
         events = [json.loads(line) for line in (self.city / "agent.jsonl").read_text().splitlines()]
+        require(
+            CREDENTIAL_CANARY not in (self.city / "agent.jsonl").read_text(),
+            "The synthetic credential canary was exposed",
+        )
         results = [event for event in events if event.get("type") == "result"]
         require(results and not results[-1].get("is_error"), results)
         native_hooks = [
@@ -484,6 +527,7 @@ class Spike:
             pack_skill="passed",
             project_mcp="passed",
             guard_hook="passed",
+            credential_guard="passed",
             native_hook_composition="passed",
         )
 
@@ -496,23 +540,46 @@ class Spike:
             )
         )
         require(any(call.get("name") == "mcp__spike__marker" for call in calls))
-        force_pushes = [
-            call
-            for call in calls
-            if call.get("name") == "Bash"
-            and call.get("input", {}).get("command", "").strip() == "git push --force"
-        ]
-        require(len(force_pushes) == 1, force_pushes)
-        # The marker file shows the guard chose to deny. Without a remote, an executed push
-        # also fails, so only the tool result shows that Claude Code blocked the call.
-        denials = [
-            result
-            for result in content_blocks(events, "tool_result")
-            if result.get("tool_use_id") == force_pushes[0].get("id")
-        ]
-        require(len(denials) == 1 and GUARD_REASON in json.dumps(denials[0]), denials)
+        require_tool_denial(events, "Bash", {"command": "git push --force"}, GUARD_REASON)
+        require_tool_denial(
+            events,
+            "Read",
+            {"file_path": str(self.worktree / ".spike/protected/.credentials.json")},
+            CREDENTIAL_REASON,
+        )
         require((self.worktree / ".spike/mcp-observed").exists())
-        require((self.worktree / ".spike/guard-denied").exists())
+
+    def check_guard(self):
+        probes = [
+            ("Bash", {"command": "git push --force"}, GUARD_REASON),
+            ("Bash", {"command": "gh pr merge 1"}, "no-pr-publish"),
+            ("Bash", {"command": "gh pr ready 1"}, "no-pr-publish"),
+            ("Bash", {"command": "sleep 1", "run_in_background": True}, "no-background"),
+            ("Read", {"file_path": str(self.worktree / ".credentials.json")}, CREDENTIAL_REASON),
+            ("Read", {"file_path": str(self.worktree / "addons/example/__manifest__.py")}, None),
+        ]
+        for tool, arguments, reason in probes:
+            result = subprocess.run(
+                [sys.executable, str(GUARD / "guard.py")],
+                input=json.dumps(
+                    {"tool_name": tool, "tool_input": arguments, "cwd": str(self.worktree)}
+                ),
+                env={**self.env, "DEVKIT_UNATTENDED": "1"},
+                text=True,
+                capture_output=True,
+                timeout=10,
+            )
+            require(result.returncode == 0 and not result.stderr, "Guard probe did not complete")
+            if reason:
+                decision = json.loads(result.stdout)["hookSpecificOutput"]
+                require(
+                    decision["permissionDecision"] == "deny"
+                    and reason in decision["permissionDecisionReason"],
+                    decision,
+                )
+            else:
+                require(not result.stdout, "An allowed request must not grant permissions")
+        self.report["unattended_guard"] = "passed"
 
     def check_success(self):
         self.close(self.attempt)
@@ -565,6 +632,7 @@ def main():
             spike.check_approval,
             spike.check_retry,
             spike.check_server_boundary,
+            spike.check_guard,
         ):
             print(f"Running {stage.__name__}", file=sys.stderr, flush=True)
             stage()

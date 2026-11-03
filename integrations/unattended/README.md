@@ -90,6 +90,12 @@ a base refusal. The loader rejects duplicate keys and rule files over 64 KiB.
 The separate Claude skills bundle at `integrations/claude-code` remains unchanged.
 The native shared pack layout and runtime installation belong to issue #7.
 
+The [native spike](../../examples/gascity-spike/README.md) runs representative
+deterministic guard requests. Its optional live stage verifies force-push and
+synthetic credential-read denials in matching Claude tool results, alongside
+Gas City's own hooks. It uses subscription authentication and never probes the
+real credential file with the agent's tools.
+
 The implementation follows the
 [Claude hook contract](https://code.claude.com/docs/en/hooks#pretooluse),
 [Git push semantics](https://git-scm.com/docs/git-push), and the non-executing
