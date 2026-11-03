@@ -175,9 +175,25 @@ devkit --project /absolute/path/to/go-project --timeout 120 --json run go.test
 ```
 
 Go runs `go test -json -count=1 ./...` with the locally installed toolchain,
-filtered environment, bounded output, and a shared deadline. Passing, failing,
-and skipped tests are counted separately. No executed tests produces `blocked`,
-including projects whose tests all skip. No toolchain is downloaded automatically.
+the caller's environment, and a shared deadline. Test events stream to a
+temporary file instead of the 256 KiB in-memory capture. More than 64 MiB of
+events, passing-test output included, returns `error` with reason
+`OUTPUT_LIMIT`. Passing, failing, and skipped tests are counted separately. A
+failure names each failing test in the summary, and `data.failures` keeps the last 4 KiB of its output, for
+up to 50 failures. No executed tests produces `blocked`, including projects whose
+tests all skip. `GOTOOLCHAIN` defaults to `local`, so no toolchain is downloaded
+unless you set it.
+
+Select what runs with `--args` or `[options.go]` in `devkit.toml`. Arguments
+override the file:
+
+```toml
+[options.go]
+packages = ["./internal/..."]  # default ["./..."]
+run = "^TestCheckout"          # passed as -run
+tags = ["integration"]         # passed as -tags
+race = true                    # passed as -race
+```
 
 Odoo validation parses bounded literal manifests without executing them. It
 checks selected field types, the version format, module names, duplicate addons,
@@ -192,8 +208,13 @@ Success does not establish runtime, database, XML, asset, or external dependency
 compatibility. Declared data/demo XML is parsed automatically. Malformed XML
 fails with a file and location; unsupported features and inspection limits block
 coverage. Literal XML references report earlier local definitions or explain why
-resolution is unknown. Repeated IDs remain valid update candidates. Unknown XML
-references are advisory, and `strict_dependencies` still concerns module names.
+resolution is unknown. Repeated IDs remain valid update candidates. Model and
+field IDs such as `model_acme_book` resolve from literal `_name`, `_inherit` and
+`fields.<Type>(...)` declarations, read from Python sources without importing them. A same-module ID
+that a fresh install cannot find fails: `INVALID_LOAD_ORDER` when it is defined
+later or only in demo data, `UNDEFINED_XML_ID` when nothing defines it. Set
+`install_mode = "update"` to treat both as unknown. Other unknown references are
+advisory, and `strict_dependencies` still concerns module names.
 Declared CSV is also inspected for flat structure, UTF-8, IDs and direct relational
 references. XML can use earlier CSV declarations and CSV can use earlier XML or
 CSV declarations. Unsupported layouts block coverage; empty files and invalid
@@ -257,6 +278,8 @@ wheels, creates an external operator policy, preserves nonzero check results and
 retrieves parent/child evidence. The acceptance matrix tests seven recipe scenarios,
 including failed checks, blocked coverage, policy diagnostics and evidence-command
 failures. No Odoo server or new adapter is required.
+For Odoo alone, the `devkit-odoo` command needs no policy and fits a
+[pre-commit hook](docs/Odoo_Validation.md#run-as-a-pre-commit-hook-or-ci-step).
 
 ## Inspect and retain evidence
 
@@ -375,7 +398,7 @@ plugin environment checks installed foundation annotations with strict mypy.
 The Beads matrix needs the explicitly selected 1.3.2 test binary; see the
 [download/checksum and compatibility instructions](docs/Beads_Integration.md#reproduce-acceptance).
 Runtime users install only the optional tools they need. The Odoo-only
-environment also runs all 33 representative CLI fixture cases and evidence
+environment also runs all 35 representative CLI fixture cases and evidence
 retrieval. Stdio/process tests require a host runtime that
 supports child process communication; they do not complete in this agent's
 restricted execution sandbox.

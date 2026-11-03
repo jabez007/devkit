@@ -6,7 +6,14 @@ from mccann_hub.devkit.app import create_service
 
 
 def inspect_csv(
-    odoo_project, content, *, filename="res.partner.csv", extra=None, data=None, demo=None
+    odoo_project,
+    content,
+    *,
+    filename="res.partner.csv",
+    extra=None,
+    data=None,
+    demo=None,
+    arguments=None,
 ):
     project, module = odoo_project
     files = {filename: content, **(extra or {})}
@@ -21,7 +28,7 @@ def inspect_csv(
             }
         )
     )
-    envelope = create_service(project).execute("odoo.module.validate")
+    envelope = create_service(project).execute("odoo.module.validate", arguments)
     assert json.loads(Path(envelope["evidence_path"]).read_text())["result"] == envelope["result"]
     return envelope["result"]
 
@@ -61,7 +68,7 @@ def test_csv_references_use_prior_rows_and_xml(odoo_project, header):
     )
     assert result["status"] == "success"
     assert csv_file(result)["references"][0]["status"] == "resolved"
-    assert result["data"]["csv_reference_counts"] == {"resolved": 2, "unknown": 0}
+    assert result["data"]["csv_reference_counts"] == {"resolved": 2, "unknown": 0, "undefined": 0}
     assert csv_file(result)["references"][0]["target"]["path"] == "first.xml"
 
 
@@ -92,8 +99,12 @@ def test_repeated_and_foreign_ids_are_not_duplicate_defects(odoo_project):
     assert csv_file(result)["references"][0]["reason"] == "external_module"
 
 
-def test_forward_and_ambiguous_reference_cells_remain_unknown(odoo_project):
-    result = inspect_csv(odoo_project, 'id,parent_id:id\nfirst,later\nlater,\nlast,"first,later"\n')
+def test_update_mode_keeps_forward_and_ambiguous_reference_cells_unknown(odoo_project):
+    result = inspect_csv(
+        odoo_project,
+        'id,parent_id:id\nfirst,later\nlater,\nlast,"first,later"\n',
+        arguments={"install_mode": "update"},
+    )
     assert result["status"] == "success"
     assert [r["reason"] for r in csv_file(result)["references"]] == [
         "forward_definition",

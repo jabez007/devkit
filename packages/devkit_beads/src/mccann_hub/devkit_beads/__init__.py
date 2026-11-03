@@ -78,7 +78,7 @@ def execute(context: Context, args: JSONObject, *, operation: str) -> CommandRes
 def register() -> Specialization:
     commands = []
     for operation, description, properties, required in (
-        ("workspace", "Inspect a Beads 1.3.2 embedded workspace", {}, []),
+        ("workspace", "Inspect a Beads 1.3 embedded workspace", {}, []),
         ("item.show", "Read a provider-qualified Beads work item", {"ref": REFERENCE}, ["ref"]),
         (
             "ready",

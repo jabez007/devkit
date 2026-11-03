@@ -59,6 +59,28 @@ def test_unavailable_or_untrusted_responses(beads_project, settings, reason):
     assert result["status"] in {"blocked", "error"}
 
 
+def test_any_beads_1_3_patch_release_is_supported(beads_project):
+    configure(beads_project, version="1.3.7", context={"bd_version": "1.3.7"})
+    result = create_service(beads_project).execute("beads.workspace")["result"]
+    assert result["status"] == "success", result
+
+
+@pytest.mark.parametrize(
+    "settings,reason",
+    [
+        ({"version": "1.4.0", "context": {"bd_version": "1.4.0"}}, "UNSUPPORTED_BEADS_VERSION"),
+        ({"version": "1.3", "context": {"bd_version": "1.3"}}, "UNSUPPORTED_BEADS_VERSION"),
+        # 1.3.0 lacks the list --include-ephemeral flag that item lookup passes.
+        ({"version": "1.3.0", "context": {"bd_version": "1.3.0"}}, "UNSUPPORTED_BEADS_VERSION"),
+        ({"version": "1.3.7", "context": {"bd_version": "1.3.2"}}, "UNSUPPORTED_BEADS_WORKSPACE"),
+    ],
+)
+def test_other_series_and_mismatched_versions_are_refused(beads_project, settings, reason):
+    configure(beads_project, **settings)
+    result = create_service(beads_project).execute("beads.workspace")["result"]
+    assert (result["status"], result["reason"]) == ("blocked", reason)
+
+
 def test_invalid_input_and_policy_denial_never_start_beads(beads_project):
     service = create_service(beads_project)
     for args in ({"limit": 0}, {"limit": 101}, {"limit": True}):

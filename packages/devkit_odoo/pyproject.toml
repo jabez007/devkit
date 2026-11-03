@@ -12,6 +12,9 @@ license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dependencies = ["mccann-hub-devkit>=0.2,<0.3"]
 
+[project.scripts]
+devkit-odoo = "mccann_hub.devkit_odoo.cli:main"
+
 [project.entry-points."mccann_hub.devkit.specializations.v1"]
 odoo = "mccann_hub.devkit_odoo:register"
 

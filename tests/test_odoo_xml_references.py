@@ -2,7 +2,7 @@ import pytest
 from mccann_hub.devkit.app import create_service
 
 
-def inspect(odoo_project, files, *, data=None, demo=None):
+def inspect(odoo_project, files, *, data=None, demo=None, arguments=None):
     project, module = odoo_project
     for name, content in files.items():
         (module / name).write_text(content)
@@ -15,7 +15,7 @@ def inspect(odoo_project, files, *, data=None, demo=None):
             }
         )
     )
-    result = create_service(project).execute("odoo.module.validate")["result"]
+    result = create_service(project).execute("odoo.module.validate", arguments)["result"]
     return result, result["data"]["modules"][0]["xml"]
 
 
@@ -41,22 +41,46 @@ def test_local_definitions_resolve_in_file_and_manifest_order(odoo_project):
     assert ref["target"] == {"path": "first.xml", "phase": "data", "line": 2, "column": 1}
 
 
-def test_forward_and_external_ids_are_unknown_not_missing(odoo_project):
-    result, xml = inspect(
-        odoo_project,
-        {
-            "views.xml": """<odoo>
+FORWARD = {
+    "views.xml": """<odoo>
 <record id="first" model="x">
 <field name="later" ref="later"/>
 <field name="external" ref="base.partner"/>
 </record>
 <record id="later" model="x"/>
 </odoo>"""
-        },
-    )
+}
+
+
+def test_update_mode_treats_forward_and_external_ids_as_unknown(odoo_project):
+    result, xml = inspect(odoo_project, FORWARD, arguments={"install_mode": "update"})
     assert result["status"] == "success"
     assert [r["reason"] for r in references(xml)] == ["forward_definition", "external_module"]
     assert all(r["status"] == "unknown" for r in references(xml))
+
+
+def test_fresh_install_fails_when_a_reference_precedes_its_only_definition(odoo_project):
+    result, xml = inspect(odoo_project, FORWARD)
+    assert (result["status"], result["reason"]) == ("failed", "INVALID_LOAD_ORDER")
+    assert "views.xml:3:1: XML ID later is referenced before it is defined" in result["summary"]
+    assert [r["status"] for r in references(xml)] == ["undefined", "unknown"]
+    assert result["data"]["install_mode"] == "fresh"
+
+
+def test_fresh_install_does_not_fail_when_an_earlier_definition_was_interrupted(odoo_project):
+    result, xml = inspect(
+        odoo_project,
+        {
+            "views.xml": """<odoo>
+<record id="parent" model="x"/>
+<function model="x" name="change"/>
+<record id="child" model="x"><field name="parent" ref="parent"/></record>
+<record id="parent" model="x"/>
+</odoo>"""
+        },
+    )
+    assert result["status"] == "success"
+    assert references(xml)[0]["reason"] == "unverified_effects"
 
 
 def test_data_does_not_resolve_from_demo_but_demo_can_use_data(odoo_project):
@@ -78,7 +102,7 @@ def test_data_does_not_resolve_from_demo_but_demo_can_use_data(odoo_project):
         demo=["demo.xml"],
     )
     assert [(r["status"], r["reason"]) for r in references(xml)] == [
-        ("unknown", "demo_only_definition"),
+        ("undefined", "demo_only_definition"),
         ("resolved", "earlier_local_definition"),
     ]
 
@@ -92,6 +116,7 @@ def test_repeated_ids_are_updates_and_self_reference_needs_prior_definition(odoo
 <record id="item" model="x"><field name="self" ref="item"/></record>
 </odoo>"""
         },
+        arguments={"install_mode": "update"},
     )
     assert result["status"] == "success"
     assert [r["status"] for r in references(xml)] == ["unknown", "resolved"]
@@ -248,7 +273,7 @@ def test_reference_event_budget_blocks_without_partial_resolution(odoo_project):
     assert result["status"] == "blocked"
     assert result["reason"] == "XML_LIMIT"
     assert xml["files"][0]["definitions"] == []
-    assert xml["reference_counts"] == {"resolved": 0, "unknown": 0}
+    assert xml["reference_counts"] == {"resolved": 0, "unknown": 0, "undefined": 0}
 
 
 def test_declared_xml_extension_applies_to_contained_symlink(odoo_project):
@@ -272,7 +297,8 @@ def test_unseen_reference_stays_unknown_under_complete_module_inventory(odoo_pro
     base.mkdir()
     (base / "__manifest__.py").write_text("{'name': 'Base', 'depends': []}")
     result = create_service(project).execute(
-        "odoo.module.validate", {"inventory": {"complete": True}, "strict_dependencies": True}
+        "odoo.module.validate",
+        {"inventory": {"complete": True}, "strict_dependencies": True, "install_mode": "update"},
     )["result"]
     assert result["status"] == "success"
-    assert result["data"]["xml_reference_counts"] == {"resolved": 0, "unknown": 1}
+    assert result["data"]["xml_reference_counts"] == {"resolved": 0, "unknown": 1, "undefined": 0}

@@ -1,4 +1,4 @@
-"""Bounded Beads 1.3.2 CLI access; no database access or task cache."""
+"""Bounded Beads 1.3.x CLI access; no database access or task cache."""
 
 import json
 import os
@@ -10,7 +10,9 @@ from uuid import UUID
 from mccann_hub.devkit.contracts import Context, JSONObject, Status
 from mccann_hub.devkit.processes import ProcessResult, run_process
 
-SUPPORTED_VERSION = "1.3.2"
+# 1.3.1 added the list --include-ephemeral flag that item lookup passes. Later patch
+# releases keep the CLI JSON contract; 1.3.2 is the release the acceptance matrix runs.
+SUPPORTED_SERIES = re.compile(r"1\.3\.[1-9]\d*\Z")
 ISSUE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\Z")
 
 
@@ -95,6 +97,7 @@ class Beads:
         }
         self.environment.update(BD_DISABLE_METRICS="1", DO_NOT_TRACK="1")
         self.identity: JSONObject | None = None
+        self.version: str | None = None  # Set by workspace() from `bd version`.
 
     def _invoke(self, arguments: list[str]) -> ProcessResult:
         if self.context.cancellation.is_set():
@@ -112,7 +115,11 @@ class Beads:
         if result.reason:
             statuses: dict[str, Status] = {"MISSING_TOOL": "blocked", "CANCELLED": "cancelled"}
             status = statuses.get(result.reason, "error")
-            raise BeadsError(status, result.reason, "Beads did not run; install bd 1.3.2 on PATH")
+            raise BeadsError(
+                status,
+                result.reason,
+                "Beads did not run; install bd 1.3.1 or a later 1.3 release on PATH",
+            )
         if result.truncated:
             raise BeadsError("error", "OUTPUT_LIMIT", "Beads output exceeded the capture limit")
         if result.returncode:
@@ -153,11 +160,15 @@ class Beads:
 
         self.environment.pop("BEADS_DIR", None)
         main = resolve(self.context.project_root, self._invoke)
-        version = self.query("version")
-        if not isinstance(version, dict) or version.get("version") != SUPPORTED_VERSION:
+        reported = self.query("version")
+        version = reported.get("version") if isinstance(reported, dict) else None
+        if not isinstance(version, str) or not SUPPORTED_SERIES.match(version):
             raise BeadsError(
-                "blocked", "UNSUPPORTED_BEADS_VERSION", "This adapter requires Beads 1.3.2"
+                "blocked",
+                "UNSUPPORTED_BEADS_VERSION",
+                "This adapter requires Beads 1.3.1 or a later 1.3 release",
             )
+        self.version = version
         self.directory = main / ".beads"
         identity = self._validate_workspace(self.query("context"), main)
         if self.identity is not None and self.identity != identity:
@@ -178,7 +189,7 @@ class Beads:
         if not isinstance(info, dict) or info.get("schema_version") != 1:
             raise invalid()
         linked = main != self.context.project_root
-        expected = {"backend": "dolt", "dolt_mode": "embedded", "bd_version": SUPPORTED_VERSION}
+        expected = {"backend": "dolt", "dolt_mode": "embedded", "bd_version": self.version}
         if (
             any(info.get(key) != value for key, value in expected.items())
             or info.get("is_redirected") is not False
@@ -201,7 +212,7 @@ class Beads:
                 )
         return {
             "project_id": project_id(info.get("project_id")),
-            "tool_version": SUPPORTED_VERSION,
+            "tool_version": self.version,
             "backend": "dolt",
             "mode": "embedded",
             "checkout_root": str(self.context.project_root),

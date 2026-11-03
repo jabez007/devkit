@@ -28,6 +28,50 @@ checks while reporting those dependencies as **unknown**. Success does not claim
 that the addon is installable. Use `--json` before the subcommand for structured
 relationships, scanned paths, examined modules, diagnostics and unchecked areas.
 
+## Run as a pre-commit hook or CI step
+
+The `devkit-odoo` command, installed with the Odoo package, runs the same
+validator without plugin selection or operator policy. Those gates exist for
+commands with wider effects; this one only reads files. It reads
+`[options.odoo]` from `devkit.toml` when the file exists, and flags override it:
+
+```sh
+devkit-odoo --project . --addons-path addons
+devkit-odoo --module acme_sale --install-mode update --json
+```
+
+Exit codes match `devkit`: 0 success, 1 failed, 2 blocked, 3 error. No
+evidence record is written; use `devkit run odoo.module.validate` when you need
+one.
+
+To run it before each commit, add a local hook to `.pre-commit-config.yaml`.
+The packages are not on a package registry, so pre-commit installs both from
+Git. Replace `main` with a commit SHA to pin the version:
+
+```yaml
+repos:
+  - repo: local
+    hooks:
+      - id: devkit-odoo
+        name: Odoo addon validation
+        entry: devkit-odoo
+        language: python
+        additional_dependencies:
+          - "mccann-hub-devkit @ git+https://github.com/jabez007/devkit@main#subdirectory=packages/devkit"
+          - "mccann-hub-devkit-odoo @ git+https://github.com/jabez007/devkit@main#subdirectory=packages/devkit_odoo"
+        files: (\.(py|xml|csv)|(^|/)devkit\.toml)$
+        pass_filenames: false
+```
+
+The hook runs when a commit adds or modifies a Python, XML, CSV or
+`devkit.toml` file, or renames a file to one of those names. It validates every
+addon under the configured paths, not just the changed files, because a
+reference in one file depends on the others. pre-commit matches the `files`
+filter against the new names of staged files and leaves deleted files out. So a
+commit that only deletes such files, or renames one to another extension, such
+as `rules.xml` to `rules.bak`, skips the hook. Run `devkit-odoo --project .` in CI as well
+to cover those commits.
+
 ## Inventory and strict checks
 
 | Dependency status | Meaning |
@@ -232,7 +276,8 @@ certainty about earlier definitions. Later lookups may report `unverified_effect
 Module-inventory completeness does not imply XML-ID completeness. CSV data,
 model metadata, hooks and installed records can supply IDs. Unknown XML references
 therefore do not fail validation, and `strict_dependencies` continues to govern
-module dependencies only. Inspect `unexamined` and `skipped_files` alongside the
+module dependencies only. The exception is a forward reference during a fresh
+install; see [Fresh-install load order](#fresh-install-load-order). Inspect `unexamined` and `skipped_files` alongside the
 reference counts. `xml.complete` describes file inspection, not complete runtime
 reference verification. Reference collection is limited to 4,000 events per
 invocation; exceeding the limit blocks inspection and discards partial events
@@ -296,8 +341,8 @@ model existence and field types are not verified.
 
 Earlier same-module CSV declarations can resolve later XML references. CSV
 references can use earlier XML declarations or CSV rows. Definitions become
-available after the row's references. Foreign IDs, forward references and
-ambiguous values remain unknown. A quoted comma-separated reference value is not
+available after the row's references. Foreign IDs and ambiguous values remain
+unknown. Forward references fail in the default fresh install mode. A quoted comma-separated reference value is not
 split without relational field metadata. Successful source inspection does not
 establish database record existence, permissions or successful import.
 
@@ -433,3 +478,97 @@ strict validation still blocked with `INCOMPLETE_INVENTORY`. XML and CSV finding
 were unchanged from v0.4. CLI results matched persisted evidence and `runs show`,
 and both checkouts remained clean. These snapshots validate coverage reporting;
 synthetic fixtures establish the cycle-failure behavior.
+
+## Fresh-install load order
+
+Odoo resolves each `ref` when it loads the referencing record. On a new database,
+a reference to a same-module ID that has not been defined yet fails the
+installation. `install_mode` in `[options.odoo]` selects how validation treats
+those references:
+
+| `install_mode` | Same-module ID not yet defined | Use it for |
+| --- | --- | --- |
+| `fresh` (default) | Status `undefined`; the run fails. | CI and any check that installs the module into a new database. |
+| `update` | Status `unknown`; the run can succeed. | Upgrades, where an earlier installation may already hold the ID. |
+
+In fresh mode these references are `undefined`:
+
+| Reason | Run result | Example |
+| --- | --- | --- |
+| `forward_definition` | `INVALID_LOAD_ORDER` | A menu file listed before the file that defines its action. |
+| `demo_only_definition` | `INVALID_LOAD_ORDER` | A data file that references a demo record; demo files load after all data files. |
+| `not_in_scanned_xml`, `not_in_scanned_data` | `UNDEFINED_XML_ID` | A typo such as `action="acme_book_action_typo"`, or an ID that belongs to another module but has no module prefix. |
+
+When both kinds occur, the run reports `INVALID_LOAD_ORDER`.
+
+### Generated model and field IDs
+
+Odoo creates `model_<model>` and `field_<model>__<field>` IDs when it registers
+the models a module defines or extends, before any data file loads. The validator
+reads `_name` and `_inherit` from every `.py` file in the addon with Python's `ast`
+module. It never imports or executes them. A matching reference, such as
+`model_acme_book` in `ir.model.access.csv`, resolves with reason `orm_generated`,
+and its target is the class location. A field ID resolves when a class for that
+model assigns the field with `fields.<Type>(...)`, and its target is that line.
+Odoo also creates field IDs for fields a model gets from parents and mixins,
+which the scan cannot see. Any other field name on a model the module declares
+therefore stays `unknown` with reason `unverified_field_name`, never `undefined`.
+
+An absent ID stays `unknown` instead of `undefined` when the validator cannot rule
+out another source:
+
+- A declared data file was skipped, blocked or invalid.
+- A loader tag other than `record`, `menuitem`, `template`, `function` or `delete` appears.
+- The manifest declares a `pre_init_hook`, which runs before data files load.
+- The ID starts with `selection__` or `constraint_`, which Odoo generates from fields and SQL constraints the validator does not read.
+- For `model_` and `field_` IDs only, a Python file did not parse, a model name is not a literal, or the addon exceeds 1,000 Python files, 1 MiB per file or 16 MiB in total.
+
+A reference counts as forward only when every eligible definition comes after it.
+If an earlier definition exists but a dynamic operation such as `<function>` or
+`<delete>` interrupted static certainty, the reference stays `unknown` with reason
+`unverified_effects` in both modes. A record that references its own ID without
+an earlier definition is also a forward reference.
+
+```toml
+[options.odoo]
+target_version = "19.0"
+install_mode = "update"
+```
+
+Specialization data schema 1.5 adds:
+
+- top-level `install_mode`;
+- the reference status `undefined` and the reasons `orm_generated` and `unverified_field_name`;
+- an `undefined` key in `xml_reference_counts`, `csv_reference_counts` and each module's `reference_counts`.
+
+Consumers that match exact count dictionaries must accept the new key. Checks
+that relied on these references succeeding need `install_mode = "update"`.
+
+### Fresh-install public repository evaluation
+
+On November 2, 2026, the validator rechecked the pinned
+[OCA/server-tools](https://github.com/OCA/server-tools/tree/389daeb98a8e21fe11594bdddef873bb07d0cb61)
+and [OCA/sale-workflow](https://github.com/OCA/sale-workflow/tree/b2cb74591c66882b91264106abc5229e200f5bff)
+snapshots, 133 addons in total, without modifying them or executing addon code.
+
+| Snapshot | Fresh result | Undefined | Generated IDs resolved | Unknown local references |
+| --- | --- | --- | --- | --- |
+| server-tools | success | 0 | 80 | 30, all `unverified_effects` |
+| sale-workflow | success | 0 | 62 | 42: 34 `unverified_effects`, 8 `conditional_definition` |
+
+Fresh mode reported no false failures. OCA tests installation in CI, so no real
+defects were expected either. To measure detection, a script then planted one
+defect at a time in copies of the addons:
+
+| Planted defect | Planted | Caught | Result |
+| --- | --- | --- | --- |
+| Reference file moved before its defining file in the manifest | 17 | 17 | `INVALID_LOAD_ORDER` |
+| `_typo` appended to a resolved same-module reference | 178 | 168 | `UNDEFINED_XML_ID` |
+
+All 10 missed typos are in `sale_elaboration` and `sale_manual_delivery`. Both
+declare a `pre_init_hook`, so absent IDs stay unknown. Their hooks only add
+database columns. Seven of the 133 addons declare a pre-init hook.
+
+The same two defects, planted in a small sample addon, produced no reference
+finding from `oca-checks-odoo-module` in oca-odoo-pre-commit-hooks 0.2.27. Its
+checks cover syntax, duplicate IDs and style, not reference resolution.

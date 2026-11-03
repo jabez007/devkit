@@ -13,6 +13,10 @@ authorizing them in the external operator policy, use:
 devkit --project /path/to/project run go.test
 ```
 
+Tests run with the caller's environment. Choose packages, `-run`, build tags and
+the race detector with `--args '{"packages": ["./internal/..."], "race": true}'`
+or `[options.go]` in `devkit.toml`. Failing tests are named in the result.
+
 See the [onboarding guide](https://github.com/jabez007/devkit/blob/main/docs/Getting_Started.md)
 for developer and operator setup, and the
 [plugin contract](https://github.com/jabez007/devkit/blob/main/docs/Plugin_Contract.md)
