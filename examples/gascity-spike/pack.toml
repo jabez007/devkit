@@ -1,0 +1,4 @@
+[pack]
+name = "devkit-spike"
+schema = 2
+description = "Disposable qualification fixture for delivery-loop ADR 0001"

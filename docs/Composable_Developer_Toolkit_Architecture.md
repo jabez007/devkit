@@ -400,6 +400,17 @@ An optional Odoo Gas City pack can declare Odoo-specific roles/formulas/skills a
 
 The relationship is **domain capability package → optional orchestration pack**, not **Gas City pack → required runtime for domain tools**. Existing Gas City pack APIs should be used directly; the foundation should not invent an adapter over its configuration model unless an integration test proves a missing seam.
 
+The [delivery-loop ADR](adr/0001-delivery-loop-runs-on-gas-city.md) accepts
+native Gas City formulas and sessions, Beads-owned workflow state, and separate
+stack packs. Its local qualification spike passed container execution, approval,
+native check gating, retry, skill projection and hook composition. The decision
+adds no Devkit job store, dispatcher or Python plugin-contract change.
+The existing Beads adapter accepts embedded workspaces only; it does not yet
+support Gas City's server-backed workspace. Initial packs use native task-state
+commands and keep that limitation explicit. Operator policy continues to gate
+commands with wider effects, while the standalone read-only Odoo validator can
+serve as a formula check.
+
 ### 10.3 T3 Code / Pi / Codex / Claude Code
 
 Support them through their actual native integration mechanisms (CLI invocation, MCP, or native package/skill). Do not emulate unavailable provider capabilities, silently approve actions, or require ACP. T3 Code's approach of declaring provider capabilities is a useful design reference, not a dependency of the core.
