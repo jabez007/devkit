@@ -289,6 +289,111 @@ class Spike:
     def ready(self):
         return {item["id"] for item in self.gc("ready", "--json", structured=True)}
 
+    def check_brief_approval(self):
+        workflows = []
+        example = ROOT / "integrations/gascity/odoo/examples/briefs/partial-delivery.json"
+        for number in (1, 2):
+            task = self.gc(
+                "bd",
+                "create",
+                f"Synthetic behavior task {number}",
+                "--type",
+                "task",
+                "--json",
+                structured=True,
+            )["id"]
+            path = self.root / f"brief-{number}.json"
+            path.write_text(json.dumps({**json.loads(example.read_text()), "task_id": task}))
+            cooked = self.gc(
+                "formula",
+                "cook",
+                "devkit-approved-brief",
+                "--attach",
+                task,
+                "--var",
+                "task=" + task,
+                "--var",
+                "brief_file=" + str(path),
+                "--json",
+                structured=True,
+            )
+            root, mapping = cooked["root_id"], cooked["id_mapping"]
+            bound = self.run(
+                self.args.gc,
+                "base",
+                "brief",
+                "record",
+                path,
+                "--task",
+                task,
+                "--workflow",
+                root,
+                structured=True,
+            )
+            self.close(mapping["devkit-approved-brief.brief"])
+            workflows.append((task, path, root, mapping, bound))
+        first, second = workflows
+        first_implement = first[3]["devkit-approved-brief.implement"]
+        second_implement = second[3]["devkit-approved-brief.implement"]
+        require(first_implement not in self.ready() and second_implement not in self.ready())
+        refused = subprocess.run(
+            [
+                str(self.args.gc),
+                "base",
+                "brief",
+                "approve",
+                "--workflow",
+                first[2],
+                "--sha256",
+                first[4]["sha256"],
+            ],
+            cwd=self.city,
+            env={**self.env, "DEVKIT_UNATTENDED": "1"},
+            text=True,
+            capture_output=True,
+            timeout=30,
+        )
+        require(
+            refused.returncode == 2
+            and json.loads(refused.stdout)["reason"] == "HUMAN_APPROVAL_REQUIRED",
+            refused.stdout + refused.stderr,
+        )
+        self.run(
+            self.args.gc,
+            "base",
+            "brief",
+            "approve",
+            "--workflow",
+            first[2],
+            "--sha256",
+            first[4]["sha256"],
+            structured=True,
+        )
+        require(first_implement in self.ready() and second_implement not in self.ready())
+        resumed = self.run(
+            self.args.gc,
+            "base",
+            "brief",
+            "resume",
+            "--task",
+            first[0],
+            structured=True,
+        )
+        require(resumed["workflow"] == first[2], resumed)
+        verified = self.run(
+            self.args.gc,
+            "base",
+            "brief",
+            "verify",
+            "--workflow",
+            first[2],
+            "--task",
+            first[0],
+            structured=True,
+        )
+        require(verified["sha256"] == first[4]["sha256"], verified)
+        self.report["brief_approval_and_resume"] = "passed"
+
     def close(self, identifier):
         self.gc(
             "bd",
@@ -655,6 +760,7 @@ def main():
             spike.prepare_repository,
             spike.cook_worktree,
             spike.check_brief_lint,
+            spike.check_brief_approval,
             spike.check_approval,
             spike.check_retry,
             spike.check_server_boundary,

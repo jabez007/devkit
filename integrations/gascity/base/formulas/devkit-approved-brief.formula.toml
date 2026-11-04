@@ -1,0 +1,43 @@
+formula = "devkit-approved-brief"
+description = "Bind one behavior brief to its selected task and require explicit human approval"
+
+[requires]
+formula_compiler = ">=2.0.0"
+
+[vars.task]
+description = "Explicitly selected input bead"
+required = true
+
+[vars.brief_file]
+description = "Absolute path for the brief artifact written in the task workspace"
+required = true
+
+[[steps]]
+id = "brief"
+title = "Write the behavior brief for {{task}}"
+description_file = "../assets/prompts/write-brief.md"
+
+[steps.metadata]
+"devkit.task" = "{{task}}"
+
+[[steps]]
+id = "approve"
+title = "Human review of the exact brief for {{task}}"
+needs = ["brief"]
+description = "The operator reviews gc base brief show for this workflow, then explicitly approves its SHA-256. Approval closes the native human gate and this step."
+
+[steps.gate]
+type = "human"
+
+[steps.metadata]
+"devkit.task" = "{{task}}"
+"devkit.brief.role" = "approval"
+
+[[steps]]
+id = "implement"
+title = "Implement the approved behavior for {{task}}"
+needs = ["approve"]
+description = "Run gc base brief verify with this workflow root and selected task {{task}}. Read the bound artifact returned by verification. Begin implementation only after verification succeeds."
+
+[steps.metadata]
+"devkit.task" = "{{task}}"

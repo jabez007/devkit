@@ -168,3 +168,68 @@ most 100 findings. A clean result includes the exact artifact's SHA-256.
 Lint is a backstop. It cannot establish that prose states the right behavior or
 contains no implementation prescription. A person reviews the full brief.
 Passing lint does not close an approval gate or authorize implementation.
+
+## Record and approve a brief
+
+The base supplies the native `devkit-approved-brief` formula. It creates brief,
+approval and implementation steps, with a native human gate on approval.
+Cook it for an explicitly selected task and an absolute artifact path:
+
+```sh
+gc formula cook devkit-approved-brief --attach <task> \
+  --var task=<task> --var brief_file=/absolute/task-worktree/brief.json --json
+```
+
+Keep the returned workflow root and step mapping. The brief step writes the
+artifact and records it before closing:
+
+```sh
+gc base brief record /absolute/task-worktree/brief.json --task <task> --workflow <root>
+```
+
+Recording runs the lint, confirms the input bead exists, and verifies that the
+workflow has the matching approval step and native human gate. It publishes an
+exact copy under the native pack state directory, using the workflow identity
+and content hash. It never overwrites an existing revision. Beads metadata links
+that artifact, task, gate, approval step and SHA-256. There is no additional job
+database or approval ledger.
+
+After the brief step is complete, the operator reviews the full recorded text:
+
+```sh
+gc base brief show --workflow <root>
+gc base brief approve --workflow <root> --sha256 <exact-reviewed-sha256>
+```
+
+Approval records the reviewed hash and task on the native gate, then closes the
+gate and approval step through ordinary native commands. It does not force a
+blocked close. If a close fails, the implementation remains blocked; resolve the
+prerequisite and repeat the approval command. The command refuses any set
+`DEVKIT_UNATTENDED` marker, including an empty value. Run it in the operator's
+environment. Native command access remains a deployment responsibility; this
+CLI does not add a separate identity service.
+
+Implementation first verifies the saved approval:
+
+```sh
+gc base brief verify --workflow <root> --task <task>
+gc base brief resume --task <task>
+```
+
+Verification requires the exact artifact hash, the selected task, matching native
+workflow membership, and closed approval and gate beads carrying the reviewed
+hash. Editing the original source file does not change the recorded artifact.
+Editing the recorded copy fails hash verification. Recording another revision
+on that workflow is refused; a revised brief needs a new workflow and approval.
+
+Resume follows the recorded workflow reference in Beads rather than cooking
+another workflow. If several recorded workflows match the task, it refuses to
+choose; use `verify` with the intended root explicitly. An unapproved task does
+not hold a global lock or stop another workflow from becoming ready.
+
+The deterministic spike exercises two separate native workflows. It verifies
+that implementation stays absent from `gc ready` before approval, explicit
+approval releases only the selected workflow, and new command invocations retain
+the exact task and brief association. Its approvals are synthetic test actions.
+They do not establish that a person reviewed a production task or qualify an
+external approval UI.

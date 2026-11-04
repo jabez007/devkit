@@ -125,3 +125,11 @@ def test_lint_uses_byte_limit_for_unicode(brief):
     content["problem"] = "界" * 34_000
     path.write_text(json.dumps(content, ensure_ascii=False))
     assert lint(path)[1]["reason"] == "BRIEF_LIMIT"
+
+
+def test_lint_bounds_work_for_long_punctuation_separated_words(brief):
+    path, content = brief
+    content["problem"] = "a-" * 40_000
+    path.write_text(json.dumps(content))
+    code, result = lint(path)
+    assert code == 0 and result["status"] == "success"

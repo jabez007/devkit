@@ -11,14 +11,15 @@ MAX_BYTES = 100_000
 TASK = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}")
 REQUIRED = {"schema_version", "task_id", "problem", "acceptance_criteria", "approach", "scope"}
 PATTERNS = {
-    "file_path": r"(?<!\w)(?:[.~]?[\\/])?(?:[\w.-]+[\\/])+[\w.*-]+",
+    # Start once per path token; restarting at every hyphen makes long prose quadratic.
+    "file_path": r"(?<![\w.-])(?:[.~]?[\\/])?(?:[\w.-]+[\\/])+[\w.*-]+",
     "dotted_name": r"\b[a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)+\b",
     "call": r"\b[A-Za-z_]\w*\(",
     "identifier": r"\b[A-Za-z][A-Za-z0-9]*_[A-Za-z0-9_]+\b",
     "command_flag": r"(?<!\w)--[a-z][a-z0-9-]*\b",
     "code": r"`",
     "source_file": (
-        r"\b[\w.-]+\.(?:py|xml|csv|js|jsx|ts|tsx|vue|json|toml|ya?ml|sql|sh|go|html|css|scss)\b"
+        r"(?<![\w.-])[\w.-]+\.(?:py|xml|csv|js|jsx|ts|tsx|vue|json|toml|ya?ml|sql|sh|go|html|css|scss)\b"
     ),
 }
 
