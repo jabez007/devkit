@@ -411,6 +411,12 @@ commands and keep that limitation explicit. Operator policy continues to gate
 commands with wider effects, while the standalone read-only Odoo validator can
 serve as a formula check.
 
+The [shared native stack-pack base](../integrations/gascity/README.md) supplies
+the qualified one-shot Claude provider and operator preparation for guard rules,
+settings and runtime mounts. Stack packs retain their prompts, formulas, skills
+and domain checks. Default and protected branch policy is explicit operator
+input. The base issues no command grants and adds no specialization interface.
+
 ### 10.3 T3 Code / Pi / Codex / Claude Code
 
 Support them through their actual native integration mechanisms (CLI invocation, MCP, or native package/skill). Do not emulate unavailable provider capabilities, silently approve actions, or require ACP. T3 Code's approach of declaring provider capabilities is a useful design reference, not a dependency of the core.

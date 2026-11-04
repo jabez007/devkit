@@ -32,6 +32,7 @@ def configuration(path):
     for key in KEYS - {"allowed_tools"}:
         if not isinstance(config[key], str) or not Path(config[key]).is_absolute():
             raise ValueError("Session paths must be absolute")
+        config[key] = str(Path(config[key]).resolve())
     if not Path(config["project"]).is_dir():
         raise ValueError("Project directory is unavailable")
     native = _json(Path(config["city_settings"]))
@@ -73,7 +74,9 @@ def run(config, prompt):
     output = Path(config["artifacts"])
     # Native sessions own unique output directories; a rerun cannot overwrite earlier evidence.
     output.mkdir(parents=True, mode=0o700, exist_ok=False)
-    environment = {**os.environ, "DEVKIT_UNATTENDED": "1"}
+    # Match the checkout helper: inherited Git state must not redirect work to another checkout.
+    environment = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    environment["DEVKIT_UNATTENDED"] = "1"
     environment.pop("ANTHROPIC_API_KEY", None)
     environment.pop("ANTHROPIC_AUTH_TOKEN", None)
     with (output / "agent.jsonl").open("w") as out, (output / "agent.stderr").open("w") as err:

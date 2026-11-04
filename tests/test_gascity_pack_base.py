@@ -38,6 +38,7 @@ def session(tmp_path):
         "print(json.dumps(dict(arguments=sys.argv[1:], cwd=os.getcwd(), "
         "api_key='ANTHROPIC_API_KEY' in os.environ, "
         "auth_token='ANTHROPIC_AUTH_TOKEN' in os.environ, "
+        "git_overrides=any(key.startswith('GIT_') for key in os.environ), "
         "unattended=os.environ.get('DEVKIT_UNATTENDED'))))\n"
         "sys.exit(int(os.environ.get('FAKE_EXIT_CODE', '0')))\n"
     )
@@ -86,6 +87,13 @@ def test_base_launcher_retains_client_exit_status(session):
     result = launch(session, FAKE_EXIT_CODE="7")
     assert result.returncode == 7, result.stderr
     assert (Path(session[1]["artifacts"]) / "agent.exit").read_text() == "7"
+
+
+def test_base_launcher_excludes_inherited_git_workspace_overrides(session):
+    result = launch(session, GIT_DIR="/tmp/another-project/.git")
+    assert result.returncode == 0, result.stderr
+    observed = json.loads((Path(session[1]["artifacts"]) / "agent.jsonl").read_text())
+    assert observed["git_overrides"] is False
 
 
 @pytest.mark.parametrize(

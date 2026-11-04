@@ -63,16 +63,88 @@ prompts disabled. `allowed_tools` is an explicit tool permission list. It does
 not override the unattended guard or Devkit command policy. The JSON format
 accepts no extra Claude flags. API-key and auth-token environment variables are
 removed before the client starts; `--bare` is never used.
+Inherited `GIT_*` variables are removed so they cannot redirect commands into
+another checkout.
 
 The artifact directory must be new for each attempt. It holds `agent.jsonl`,
 `agent.stderr`, and `agent.exit`. The launcher preserves the client exit code.
 Session configuration and prompts are each limited to 1 MB. Artifacts can
 contain task content and remain operator-owned local evidence.
 
+## Prepare guard and runtime settings
+
+Install the [guard's pinned parser](../unattended/README.md#install-and-enable)
+in both the preparation interpreter and the project's container image. Build
+the image using the project's devcontainer configuration. Select the upstream
+`gc-session-docker` script from the pinned Gas City installation. The base
+invokes that script and does not copy or replace its runtime implementation.
+
+Create a deployment JSON file alongside the session configuration:
+
+```json
+{
+  "session": "/city/session.json",
+  "claude": "/absolute/installed/claude",
+  "credentials": "/absolute/operator/.claude/.credentials.json",
+  "config_dir": "/home/worker/.claude",
+  "runtime": "/absolute/pinned/gascity/scripts/gc-session-docker",
+  "image": "project-image:reviewed",
+  "user": "1000:1000",
+  "network": "host",
+  "packs": ["/absolute/reviewed/stack-pack", "/absolute/pinned/gascity/internal/bootstrap/packs/core"],
+  "readonly": ["/absolute/installed/gc", "/absolute/installed/bd"],
+  "writable": ["/city/control", "/city/cache", "/city/state"],
+  "default_branch": "main",
+  "protected_branches": ["release/*"]
+}
+```
+
+Supply every resolved pack directory, including transitive imports. The base
+and shared guard directories are included automatically. Supply any required
+native tools and read-only profiles in `readonly`; writable runtime directories
+must already exist. Mounts retain their original absolute paths so native skill
+symlinks resolve. All paths must be absolute and contain neither whitespace nor
+commas, as the pinned native runtime splits its extra flags on spaces.
+`config_dir` is a container path; all other configured paths are host paths.
+
+Run preparation with the reviewed file:
+
+```sh
+python /absolute/devkit/integrations/gascity/base/assets/prepare.py /city/deployment.json
+```
+
+The helper validates all inputs, then atomically writes
+`.claude/devkit-unattended-rules.json` and updates `.claude/settings.json` in the
+selected project. It preserves existing project hooks and settings. Repeating
+preparation does not duplicate its hook. Keep these operator-generated files
+and session configuration out of commits.
+
+`default_branch` and `protected_branches` come from the operator's review of
+the target repository. They are required inputs, even when no additional
+protected branches exist. Preparation never infers trusted protection settings
+from writable local Git metadata. It preserves every base rule, adds the
+reviewed default and protected branches, and rejects rules over 64 KiB. An
+optional `stack_rules` path supplies a complete additive rule file accepted by
+the actual shared guard. It cannot remove or weaken a base rule.
+
+The JSON result has `session_provider`, for the control process's `GC_SESSION`,
+and `workspace_env`, for the city's native `[workspace.env]`. Review and apply
+those bindings before creating the session. Preparation does not start Docker,
+Claude or a Gas City service. It does not change plugin trust or issue grants.
+
+The generated runtime settings disable home mounting. They mount only the
+selected subscription credential file at `config_dir/.credentials.json`,
+read-only. Pack assets, guard code, project Claude settings, MCP configuration,
+native Gas City settings, the session JSON, and prompt are read-only too.
+Home-directory ancestors and socket paths are refused as additional mounts.
+The native runtime still owns its ordinary city and worktree bindings.
+
 The [spike](../../examples/gascity-spike/README.md) exercises this base with
-real Gas City and Beads, with an opt-in live Claude container session. Its
-current caller installs the shared guard in project settings and supplies
-read-only pack, settings, prompt and credential mounts. These choices must
-remain explicit when preparing another stack.
+real Gas City and Beads. Its deterministic stage uses synthetic credential and
+client mount fixtures and calls no model or container. The opt-in live stage
+tests a real Claude session, skill, project MCP and guard composition. Host
+networking is the qualified local profile because native hooks reach the
+fixture's local Dolt server. Other networking and devcontainer lifecycle
+features require their own qualification.
 
 This pack is covered by the repository's [GPL license](../../LICENSE).

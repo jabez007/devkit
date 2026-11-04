@@ -365,25 +365,6 @@ class Spike:
         canary = probe / "protected"
         canary.mkdir()
         (canary / ".credentials.json").write_text(CREDENTIAL_CANARY)
-        settings = {
-            "hooks": {
-                "PreToolUse": [
-                    {
-                        "matcher": "*",
-                        "hooks": [
-                            {
-                                "type": "command",
-                                "command": f"python {GUARD}/guard.py",
-                                "timeout": 10,
-                            }
-                        ],
-                    }
-                ]
-            }
-        }
-        claude = self.worktree / ".claude"
-        claude.mkdir(exist_ok=True)
-        (claude / "settings.json").write_text(json.dumps(settings))
         (self.worktree / ".mcp.json").write_text(
             json.dumps(
                 {
@@ -394,59 +375,52 @@ class Spike:
             )
         )
         self.write_session_config()
-        mounts = {
-            self.args.claude: "/usr/local/bin/claude",
-            self.args.gc: str(self.args.gc),
-            self.args.bd: str(self.args.bd),
-            self.args.dolt: str(self.args.dolt),
-            self.args.credentials: "/home/spike/.claude/.credentials.json",
-            FIXTURE: str(FIXTURE),
-            GUARD: str(GUARD),
-            BASE: str(BASE),
-            self.city / "session.json": str(self.city / "session.json"),
-            self.city / "session-prompt.md": str(self.city / "session-prompt.md"),
-            claude: str(claude),
-            canary: str(canary),
-            self.city / ".gc/settings.json": str(self.city / ".gc/settings.json"),
-            self.args.gascity_source / "internal/bootstrap/packs/core": str(
-                self.args.gascity_source / "internal/bootstrap/packs/core"
+        writable = [self.root / name for name in ("control", "cache", "config", "state")]
+        for directory in writable:
+            directory.mkdir(parents=True, exist_ok=True)
+        claude, credentials = self.args.claude, self.args.credentials
+        if not self.args.live:
+            claude, credentials = (
+                self.root / "synthetic-claude",
+                self.root / "synthetic-credentials",
+            )
+            claude.write_text("Deterministic mount fixture; never executed.\n")
+            credentials.write_text("Synthetic credentials; never used for authentication.\n")
+        config = {
+            "session": str(self.city / "session.json"),
+            "claude": str(claude),
+            "credentials": str(credentials),
+            "config_dir": "/home/spike/.claude",
+            "runtime": str(self.args.gascity_source / "scripts/gc-session-docker"),
+            "image": self.image,
+            "user": "1000:1000",
+            "network": "host",
+            "packs": [
+                str(FIXTURE),
+                str(self.args.gascity_source / "internal/bootstrap/packs/core"),
+                str(self.args.gascity_source / "examples/bd"),
+            ],
+            "readonly": list(
+                map(str, [self.args.gc, self.args.bd, self.args.dolt, canary, self.root / "dolt"])
             ),
-            self.args.gascity_source / "examples/bd": str(self.args.gascity_source / "examples/bd"),
+            "writable": list(map(str, writable)),
+            "default_branch": "main",
+            "protected_branches": [],
         }
-        extra = " ".join(
-            f"--mount=type=bind,src={path},dst={target},readonly" for path, target in mounts.items()
-        )
-        for path in (
-            self.root / "control",
-            self.root / "cache",
-            self.root / "config",
-            self.root / "state",
-        ):
-            path.mkdir(parents=True, exist_ok=True)
-            extra += f" --mount=type=bind,src={path},dst={path}"
-        profile = self.root / "dolt"
-        extra += f" --mount=type=bind,src={profile},dst={profile},readonly"
-        self.env.update(
-            GC_SESSION="exec:" + str(self.args.gascity_source / "scripts/gc-session-docker"),
-            DEVKIT_UNATTENDED="1",
-        )
+        deployment = self.city / "deployment.json"
+        deployment.write_text(json.dumps(config))
+        prepared = self.run(sys.executable, BASE / "assets/prepare.py", deployment, structured=True)
+        self.env.update(GC_SESSION=prepared["session_provider"], DEVKIT_UNATTENDED="1")
         with (self.city / "city.toml").open("a") as stream:
             stream.write("\n[workspace.env]\n")
             for key, value in {
-                "GC_DOCKER_IMAGE": self.image,
-                "GC_DOCKER_HOME_MOUNT": "false",
-                "GC_DOCKER_USER": "1000:1000",
-                "GC_DOCKER_NETWORK": "host",
-                "GC_DOCKER_EXTRA": extra,
-                "CLAUDE_CONFIG_DIR": "/home/spike/.claude",
-                "DEVKIT_UNATTENDED": "1",
-                "DEVKIT_PACK_BASE": str(BASE),
-                "DEVKIT_SESSION_CONFIG": str(self.city / "session.json"),
-                "DOLT_ROOT_PATH": str(profile),
+                **prepared["workspace_env"],
+                "DOLT_ROOT_PATH": str(self.root / "dolt"),
                 "DO_NOT_TRACK": "1",
                 "BD_DISABLE_METRICS": "1",
             }.items():
                 stream.write(f"{key}={json.dumps(value)}\n")
+        self.report["shared_base_preparation"] = "passed"
 
     def write_session_config(self):
         prompt = (
@@ -569,7 +543,12 @@ class Spike:
         ]
         for tool, arguments, reason in probes:
             result = subprocess.run(
-                [sys.executable, str(GUARD / "guard.py")],
+                [
+                    sys.executable,
+                    str(GUARD / "guard.py"),
+                    "--rules",
+                    str(self.worktree / ".claude/devkit-unattended-rules.json"),
+                ],
                 input=json.dumps(
                     {"tool_name": tool, "tool_input": arguments, "cwd": str(self.worktree)}
                 ),
@@ -641,14 +620,18 @@ def main():
             spike.check_approval,
             spike.check_retry,
             spike.check_server_boundary,
-            spike.check_guard,
         ):
             print(f"Running {stage.__name__}", file=sys.stderr, flush=True)
             stage()
         if args.live:
             print("Building project devcontainer", file=sys.stderr, flush=True)
             spike.build_container()
-            spike.prepare_session()
+        else:
+            spike.image = "devkit-deterministic:fixture"
+        print("Preparing shared base and guard settings", file=sys.stderr, flush=True)
+        spike.prepare_session()
+        spike.check_guard()
+        if args.live:
             print("Starting live native session", file=sys.stderr, flush=True)
             spike.run_session()
             spike.check_success()

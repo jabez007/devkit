@@ -13,7 +13,9 @@ invokes a pack skill, calls the project MCP server, and receives a hook refusal
 for `git push --force` and a Read request for a synthetic credential canary.
 The native check then passes and releases the draft-PR step. No Git remote is
 configured and no GitHub pull request is created. The deterministic stage also
-sends representative requests to the actual shared unattended guard.
+prepares the shared base with synthetic client and credential mount fixtures,
+then sends representative requests to the actual installed unattended guard.
+It starts no container and calls no model.
 
 ## Prepare the tools
 

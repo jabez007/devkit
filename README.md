@@ -419,6 +419,13 @@ active checkout, preserves worktree scopes, and leaves authorization with the
 operator. Removing it does not remove Devkit evidence. The same commands work
 from Neovim's terminal without any editor package or AI session.
 
+## Optional Gas City stack packs
+
+The [shared stack-pack base](integrations/gascity/README.md) supplies a native
+one-shot Claude provider, guard installation and reviewed runtime mount settings.
+The [qualification spike](examples/gascity-spike/README.md) consumes this base.
+Stack-specific production delivery workflows remain separate increments.
+
 ## License
 
 Devkit, its bundled specializations and the copyable template are licensed under
