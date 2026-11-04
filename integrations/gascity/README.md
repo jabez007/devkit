@@ -236,3 +236,82 @@ approval releases only the selected workflow, and new command invocations retain
 the exact task and brief association. Its approvals are synthetic test actions.
 They do not establish that a person reviewed a production task or qualify an
 external approval UI.
+
+## Record questions, answers and tool friction
+
+After recording a brief, the operator starts its first feedback round:
+
+```sh
+gc base feedback begin --task TASK --workflow ROOT --branch devkit/TASK
+```
+
+An optional `--pr https://github.com/owner/repository/pull/NUMBER` records an
+existing PR. The task holds its round number, workflow, branch and PR reference
+in native metadata. Beginning again with the same selection is idempotent;
+replacing an active branch or workflow is refused.
+
+The agent records each question with its assumption and reason in a JSON array:
+
+```json
+[
+  {
+    "question": "What should the menu be called?",
+    "assumption": "Use Delivery.",
+    "reason": "That is the existing label."
+  }
+]
+```
+
+Import and inspect the records through native commands:
+
+```sh
+gc base feedback questions /absolute/questions.json --task TASK --workflow ROOT --round 1
+gc base feedback show --task TASK --workflow ROOT --round 1
+```
+
+The result returns content-derived question IDs. The human either accepts an
+assumption or supplies an answer, using the question's returned ID:
+
+```json
+[
+  {"question_id": "QUESTION_SHA256", "accepted": false, "answer": "Call the menu Dispatch contacts."}
+]
+```
+
+```sh
+gc base feedback answers /absolute/answers.json --task TASK --workflow ROOT --round 1
+```
+
+An accepted assumption may omit `answer`. A rejection requires a nonempty
+answer. Unknown question IDs, conflicting repeated answers and stale round
+selections are refused. `begin` and `answers` require the operator's environment
+with `DEVKIT_UNATTENDED` unset. The agent can record questions while unattended.
+
+Friction records have exactly four fields. `observed` retains the quoted tool
+output, including newlines or an empty output string:
+
+```json
+[
+  {
+    "command": "checker --verify",
+    "expected": "A check result.",
+    "observed": "checker: command not found\n",
+    "action": "Used the installed executable's absolute path."
+  }
+]
+```
+
+Select a separate native bead for a nonempty friction report:
+
+```sh
+gc base feedback friction /absolute/friction.json --task TASK --workflow ROOT --round 1 \
+  --friction-task TOOLING_BEAD
+```
+
+An empty array is the normal result and needs no friction bead. Nonempty reports
+cannot use the task itself as the friction bead. Records use native task comments
+under the author `Devkit feedback`. Repeated sequential imports reuse content
+IDs and add no comments; friction deduplicates its four fields within the
+selected tooling bead. Use one importer per destination. Concurrent-import
+deduplication is not qualified. Inputs are bounded to 100 records and 100 KB.
+There is no additional feedback ledger or tracker client.
