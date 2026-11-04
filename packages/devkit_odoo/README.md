@@ -24,6 +24,11 @@ native Odoo tests, and drops the database. Both require explicit operator grants
 for all effects. The standalone `devkit-odoo` entry point remains an offline
 validator. See [runtime setup and limits](https://github.com/jabez007/devkit/blob/main/docs/Odoo_Validation.md#run-native-odoo-tests).
 
+`odoo.module.version.check` compares all changed addons in the configured roots
+against an explicit Git base commit. It requires increased explicit versions
+for existing addons and an initial version for new addons. It uses separate
+process and filesystem grants. See [version gate setup](https://github.com/jabez007/devkit/blob/main/docs/Odoo_Validation.md#require-a-version-bump-for-changed-addons).
+
 See the [onboarding guide](https://github.com/jabez007/devkit/blob/main/docs/Getting_Started.md)
 for developer and operator setup, and the
 [plugin contract](https://github.com/jabez007/devkit/blob/main/docs/Plugin_Contract.md)

@@ -19,7 +19,7 @@ The foundation requires no Beads, Odoo server, Docker, or model credentials.
 The package family is `mccann-hub-devkit`, imported under `mccann_hub`.
 Nothing is published to a public package registry by this migration.
 Versions are foundation 0.2.0, Beads 0.3.0, Go/MCP 0.1.0, and
-Odoo 0.6.0. Plugin API 1.0 and evidence envelope 1.0 are unchanged.
+Odoo 0.7.0. Plugin API 1.0 and evidence envelope 1.0 are unchanged.
 See [publication readiness](docs/Compatibility.md) for migration instructions
 and the release-ownership decisions still needed before public distribution.
 
@@ -53,7 +53,7 @@ uv venv /tmp/devkit-install --python 3.12
 uv pip install --python /tmp/devkit-install/bin/python dist/mccann_hub_devkit-0.2.0-py3-none-any.whl
 # Add only the plugins and adapters you need:
 uv pip install --python /tmp/devkit-install/bin/python dist/mccann_hub_devkit_go-0.1.0-py3-none-any.whl
-uv pip install --python /tmp/devkit-install/bin/python dist/mccann_hub_devkit_odoo-0.6.0-py3-none-any.whl
+uv pip install --python /tmp/devkit-install/bin/python dist/mccann_hub_devkit_odoo-0.7.0-py3-none-any.whl
 uv pip install --python /tmp/devkit-install/bin/python dist/mccann_hub_devkit_mcp-0.1.0-py3-none-any.whl
 uv pip install --python /tmp/devkit-install/bin/python dist/mccann_hub_devkit_beads-0.3.0-py3-none-any.whl
 ```
@@ -96,7 +96,7 @@ replace the example project paths with the project's absolute path.
 
 ```toml
 [trusted_plugins]
-mccann-hub-devkit-odoo = "0.6.0"
+mccann-hub-devkit-odoo = "0.7.0"
 
 [commands."odoo.module.validate"]
 project = "/absolute/path/to/project"
@@ -111,8 +111,8 @@ trusted build or download process:
 
 ```toml
 [trusted_plugins.mccann-hub-devkit-odoo]
-version = "0.6.0"
-wheel = "/absolute/operator/path/mccann_hub_devkit_odoo-0.6.0-py3-none-any.whl"
+version = "0.7.0"
+wheel = "/absolute/operator/path/mccann_hub_devkit_odoo-0.7.0-py3-none-any.whl"
 sha256 = "<64 lowercase hexadecimal characters>"
 ```
 
@@ -226,9 +226,11 @@ not a claim that the runtime installation is cycle-free.
 See [Odoo validation](docs/Odoo_Validation.md) for multiple addon
 paths, scoped completeness, coverage, bounds, and result-schema compatibility. The profile follows [this pinned Odoo 19 source](https://github.com/odoo/odoo/blob/005e0a0eb7ef80cd15b0c82b570b2b0843181ba2/odoo/modules/module.py).
 
-Profiles list check IDs: `go.tests`, `odoo.manifests`, `odoo.runtime`, and
-`odoo.tests`. The runtime checks require an Odoo 19 executable, PostgreSQL tools,
+Profiles list check IDs: `go.tests`, `odoo.manifests`, `odoo.runtime`,
+`odoo.tests`, and `odoo.versions`. The runtime checks require an Odoo 19 executable, PostgreSQL tools,
 and separate grants for all effects. See [runtime setup](docs/Odoo_Validation.md#run-native-odoo-tests).
+The version gate needs a reviewed base commit and its own effect grants; see
+[version comparison](docs/Odoo_Validation.md#require-a-version-bump-for-changed-addons).
 Every required check must succeed. Child runs have their own evidence and share the profile's deadline
 and cancellation signal. An empty profile is blocked; unknown IDs are errors.
 Profiles contain at most 128 unique check IDs. Plugin environment checks run

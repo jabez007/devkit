@@ -63,7 +63,7 @@ def _evidence(binary, wheels, project, root, env, envelope):
     assert shown["references"] == ["ci:artifact"]
     assert json.loads((reports / "prune-preview.json").read_text())["result"]["data"]["dry_run"]
     family = {run_id}
-    versions = {"go.test": ("go", "0.1.0"), "odoo.module.validate": ("odoo", "0.6.0")}
+    versions = {"go.test": ("go", "0.1.0"), "odoo.module.validate": ("odoo", "0.7.0")}
     for child in saved["result"]["data"].get("checks", []):
         family.add(child["run_id"])
         record = invoke(binary, project, env, "runs", "show", child["run_id"])["result"]["data"][

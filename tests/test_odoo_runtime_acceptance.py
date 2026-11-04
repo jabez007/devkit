@@ -109,7 +109,7 @@ class BrowserProbe(HttpCase):
     policy = project.parent / (project.name + "-operator") / "devkit/policy.toml"
     policy.parent.mkdir(parents=True)
     policy.write_text(
-        '[trusted_plugins]\nmccann-hub-devkit-odoo="0.6.0"\n'
+        '[trusted_plugins]\nmccann-hub-devkit-odoo="0.7.0"\n'
         '[commands."odoo.module.test"]\nproject="/project"\n'
         f'effects={json.dumps(sorted(EFFECTS))}\nsurfaces=["cli"]\n'
     )

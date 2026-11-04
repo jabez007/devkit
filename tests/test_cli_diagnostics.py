@@ -80,7 +80,7 @@ def test_plugin_details_do_not_verify_configured_pin(odoo_project):
     project, _ = odoo_project
     policy = Path(os.environ["XDG_CONFIG_HOME"]) / "devkit/policy.toml"
     policy.write_text(
-        '[trusted_plugins.mccann-hub-devkit-odoo]\nversion="0.6.0"\n'
+        '[trusted_plugins.mccann-hub-devkit-odoo]\nversion="0.7.0"\n'
         'wheel="/nonexistent/reviewed.whl"\nsha256="' + "0" * 64 + '"\n'
     )
     completed = cli(project, "plugins", "list", "--details")

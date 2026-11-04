@@ -628,7 +628,7 @@ requires-dist = [
 
 [[package]]
 name = "mccann-hub-devkit-odoo"
-version = "0.6.0"
+version = "0.7.0"
 source = { editable = "packages/devkit_odoo" }
 dependencies = [
     { name = "mccann-hub-devkit" },

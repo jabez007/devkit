@@ -606,7 +606,7 @@ IDs and style, not reference resolution.
 
 ## Run native Odoo tests
 
-Install the reviewed foundation and Odoo 0.6.0 wheels. Select `plugins = ["odoo"]`
+Install the reviewed foundation and Odoo 0.7.0 wheels. Select `plugins = ["odoo"]`
 and set `module` and `addons_paths` in `[options.odoo]`. These two options are
 shared with the offline validator. Runtime execution supports one addon per job.
 If the inventory contains exactly one addon, the command selects it by default.
@@ -621,7 +621,7 @@ role must be able to connect to the `postgres` maintenance database and create
 databases. Use a dedicated development or test server.
 
 Add explicit grants in the external operator policy, with the actual canonical
-project path. Renew the plugin trust entry for version 0.6.0 or pin its reviewed
+project path. Renew the plugin trust entry for version 0.7.0 or pin its reviewed
 wheel identity as described in the [operator guide](Getting_Started.md).
 
 ```toml
@@ -681,3 +681,56 @@ The tests use pinned Odoo 19 and PostgreSQL 17 image digests, private Docker
 networks, and disposable containers. They publish no host ports. Installed-wheel
 cases cover passing, failing, empty, skipped, HTTP, and concurrent jobs, and
 verify database removal. Ordinary `pytest` skips these container tests.
+
+## Require a version bump for changed addons
+
+Odoo package 0.7.0 adds `odoo.module.version.check`, with check ID
+`odoo.versions`. Supply the exact lower-case Git object ID for the reviewed base
+commit. The command accepts a full 40-character or 64-character ID. It does not
+choose a moving branch for you.
+
+```sh
+devkit --project /absolute/project --json run odoo.module.version.check \
+  --args '{"base_commit":"<full-reviewed-commit-id>"}'
+```
+
+For a profile containing `odoo.versions`, provide `DEVKIT_BASE_COMMIT` in the
+operator's environment. Explicit arguments take precedence. The check uses
+`addons_paths` from `[options.odoo]` or its arguments. It checks every changed
+addon in those roots, including untracked files, rather than applying the
+runtime's single `module` selection. The result records its base commit,
+configured roots, examined modules, and `inspection_complete`.
+
+Add a separate operator grant for the actual canonical project or task worktree:
+
+```toml
+[commands."odoo.module.version.check"]
+project = "/absolute/project"
+effects = ["read_fs", "write_fs", "execute_process"]
+surfaces = ["cli", "python", "mcp"]
+```
+
+The check reads Git objects and project files and captures subprocess output in
+temporary files. It does not modify project files, fetch objects or contact a
+remote. Fetch the reviewed base and its blobs before running it. A linked
+worktree needs its own exact grant. In a delivery formula, pass the base captured
+before implementation from operator-owned job context, so an agent cannot
+substitute a later base through project configuration.
+
+Existing addons must have a larger numeric version after Odoo 19 series
+normalization. Prefix-only changes and trailing zeros do not count as a bump.
+An omitted base version uses Odoo's native `1.0` default. The new manifest must
+state its version explicitly. New addons need an explicit initial version;
+removed addons fail and require separate review. Module results report `new`,
+`bumped`, `unchanged`, `removed`, or `invalid` with their before and after values.
+
+Literal manifest parsing is shared with offline validation. It never imports an
+addon or evaluates a manifest expression. Captured Git blobs retain their Python
+source encoding. Unknown base objects, symlinked addon layouts and submodules
+block comparison. Use the submodule's own checkout when validating its versions.
+The inventory accepts at most 128 candidate addon directories per run and
+10,000 changed paths, within the existing subprocess and manifest capture limits.
+
+A successful comparison with no changed addons reports an empty module list.
+It does not establish installation, runtime behavior, or completion of the task.
+Use the static and runtime gates alongside this check for delivery.

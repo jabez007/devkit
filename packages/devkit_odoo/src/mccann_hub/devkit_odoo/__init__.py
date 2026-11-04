@@ -23,6 +23,9 @@ from mccann_hub.devkit_odoo.runtime import PREREQUISITE_SCHEMA
 from mccann_hub.devkit_odoo.runtime import check as check_runtime
 from mccann_hub.devkit_odoo.runtime import test as test_runtime
 from mccann_hub.devkit_odoo.validation import checkpoint, inspect_module
+from mccann_hub.devkit_odoo.versions import EFFECTS as VERSION_EFFECTS
+from mccann_hub.devkit_odoo.versions import INPUT_SCHEMA as VERSION_INPUT_SCHEMA
+from mccann_hub.devkit_odoo.versions import check as check_versions
 from mccann_hub.devkit_odoo.xml_inspection import LIMITS as XML_LIMITS
 from mccann_hub.devkit_odoo.xml_inspection import PARSER_VERSION, XMLInspection
 
@@ -470,10 +473,18 @@ def register() -> Specialization:
                 input_schema=RUNTIME_INPUT_SCHEMA,
                 effects=EFFECTS,
             ),
+            CommandSpec(
+                "odoo.module.version.check",
+                "Require increased manifest versions for changed addons",
+                check_versions,
+                input_schema=VERSION_INPUT_SCHEMA,
+                effects=VERSION_EFFECTS,
+            ),
         ),
         checks=(
             CheckSpec("odoo.manifests", "odoo.module.validate"),
             CheckSpec("odoo.runtime", "odoo.runtime.check"),
             CheckSpec("odoo.tests", "odoo.module.test"),
+            CheckSpec("odoo.versions", "odoo.module.version.check"),
         ),
     )
