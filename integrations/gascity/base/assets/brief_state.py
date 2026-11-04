@@ -1,85 +1,15 @@
 """Brief artifacts and approval references through native Beads commands."""
 
-import json
 import os
 import re
-import subprocess
 import tempfile
 from pathlib import Path
 
-from brief_format import TASK, BriefError, findings, load
+from brief_format import BriefError, findings, load
+from native_state import _gc, _identity, _members, _show, _update
 
 PREFIX = "devkit.brief."
 FIELDS = ("task", "path", "gate", "approval", "sha256")
-
-
-def _identity(value):
-    if not isinstance(value, str) or TASK.fullmatch(value) is None:
-        raise BriefError("INVALID_TASK_STATE")
-    return value
-
-
-def _gc(*arguments):
-    binary, city = os.environ.get("GC_BIN", ""), os.environ.get("GC_CITY_PATH", "")
-    if not Path(binary).is_absolute() or not Path(city).is_absolute():
-        raise BriefError("TASK_STATE_UNAVAILABLE")
-    environment = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
-    try:
-        result = subprocess.run(
-            [binary, "--city", city, "bd", *arguments, "--json"],
-            cwd=city,
-            env=environment,
-            text=True,
-            capture_output=True,
-            timeout=30,
-        )
-    except (OSError, subprocess.SubprocessError) as error:
-        raise BriefError("TASK_STATE_UNAVAILABLE") from error
-    if result.returncode:
-        raise BriefError("TASK_STATE_UNAVAILABLE")
-    if len(result.stdout) > 1_000_000:
-        raise BriefError("INVALID_TASK_STATE")
-    try:
-        return json.loads(result.stdout) if result.stdout.strip() else None
-    except ValueError as error:
-        raise BriefError("INVALID_TASK_STATE") from error
-
-
-def _show(identity):
-    identity = _identity(identity)
-    bead = _gc("show", identity)
-    if isinstance(bead, list) and len(bead) == 1:
-        bead = bead[0]
-    if (
-        not isinstance(bead, dict)
-        or bead.get("id") != identity
-        or not isinstance(bead.get("status"), str)
-    ):
-        raise BriefError("INVALID_TASK_STATE")
-    if not isinstance(bead.get("metadata", {}), dict):
-        raise BriefError("INVALID_TASK_STATE")
-    return bead
-
-
-def _members(workflow):
-    result = _gc(
-        "list",
-        "--all",
-        "--include-ephemeral",
-        "--include-gates",
-        "--limit",
-        "256",
-        "--metadata-field",
-        "gc.root_bead_id=" + _identity(workflow),
-    )
-    if not isinstance(result, list) or len(result) >= 256:
-        raise BriefError("INVALID_TASK_STATE")
-    if any(
-        not isinstance(bead, dict) or not isinstance(bead.get("metadata", {}), dict)
-        for bead in result
-    ):
-        raise BriefError("INVALID_TASK_STATE")
-    return result
 
 
 def _selection(workflow, task):
@@ -122,13 +52,6 @@ def _artifact(workflow, digest):
     if not state.is_absolute():
         raise BriefError("TASK_STATE_UNAVAILABLE")
     return state.resolve() / "briefs" / _identity(workflow) / (digest + ".json")
-
-
-def _update(identity, values):
-    arguments = ["update", _identity(identity)]
-    for key, value in values.items():
-        arguments.extend(["--set-metadata", key + "=" + value])
-    _gc(*arguments)
 
 
 def _save(path, content):

@@ -17,6 +17,7 @@ sys.path.insert(0, str(BASE / "assets"))
 from brief_format import BriefError  # noqa: E402
 from brief_format import load as load_brief  # noqa: E402
 from brief_state import _gc, _identity, _members, _selection, _show, _update  # noqa: E402
+from native_state import StateError  # noqa: E402
 
 PREFIX = "devkit.delivery."
 
@@ -170,7 +171,7 @@ def main():
     args = parser.parse_args()
     try:
         result = args.handler(args)
-    except (DeliveryError, BriefError) as error:
+    except (DeliveryError, BriefError, StateError) as error:
         result = {"status": "blocked", "reason": error.reason}
     except (OSError, ValueError, TypeError, KeyError, RecursionError, subprocess.SubprocessError):
         result = {"status": "blocked", "reason": "DELIVERY_INPUT_UNAVAILABLE"}

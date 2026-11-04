@@ -7,8 +7,9 @@ import re
 import stat
 from pathlib import Path
 
+from native_state import BEAD_ID as TASK
+
 MAX_BYTES = 100_000
-TASK = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}")
 REQUIRED = {"schema_version", "task_id", "problem", "acceptance_criteria", "approach", "scope"}
 PATTERNS = {
     # Start once per path token; restarting at every hyphen makes long prose quadratic.

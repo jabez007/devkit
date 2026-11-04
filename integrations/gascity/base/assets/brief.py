@@ -5,6 +5,7 @@ import json
 
 from brief_format import BriefError, findings, load
 from brief_state import approve, record, resume, show, verify
+from native_state import StateError
 
 
 def lint(args):
@@ -50,7 +51,7 @@ def main():
     args = parser.parse_args()
     try:
         result = args.handler(args)
-    except BriefError as error:
+    except (BriefError, StateError) as error:
         blocked = {
             "HUMAN_APPROVAL_REQUIRED",
             "BRIEF_PENDING_APPROVAL",
