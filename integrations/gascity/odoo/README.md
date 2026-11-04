@@ -248,3 +248,31 @@ Approval is performed by the fixture's synthetic operator. The case does not
 publish to GitHub. The publisher contract tests use a scripted GitHub adapter.
 An authorized test repository and approval of the actual draft text are still
 required for the issue's approval-to-GitHub acceptance run.
+
+## Prepare the private GitHub acceptance run
+
+Create a dedicated private GitHub repository and set its canonical name alongside
+the live acceptance variables above:
+
+```sh
+export DEVKIT_DELIVERY_GITHUB_REPO=owner/private-acceptance-repository
+uv run pytest -q -s tests/test_gascity_odoo_acceptance.py \
+  --basetemp=/tmp/devkit-github-acceptance-UNIQUE
+```
+
+Use a new base directory so the task state and review artifacts survive until
+publication. Pytest deletes an existing `--basetemp` directory before running.
+The repository must be private and have no pull requests. The case seeds an
+empty repository's `main` branch. On a retry, it accepts an existing seed only
+when its complete Git tree matches the synthetic fixture. It never force-pushes.
+
+The case verifies that GitHub has no PR after the red install-order attempt.
+After the live fix and passing checks, it pushes the exact checked commit to
+the task's feature branch. It saves `operator-publication.json` under the
+qualification root, containing the selected task, workflow, report, body hash
+and the host environment needed to find the same native Beads state.
+
+Review the report and approve its exact text before invoking the existing
+`gc odoo delivery publish` command. The acceptance case does not create a PR or
+treat its saved context as approval. Keep GitHub authentication in the operator's
+host context when publishing, outside the implementation session.

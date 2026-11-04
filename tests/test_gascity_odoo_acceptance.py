@@ -10,6 +10,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from tests import gascity_github
 from tests.gascity_odoo_live import devcontainer, implement
 from tests.test_gascity_odoo_checks import git
 from tests.test_odoo_runtime_acceptance import (
@@ -105,6 +106,7 @@ def setup_task(city):
     git(city.repo, "config", "commit.gpgSign", "false")
     git(city.repo, "add", ".")
     git(city.repo, "commit", "-qm", "Synthetic install-order defect")
+    gascity_github.seed(city)
     base = git(city.repo, "rev-parse", "HEAD")
     task = city.gc(
         "bd", "create", "Fresh addon installation", "--type", "task", "--json", structured=True
@@ -235,6 +237,7 @@ def bind_job(city, task, root, base, network, image):
                 addons_paths=["addons"],
                 runner=runner,
                 artifacts=str(city.root / "checks"),
+                **gascity_github.destination(task),
             )
         )
     )
@@ -300,6 +303,8 @@ def test_native_approval_red_retry_and_installed_runtime_release(city, request, 
     assert red["status"] == "failed", red
     assert [item["name"] for item in red["checks"]] == ["versions", "static-sample"]
     assert red["checks"][1]["result"]["reason"] == "INVALID_LOAD_ORDER"
+    if repository := gascity_github.target():
+        gascity_github.no_pull_requests(repository)
     beads = city.gc(
         "bd", "list", "--all", "--include-ephemeral", "--limit", "0", "--json", structured=True
     )
@@ -360,3 +365,4 @@ def test_native_approval_red_retry_and_installed_runtime_release(city, request, 
     )
     assert refused.returncode == 75, refused.stdout + refused.stderr
     assert json.loads(refused.stdout)["reason"] == "HUMAN_PUBLICATION_REQUIRED"
+    gascity_github.prepare_publication(city, task, root, report)
