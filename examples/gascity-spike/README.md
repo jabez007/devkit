@@ -71,7 +71,11 @@ hooks can reach the fixture's local task store. This tests the image build and
 container user. It does not qualify arbitrary devcontainer features, lifecycle
 commands, mounts, other operating systems or multi-host scheduling.
 
-The one-shot launcher publishes an explicit readiness marker. It loads Gas
+The fixture imports the [shared base pack](../../integrations/gascity/README.md).
+Its provider inherits Claude's native skill family and replaces the launch
+arguments with the shared one-shot launcher. A deterministic check verifies
+that native worktree creation materializes the stack skill before any model call.
+The launcher publishes an explicit readiness marker. It loads Gas
 City's generated `.gc/settings.json` alongside the project's guard settings,
 and explicitly selects the project's MCP file. Native worktree creation uses
 `--agent spike.worker` to materialize the pack's skills. The referenced pack

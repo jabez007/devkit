@@ -1,13 +1,8 @@
 description = "Qualify one Odoo task in a disposable container"
 scope = "city"
-provider = "claude"
-start_command = "python \"$GC_CITY/launch.py\""
-prompt_mode = "none"
+provider = "devkit-claude"
 work_dir = "{{.CityRoot}}/worktrees/task"
 lifecycle = "one_shot"
-process_names = ["python", "claude"]
-ready_prompt_prefix = "DEVKIT_SPIKE_SESSION_READY"
-ready_delay_ms = 0
 install_agent_hooks = ["claude"]
 min_active_sessions = 0
 max_active_sessions = 1

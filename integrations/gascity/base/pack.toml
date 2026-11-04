@@ -1,0 +1,21 @@
+[pack]
+name = "devkit-base"
+schema = 2
+description = "Shared one-shot Claude launcher for Devkit stack packs"
+
+[providers.devkit-claude]
+# Preserve Claude's native skill and hook family while replacing its launch arguments.
+base = "builtin:claude"
+command = "/bin/sh"
+args = ["-c", 'exec python "$DEVKIT_PACK_BASE/assets/launch.py"']
+options_schema = []
+prompt_mode = "none"
+ready_prompt_prefix = "DEVKIT_SESSION_READY"
+ready_delay_ms = 0
+process_names = ["python", "claude"]
+path_check = "python"
+supports_hooks = true
+instructions_file = "CLAUDE.md"
+
+[providers.devkit-claude.env]
+DEVKIT_UNATTENDED = "1"
