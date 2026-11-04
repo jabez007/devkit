@@ -52,6 +52,11 @@ def read_manifest(module: Path) -> JSONObject:
     path = contained(module, "__manifest__.py")
     with path.open("rb") as stream:
         content = stream.read(262_145)
+    return parse_manifest(content)
+
+
+def parse_manifest(content: bytes) -> JSONObject:
+    """Parse bounded literal metadata from a current file or a captured Git blob."""
     if len(content) > 262_144:
         raise ValueError("Manifest exceeds 256 KiB")
     tree = ast.parse(content, mode="eval")
