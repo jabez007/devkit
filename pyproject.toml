@@ -14,6 +14,7 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--import-mode=importlib"
+markers = ["odoo_runtime: opt-in Odoo 19 and PostgreSQL container acceptance"]
 
 [tool.ruff]
 target-version = "py312"
@@ -47,3 +48,4 @@ forbidden_modules = ["mccann_hub.devkit_go", "mccann_hub.devkit_odoo", "mccann_h
 "tests/fixtures/odoo/**/__manifest__.py" = ["B018"]
 
 "examples/ci/project/addons/**/__manifest__.py" = ["B018"]
+"packages/devkit_odoo/src/mccann_hub/devkit_odoo/_runtime_addons/**/__manifest__.py" = ["B018"]

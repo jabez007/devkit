@@ -160,7 +160,9 @@ def test_cancellation_after_data_read_does_not_claim_inspection_complete(
     result = envelope["result"]
     assert result["status"] == "cancelled"
     assert result["reason"] == "CANCELLED"
-    assert result["data"] == {}
+    # Acknowledged cancellation retains partial evidence without claiming completion.
+    assert result["data"]["inspection_complete"] is False
+    assert result["data"]["modules"] == []
     assert json.loads(Path(envelope["evidence_path"]).read_text())["result"] == result
 
 

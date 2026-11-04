@@ -1,4 +1,4 @@
-# Offline Odoo validation
+# Odoo verification
 
 `odoo.module.validate` checks Odoo 19 manifest literals and direct dependency
 presence without importing addons or installing an Odoo server. Its check ID is
@@ -603,3 +603,81 @@ In the November 2 comparison, `oca-checks-odoo-module` from
 oca-odoo-pre-commit-hooks 0.2.27 reported no reference findings for load-order
 and ID-typo defects in a small sample addon. Its checks cover syntax, duplicate
 IDs and style, not reference resolution.
+
+## Run native Odoo tests
+
+Install the reviewed foundation and Odoo 0.6.0 wheels. Select `plugins = ["odoo"]`
+and set `module` and `addons_paths` in `[options.odoo]`. These two options are
+shared with the offline validator. Runtime execution supports one addon per job.
+If the inventory contains exactly one addon, the command selects it by default.
+
+Provide Odoo 19.0, `psql`, `createdb`, and `dropdb` on `PATH`. The command searches
+for `odoo-bin` before `odoo`. To select an executable explicitly, pass
+`--args '{"module":"acme_sale","odoo_bin":"/opt/odoo/odoo-bin"}'`.
+Odoo and the PostgreSQL client tools run in the caller's environment. Use
+`PGHOST`, `PGPORT`, `PGUSER`, and optional `PGPASSWORD`, `PGPASSFILE`, and
+`PGSSLMODE` for the connection. PG service files are unsupported. The selected
+role must be able to connect to the `postgres` maintenance database and create
+databases. Use a dedicated development or test server.
+
+Add explicit grants in the external operator policy, with the actual canonical
+project path. Renew the plugin trust entry for version 0.6.0 or pin its reviewed
+wheel identity as described in the [operator guide](Getting_Started.md).
+
+```toml
+[commands."odoo.runtime.check"]
+project = "/absolute/project"
+effects = ["read_fs", "write_fs", "execute_process", "network_read", "network_write"]
+surfaces = ["cli", "python", "mcp"]
+
+[commands."odoo.module.test"]
+project = "/absolute/project"
+effects = ["read_fs", "write_fs", "execute_process", "network_read", "network_write"]
+surfaces = ["cli", "python", "mcp"]
+```
+
+Run the prerequisite check, then the tests:
+
+```sh
+devkit --project /absolute/project --json run odoo.runtime.check
+devkit --project /absolute/project --json run odoo.module.test
+```
+
+For profile execution, add `runtime = ["odoo.runtime", "odoo.tests"]` under
+`[profiles]`. These checks are opt-in. They do not run before offline validation
+or during `doctor` unless explicitly selected through the existing check path.
+
+Each job creates `devkit_test_<random UUID>`, installs the selected addon with
+native test selection, and attempts to drop only that database in `finally`.
+Cancellation and timeout allow up to ten additional seconds for cleanup.
+Inspect `data.database` and `data.cleanup.status` in the persisted evidence.
+A cleanup failure returns `CLEANUP_FAILED`; interrupted jobs retain their
+`CANCELLED` or `TIMEOUT` reason and report cleanup separately. Abrupt host failure
+or a forced kill can leave a database behind. No background recovery daemon runs.
+
+The result reports tests `collected`, `run`, `failed`, and `skipped`. Native
+skip callbacks do not count as executed tests. Zero executed tests, including
+an entirely skipped suite, returns `blocked` with `NO_TESTS`. An unavailable or
+incomplete native report also blocks success. Each failure includes its native
+test name and up to 4 KiB of traceback tail. At most 50 failure details are
+retained; `failures_omitted` counts the rest. The aggregate log tail is at most
+8 KiB before UTF-8 decoding. Process capture stops after its existing 64 MiB
+limit. The foundation applies its normal result validation, secret redaction,
+and evidence persistence.
+
+The wheel includes a server-wide reporter addon for Odoo 19.0. The offline
+validator never imports Odoo or loads that addon. Runtime jobs disable native
+failure retries, run with zero workers and cron threads, and retain HTTP on a
+separate loopback port per job for native `HttpCase` tests. Tests and addon code
+execute with the caller's authority. The runner does not isolate arbitrary code.
+
+Run the container acceptance tests explicitly:
+
+```sh
+DEVKIT_ODOO_RUNTIME=1 uv run pytest -m odoo_runtime
+```
+
+The tests use pinned Odoo 19 and PostgreSQL 17 image digests, private Docker
+networks, and disposable containers. They publish no host ports. Installed-wheel
+cases cover passing, failing, empty, skipped, HTTP, and concurrent jobs, and
+verify database removal. Ordinary `pytest` skips these container tests.

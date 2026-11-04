@@ -3,7 +3,7 @@
 # Replace every project value with the selected project's absolute path.
 [trusted_plugins]
 mccann-hub-devkit-go = "0.1.0"
-mccann-hub-devkit-odoo = "0.5.0"
+mccann-hub-devkit-odoo = "0.6.0"
 
 [commands."go.test"]
 project = "/absolute/path/to/project"

@@ -15,7 +15,7 @@ def main(project, wheels):
         raise ValueError("Operator configuration must be outside the selected project")
     config.mkdir(parents=True, mode=0o700)  # Refuse to overwrite an existing operator setup.
     policy = []
-    for name, version in (("go", "0.1.0"), ("odoo", "0.5.0")):
+    for name, version in (("go", "0.1.0"), ("odoo", "0.6.0")):
         wheel = wheels / f"mccann_hub_devkit_{name}-{version}-py3-none-any.whl"
         digest = hashlib.sha256(wheel.read_bytes()).hexdigest()
         policy.extend(
