@@ -4,6 +4,7 @@ import argparse
 import json
 
 from brief_format import BriefError
+from feedback_rounds import draft, link_pr, next_round
 from feedback_state import answers, begin, friction, questions, show
 from native_state import StateError
 
@@ -22,15 +23,22 @@ def main():
         ("answers", answers),
         ("friction", friction),
         ("show", show),
+        ("draft", draft),
+        ("next", next_round),
+        ("link-pr", link_pr),
     ):
         command = commands.add_parser(name)
-        if name != "show":
+        if name not in {"show", "link-pr"}:
             command.add_argument("file")
         command.add_argument("--task", required=True)
         command.add_argument("--workflow", required=True)
         command.add_argument("--round", type=int, required=True)
         if name == "friction":
             command.add_argument("--friction-task")
+        if name == "next":
+            command.add_argument("--next-workflow", required=True)
+        if name == "link-pr":
+            command.add_argument("--pr", required=True)
         command.set_defaults(handler=handler)
     args = parser.parse_args()
     try:

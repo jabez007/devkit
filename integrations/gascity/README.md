@@ -226,7 +226,8 @@ Editing the recorded copy fails hash verification. Recording another revision
 on that workflow is refused; a revised brief needs a new workflow and approval.
 
 Resume follows the recorded workflow reference in Beads rather than cooking
-another workflow. If several recorded workflows match the task, it refuses to
+another workflow. Feedback tasks select their current round's explicit workflow.
+For a legacy task with several workflows and no round pointer, it refuses to
 choose; use `verify` with the intended root explicitly. An unapproved task does
 not hold a global lock or stop another workflow from becoming ready.
 
@@ -315,3 +316,42 @@ IDs and add no comments; friction deduplicates its four fields within the
 selected tooling bead. Use one importer per destination. Concurrent-import
 deduplication is not qualified. Inputs are bounded to 100 records and 100 KB.
 There is no additional feedback ledger or tracker client.
+
+## Run a new round from rejected assumptions
+
+After a round has an approved brief, completed implementation and a recorded PR,
+the operator can derive the next brief from its answered questions. If the PR
+was created after `begin`, associate its verified URL first:
+
+```sh
+gc base feedback link-pr --task TASK --workflow ROOT --round 1 \
+  --pr https://github.com/owner/repository/pull/NUMBER
+gc base feedback draft /absolute/round-two.json --task TASK --workflow ROOT --round 1
+```
+
+Every recorded question needs an answer. Accepted assumptions do not require a
+new round. A rejection adds its answer to the proposed acceptance criteria.
+Review the proposal and edit it before binding. If an answer contains
+implementation instructions, author a behavior brief instead of using the
+automatic draft. The new workflow records the answered-round digest so its
+provenance stays associated with the reviewed revision.
+
+Cook a fresh native workflow for the same selected task, using the stack's
+formula and the proposal path. Then bind the next round:
+
+```sh
+gc base feedback next /absolute/round-two.json --task TASK --workflow ROOT --round 1 \
+  --next-workflow NEW_ROOT
+```
+
+The command records the new brief, advances the task to round 2 and keeps the
+same branch and PR. Its approval step and human gate must be fresh and open.
+Complete the new brief step, then review and approve the exact new revision
+with the existing brief commands. Until then, `gc base brief resume --task TASK`
+returns `BRIEF_PENDING_APPROVAL`, even though round 1 was approved. A successful
+round transition does not approve its brief or release implementation.
+
+Repeating `next` with the same selection resumes that round without cooking
+another workflow or replacing its artifact. A partial native metadata write can
+be retried with the same root. `draft`, `next` and `link-pr` are operator commands
+and refuse `DEVKIT_UNATTENDED`. A conflicting PR reference is refused.

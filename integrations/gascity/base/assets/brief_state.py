@@ -167,6 +167,19 @@ def verify(args):
 
 def resume(args):
     task = _identity(args.task)
+    metadata = _show(task).get("metadata", {})
+    if active := metadata.get("devkit.feedback.workflow"):
+        args.workflow = _identity(active)
+        number = str(metadata.get("devkit.feedback.round"))
+        root = _show(args.workflow).get("metadata", {})
+        if (
+            not number.isdigit()
+            or not 1 <= int(number) <= 10000
+            or str(root.get("devkit.feedback.round")) != number
+            or root.get("devkit.feedback.task") != task
+        ):
+            raise BriefError("ROUND_MISMATCH")
+        return verify(args)
     roots = _gc(
         "list",
         "--all",

@@ -151,3 +151,102 @@ def test_native_questions_answers_and_separate_friction_import_once(request):
     report = feedback_command(workspace, "show", *selection)
     assert len(report["questions"]) == 1 and len(report["answers"]) == 1
     assert report["answers"][0]["accepted"] is False
+    saved = workspace.run(
+        workspace.args.gc,
+        "base",
+        "brief",
+        "record",
+        brief,
+        "--task",
+        task,
+        "--workflow",
+        root,
+        structured=True,
+    )
+    workspace.close(cooked["id_mapping"]["devkit-approved-brief.brief"])
+    workspace.run(
+        workspace.args.gc,
+        "base",
+        "brief",
+        "approve",
+        "--workflow",
+        root,
+        "--sha256",
+        saved["sha256"],
+        structured=True,
+    )
+    workspace.close(cooked["id_mapping"]["devkit-approved-brief.implement"])
+    url = "https://github.com/fixture/repository/pull/1"
+    feedback_command(workspace, "link-pr", *selection, "--pr", url)
+    proposal = workspace.root / "round-two.json"
+    feedback_command(workspace, "draft", proposal, *selection)
+    cooked_two = workspace.gc(
+        "formula",
+        "cook",
+        "devkit-approved-brief",
+        "--attach",
+        task,
+        "--var",
+        "task=" + task,
+        "--var",
+        "brief_file=" + str(proposal),
+        "--json",
+        structured=True,
+    )
+    advanced = feedback_command(
+        workspace, "next", proposal, *selection, "--next-workflow", cooked_two["root_id"]
+    )
+    assert (
+        advanced["round"] == 2 and advanced["branch"] == "devkit/" + task and advanced["pr"] == url
+    )
+    implementation = cooked_two["id_mapping"]["devkit-approved-brief.implement"]
+    assert implementation not in workspace.ready()
+    pending = subprocess.run(
+        [str(workspace.args.gc), "base", "brief", "resume", "--task", task],
+        cwd=workspace.city,
+        env=workspace.env,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert pending.returncode == 2
+    assert json.loads(pending.stdout)["reason"] == "BRIEF_PENDING_APPROVAL"
+    workspace.close(cooked_two["id_mapping"]["devkit-approved-brief.brief"])
+    workspace.run(
+        workspace.args.gc,
+        "base",
+        "brief",
+        "approve",
+        "--workflow",
+        cooked_two["root_id"],
+        "--sha256",
+        advanced["brief_sha256"],
+        structured=True,
+    )
+    assert implementation in workspace.ready()
+    resumed = workspace.run(
+        workspace.args.gc, "base", "brief", "resume", "--task", task, structured=True
+    )
+    assert resumed["workflow"] == cooked_two["root_id"]
+    assert (
+        feedback_command(
+            workspace, "next", proposal, *selection, "--next-workflow", cooked_two["root_id"]
+        )["round"]
+        == 2
+    )
+    assert (
+        feedback_command(
+            workspace,
+            "friction",
+            friction,
+            "--task",
+            task,
+            "--workflow",
+            cooked_two["root_id"],
+            "--round",
+            "2",
+            "--friction-task",
+            tooling,
+        )["recorded"]
+        == 0
+    )
