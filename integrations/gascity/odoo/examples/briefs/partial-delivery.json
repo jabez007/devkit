@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "task_id": "example-partial-delivery",
+  "problem": "Dispatchers cannot distinguish delivered items from items still awaiting shipment after a partial delivery.",
+  "acceptance_criteria": [
+    "After four of ten ordered items ship, the dispatcher sees four delivered and six outstanding.",
+    "A later shipment of the remaining six items brings the delivered quantity to ten without counting the first shipment twice.",
+    "A cancelled shipment does not increase the delivered quantity."
+  ],
+  "approach": "Show delivered and outstanding quantities separately, and keep them accurate as shipments complete or are cancelled.",
+  "scope": {
+    "in_scope": ["Partial deliveries and the dispatcher's delivery view"],
+    "out_of_scope": ["Billing, stock valuation and changes to purchasing"]
+  },
+  "open_questions": ["Should a completed return reduce the delivered quantity?"]
+}

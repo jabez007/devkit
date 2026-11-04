@@ -249,6 +249,43 @@ class Spike:
     def identifier(self, suffix):
         return self.ids["devkit-delivery-spike." + suffix]
 
+    def check_brief_lint(self):
+        source = ROOT / "integrations/gascity/odoo/examples/briefs/partial-delivery.json"
+        passed = self.run(
+            self.args.gc,
+            "base",
+            "brief",
+            "lint",
+            source,
+            "--task",
+            "example-partial-delivery",
+            structured=True,
+        )
+        require(passed["status"] == "success" and not passed["findings"], passed)
+        cases = [
+            (
+                "prescriptive.json",
+                {**json.loads(source.read_text()), "approach": "Edit models/delivery.py."},
+                1,
+                "PRESCRIPTIVE_BRIEF",
+            ),
+            ("oversized.json", "x" * 100001, 3, "BRIEF_LIMIT"),
+        ]
+        for name, content, exit_code, reason in cases:
+            path = self.root / name
+            path.write_text(content if isinstance(content, str) else json.dumps(content))
+            result = subprocess.run(
+                [str(self.args.gc), "base", "brief", "lint", str(path)],
+                env=self.env,
+                cwd=self.city,
+                text=True,
+                capture_output=True,
+                timeout=30,
+            )
+            require(result.returncode == exit_code, result.stdout + result.stderr)
+            require(json.loads(result.stdout)["reason"] == reason, result.stdout)
+        self.report["brief_lint"] = "passed"
+
     def ready(self):
         return {item["id"] for item in self.gc("ready", "--json", structured=True)}
 
@@ -617,6 +654,7 @@ def main():
             spike.prepare_city,
             spike.prepare_repository,
             spike.cook_worktree,
+            spike.check_brief_lint,
             spike.check_approval,
             spike.check_retry,
             spike.check_server_boundary,

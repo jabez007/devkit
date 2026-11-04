@@ -148,3 +148,23 @@ fixture's local Dolt server. Other networking and devcontainer lifecycle
 features require their own qualification.
 
 This pack is covered by the repository's [GPL license](../../LICENSE).
+
+## Lint a behavior brief
+
+From the selected city directory, the base import supplies
+`gc base brief lint /absolute/brief.json --task <selected-bead>`.
+The command reads a UTF-8 JSON artifact with `schema_version = 1`, `task_id`,
+`problem`, `acceptance_criteria`, `approach`, and `scope`. Scope has `in_scope`
+and `out_of_scope` lists. `open_questions` is an optional list. See the
+[Odoo example](odoo/examples/briefs/partial-delivery.json) and
+[rewrite examples](odoo/examples/briefs/README.md).
+
+The command refuses artifacts larger than 100,000 bytes and reports a task
+identity mismatch. It flags obvious source paths, filenames, dotted names,
+call syntax, underscored identifiers, command flags and backticks. Findings
+identify sections and line numbers without echoing brief text. It reports at
+most 100 findings. A clean result includes the exact artifact's SHA-256.
+
+Lint is a backstop. It cannot establish that prose states the right behavior or
+contains no implementation prescription. A person reviews the full brief.
+Passing lint does not close an approval gate or authorize implementation.
