@@ -21,19 +21,19 @@ def _identity(value):
     return value
 
 
-def _gc(*arguments):
+def _invoke(arguments, timeout):
     binary, city = os.environ.get("GC_BIN", ""), os.environ.get("GC_CITY_PATH", "")
     if not Path(binary).is_absolute() or not Path(city).is_absolute():
         raise StateError("TASK_STATE_UNAVAILABLE")
     environment = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
     try:
         result = subprocess.run(
-            [binary, "--city", city, "bd", *arguments, "--json"],
+            [binary, *arguments],
             cwd=city,
             env=environment,
             text=True,
             capture_output=True,
-            timeout=30,
+            timeout=timeout,
         )
     except (OSError, subprocess.SubprocessError) as error:
         raise StateError("TASK_STATE_UNAVAILABLE") from error
@@ -45,6 +45,15 @@ def _gc(*arguments):
         return json.loads(result.stdout) if result.stdout.strip() else None
     except ValueError as error:
         raise StateError("INVALID_TASK_STATE") from error
+
+
+def _gc(*arguments):
+    return _invoke(["--city", os.environ.get("GC_CITY_PATH", ""), "bd", *arguments, "--json"], 30)
+
+
+def _pack(*arguments):
+    # Native pack commands discover the selected city from cwd; leading --city leaks to argv.
+    return _invoke(list(arguments), 60)
 
 
 def _show(identity):
