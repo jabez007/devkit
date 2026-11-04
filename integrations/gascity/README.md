@@ -240,7 +240,7 @@ external approval UI.
 
 ## Record questions, answers and tool friction
 
-After recording a brief, the operator starts its first feedback round:
+The operator starts the first feedback round before or after recording its brief:
 
 ```sh
 gc base feedback begin --task TASK --workflow ROOT --branch devkit/TASK

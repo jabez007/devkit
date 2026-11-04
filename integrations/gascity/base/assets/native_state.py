@@ -21,7 +21,7 @@ def _identity(value):
     return value
 
 
-def _invoke(arguments, timeout):
+def _invoke(arguments, timeout, *, typed_errors=False):
     binary, city = os.environ.get("GC_BIN", ""), os.environ.get("GC_CITY_PATH", "")
     if not Path(binary).is_absolute() or not Path(city).is_absolute():
         raise StateError("TASK_STATE_UNAVAILABLE")
@@ -37,14 +37,20 @@ def _invoke(arguments, timeout):
         )
     except (OSError, subprocess.SubprocessError) as error:
         raise StateError("TASK_STATE_UNAVAILABLE") from error
-    if result.returncode:
+    if result.returncode and not typed_errors:
         raise StateError("TASK_STATE_UNAVAILABLE")
     if len(result.stdout) > 1_000_000:
         raise StateError("INVALID_TASK_STATE")
     try:
-        return json.loads(result.stdout) if result.stdout.strip() else None
+        value = json.loads(result.stdout) if result.stdout.strip() else None
     except ValueError as error:
         raise StateError("INVALID_TASK_STATE") from error
+    if result.returncode and (
+        not isinstance(value, dict)
+        or value.get("status") not in {"failed", "blocked", "error", "denied", "cancelled"}
+    ):
+        raise StateError("INVALID_TASK_STATE")
+    return value
 
 
 def _gc(*arguments):
@@ -53,7 +59,7 @@ def _gc(*arguments):
 
 def _pack(*arguments):
     # Native pack commands discover the selected city from cwd; leading --city leaks to argv.
-    return _invoke(list(arguments), 60)
+    return _invoke(list(arguments), 60, typed_errors=True)
 
 
 def _show(identity):

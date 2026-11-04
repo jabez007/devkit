@@ -9,7 +9,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from checks import DeliveryError, environment, run, save, validate
+from checks import DeliveryError, environment, git, run, save, validate
 from pull_request import prepare, publish
 
 BASE = Path(__file__).resolve().parents[2] / "base"
@@ -17,9 +17,51 @@ sys.path.insert(0, str(BASE / "assets"))
 from brief_format import BriefError  # noqa: E402
 from brief_format import load as load_brief  # noqa: E402
 from brief_state import _gc, _identity, _members, _selection, _show, _update  # noqa: E402
-from native_state import StateError  # noqa: E402
+from native_state import StateError, _pack  # noqa: E402
 
 PREFIX = "devkit.delivery."
+FEEDBACK = "devkit.feedback."
+
+
+def _feedback(command, *arguments):
+    result = _pack("base", "feedback", command, *arguments)
+    if not isinstance(result, dict) or result.get("status") != "success":
+        raise DeliveryError(
+            result.get("reason", "FEEDBACK_UNAVAILABLE")
+            if isinstance(result, dict)
+            else "FEEDBACK_UNAVAILABLE"
+        )
+    return result
+
+
+def _round(task, root):
+    metadata = _show(task).get("metadata", {})
+    if not metadata.get(FEEDBACK + "workflow"):
+        return None
+    if metadata[FEEDBACK + "workflow"] != root:
+        raise DeliveryError("ROUND_MISMATCH")
+    return _feedback(
+        "show", "--task", task, "--workflow", root, "--round", str(metadata[FEEDBACK + "round"])
+    )
+
+
+def _begin_round(task, root, job):
+    metadata = _show(task).get("metadata", {})
+    branch = git(job["project"], "branch", "--show-current")
+    if not branch or (job.get("github") and job["github"]["head"] != branch):
+        raise DeliveryError("BRANCH_MISMATCH")
+    if metadata.get(FEEDBACK + "workflow"):
+        bound = _show(root).get("metadata", {})
+        if (
+            metadata[FEEDBACK + "workflow"] != root
+            or bound.get(FEEDBACK + "task") != task
+            or str(bound.get(FEEDBACK + "round")) != str(metadata.get(FEEDBACK + "round"))
+        ):
+            raise DeliveryError("ROUND_MISMATCH")
+        if metadata.get(FEEDBACK + "branch") != branch:
+            raise DeliveryError("BRANCH_MISMATCH")
+    else:
+        _feedback("begin", "--task", task, "--workflow", root, "--branch", branch)
 
 
 def load(path, limit=100_000):
@@ -48,6 +90,7 @@ def bind(args):
     _selection(args.workflow, args.task)
     job, _ = load(args.file)
     validate(job)
+    _begin_round(args.task, args.workflow, job)
     state = Path(os.environ.get("GC_PACK_STATE_DIR", ""))
     if not state.is_absolute():
         raise DeliveryError("TASK_STATE_UNAVAILABLE")
@@ -122,7 +165,7 @@ def report(args):
     brief, digest, _ = load_brief(reference["path"], content["task"])
     if digest != reference["sha256"]:
         raise DeliveryError("BRIEF_HASH_MISMATCH")
-    return prepare(content["job"], reference, bundle, brief)
+    return prepare(content["job"], reference, bundle, brief, feedback=_round(content["task"], root))
 
 
 def publication(args):
@@ -143,8 +186,23 @@ def publication(args):
         or len(drafts) != 1
     ):
         raise DeliveryError("NATIVE_CHECK_PENDING")
-    result = publish(selected(root)["job"], report(args), args.approved_body_sha256)
+    content = selected(root)
+    state = _round(content["task"], root)
+    known = (state or {}).get("pr") or _show(root).get("metadata", {}).get(PREFIX + "pr")
+    result = publish(content["job"], report(args), args.approved_body_sha256, known_pr=known)
     _update(root, {PREFIX + "pr": result["url"]})
+    if state is not None:
+        _feedback(
+            "link-pr",
+            "--task",
+            content["task"],
+            "--workflow",
+            root,
+            "--round",
+            str(state["round"]),
+            "--pr",
+            result["url"],
+        )
     if drafts[0]["status"] != "closed":
         _gc("close", drafts[0]["id"], "--reason", "Confirmed checked draft " + result["url"])
     return result

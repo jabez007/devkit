@@ -6,7 +6,7 @@ import os
 import re
 
 from brief_format import _read
-from brief_state import _reference
+from brief_state import _reference, _selection
 from native_state import StateError, _gc, _identity, _show, _update
 
 PREFIX = "devkit.feedback."
@@ -45,7 +45,11 @@ def _load(path):
 
 def begin(args):
     _human()
-    _reference(args.workflow, args.task)
+    _show(args.task)
+    root = _show(args.workflow)
+    _selection(args.workflow, args.task)
+    if root.get("metadata", {}).get("devkit.brief.sha256"):
+        _reference(args.workflow, args.task)
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_./-]{0,255}", args.branch):
         raise StateError("INVALID_BRANCH")
     if args.pr and not re.fullmatch(
@@ -62,7 +66,15 @@ def begin(args):
         raise StateError("TASK_ROUND_ALREADY_STARTED")
     _update(args.workflow, {PREFIX + "round": "1", PREFIX + "task": args.task})
     _update(args.task, {PREFIX + key: value for key, value in fields.items()})
-    return {"status": "success", **current(args.task)}
+    return dict(
+        status="success",
+        task=args.task,
+        workflow=args.workflow,
+        round=1,
+        branch=args.branch,
+        pr=args.pr or previous.get(PREFIX + "pr"),
+        brief_sha256=root.get("metadata", {}).get("devkit.brief.sha256"),
+    )
 
 
 def current(task, workflow=None, number=None):
@@ -225,9 +237,26 @@ def friction(args):
 def show(args):
     context = current(args.task, args.workflow, args.round)
     records = _round_records(context)
+    previous = _show(args.workflow).get("metadata", {}).get(PREFIX + "previous_workflow")
+    past = (
+        [
+            event
+            for event in comments(args.task)
+            if event.get("workflow") == previous and event.get("round") == context["round"] - 1
+        ]
+        if previous
+        else []
+    )
     return {
         "status": "success",
         **context,
-        "questions": [item for item in records if item.get("kind") == "question"],
-        "answers": [item for item in records if item.get("kind") == "answer"],
+        "questions": sorted(
+            [item for item in records if item.get("kind") == "question"],
+            key=lambda item: item["id"],
+        ),
+        "answers": sorted(
+            [item for item in records if item.get("kind") == "answer"], key=lambda item: item["id"]
+        ),
+        "previous_questions": [item for item in past if item.get("kind") == "question"],
+        "previous_answers": [item for item in past if item.get("kind") == "answer"],
     }

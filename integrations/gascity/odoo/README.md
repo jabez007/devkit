@@ -153,7 +153,9 @@ gc base brief approve --workflow ROOT --sha256 REVIEWED_BRIEF_SHA256
 Run `approve` as the operator with `DEVKIT_UNATTENDED` unset. It binds the exact
 brief bytes to this task's native human gate. See the [behavior brief examples](examples/briefs/README.md).
 Include known open questions in the brief. The draft report copies them.
-Question answers and later rounds belong to the answer-loop follow-up.
+Binding also starts the task's first feedback round on its actual Git branch.
+A repeat bind can resume before the brief is recorded. A different active
+workflow or branch stays blocked.
 
 ## Run and inspect the checks
 
@@ -197,7 +199,11 @@ gc odoo delivery report --workflow ROOT
 
 Review the returned title, body and `body_sha256`. The body includes the checked
 commit, acceptance criteria, check results, selected task, approved brief hash
-and open questions. Local evidence paths remain in the local check bundle.
+and open questions. Each recorded question includes its assumption and reason.
+Later rounds include the answers that changed the brief. Runtime summaries
+include test counts and database cleanup status. Local evidence paths remain
+in the local check bundle. Each body revision has its own digest-named file;
+preparing new text preserves the files you reviewed earlier.
 
 Only after the operator approves this exact text, run:
 
@@ -210,8 +216,47 @@ implementation result, the same clean commit and the selected GitHub remote.
 It pushes that exact commit to the feature branch without force, creates a
 draft with `gh pr create --draft --body-file`, then confirms its draft state,
 commit and text through GitHub. It records the PR URL in native root metadata
-and closes the draft step. Repeating publication reuses an identical open draft;
-an existing PR with different text, commit or state stays blocked.
+and closes the draft step. The feedback metadata retains the PR URL on the
+selected task. Repeating publication reuses an identical open draft. With a
+known PR URL, new approved text updates that same open draft through
+`gh pr edit --body-file`. A missing, unrelated, closed or ready PR stays
+blocked. Approval of an earlier body cannot approve revised text.
+
+## Continue after a person answers
+
+Use the [shared feedback commands](../README.md#record-questions-answers-and-tool-friction)
+to record questions and their assumptions on the task. The implementer writes
+`questions.json` and imports it into the current native round. It writes tool
+problems separately to `friction.json`. Import nonempty friction only into an
+explicitly selected tooling bead. An empty array needs no tooling bead.
+
+As the operator, record answers and prepare the proposed next brief:
+
+```sh
+gc base feedback answers /city/answers.json --task TASK --workflow ROOT --round 1
+gc base feedback draft /city/round-two.json --task TASK --workflow ROOT --round 1
+```
+
+Review the proposal. Cook `devkit-odoo-delivery` once for the same task with
+that file, retaining the new root and step IDs. Reuse the existing branch and
+worktree. Then advance the round:
+
+```sh
+gc base feedback next /city/round-two.json --task TASK --workflow ROOT --round 1 \
+  --next-workflow NEXT_ROOT
+gc bd update NEXT_ROOT --set-metadata gc.work_dir=/city/worktrees/task
+gc odoo delivery bind /city/round-two-job.json --task TASK --workflow NEXT_ROOT
+```
+
+The new immutable job uses the same project and GitHub destination. Select
+the prior checked commit as its base and a live runner for this round's gates.
+The new brief still needs its own exact-hash approval. Close its brief step
+and approve it before starting the test plan and implementation. An older
+approval does not release the new round. See the [round transition contract](../README.md#run-a-new-round-from-rejected-assumptions).
+
+After the new native checks pass, report and review the new text. Publish only
+with approval of that body's hash. The publisher pushes the checked commit
+without force and updates the task's known draft PR.
 
 ## Run the acceptance case
 
@@ -286,5 +331,33 @@ the operator approved the exact generated text, the pack created a real draft
 PR and verified its body, title and checked commit through GitHub. A repeated
 publish returned the same URL, with one PR still present. Native Beads held
 that URL and the draft step was closed. The fixture's brief approval remains
-a synthetic operator action; this does not qualify a production approval UI
-or answer-round resume.
+a synthetic operator action; this does not qualify a production approval UI.
+
+To exercise a second live round against the retained private draft, export the
+same native and live tool variables, then select the saved context explicitly:
+
+```sh
+DEVKIT_DELIVERY_RESUME_CONTEXT=/tmp/retained-qualification/operator-publication.json \
+uv run pytest -q -s tests/test_gascity_live_round.py
+```
+
+This case imports a synthetic rejected label assumption, cooks one new workflow,
+proves fresh approval is required, and runs Claude in the same worktree. It
+checks the new commit with installed Odoo tools and pushes it to the existing
+branch. It saves `operator-publication-round2.json` beside the original context.
+The case verifies the original PR text is unchanged. Approve the new exact text
+before updating the PR through the operator publisher.
+
+The 2026-11-04 second-round qualification retained the first round's branch,
+worktree and draft PR. Its new brief required a fresh approval. Claude changed
+the menu label, increased the version and added a second behavior assertion.
+Version, static and runtime checks passed, with two Odoo tests and complete
+database cleanup. The retained-case verification passed after allowing GitHub
+time to report the pushed head. The revised PR text still requires its own
+operator approval before the final publication check.
+
+The model abbreviated parts of its friction report. The operator extracted
+the eight failed commands and their exact output from the transcript for import
+into a separate synthetic tooling bead. The first import added eight comments;
+the second added zero. The prompt now explicitly requires complete commands
+and output. This qualifies the importer, not unattended report completeness.

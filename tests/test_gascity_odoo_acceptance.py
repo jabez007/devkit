@@ -181,9 +181,9 @@ def setup_task(city):
     return task, brief, root, ids, manifest, base
 
 
-def bind_job(city, task, root, base, network, image):
+def bind_job(city, task, root, base, network, image, *, github=None):
     operator = city.root / "operator/devkit"
-    operator.mkdir(parents=True)
+    operator.mkdir(parents=True, exist_ok=True)
     effects = ["read_fs", "write_fs", "execute_process", "network_read", "network_write"]
     (operator / "policy.toml").write_text(
         '[trusted_plugins]\nmccann-hub-devkit-odoo="0.7.0"\n'
@@ -237,7 +237,7 @@ def bind_job(city, task, root, base, network, image):
                 addons_paths=["addons"],
                 runner=runner,
                 artifacts=str(city.root / "checks"),
-                **gascity_github.destination(task),
+                **(gascity_github.destination(task) if github is None else {"github": github}),
             )
         )
     )
@@ -258,7 +258,20 @@ def bind_job(city, task, root, base, network, image):
 def test_native_approval_red_retry_and_installed_runtime_release(city, request, delivery_image):
     network, _ = request.getfixturevalue("runtime_server")
     task, brief, root, ids, manifest, base = setup_task(city)
-    bind_job(city, task, root, base, network, delivery_image)
+    bound_job = bind_job(city, task, root, base, network, delivery_image)
+    repeated_job = city.run(
+        city.args.gc,
+        "odoo",
+        "delivery",
+        "bind",
+        city.root / "job.json",
+        "--task",
+        task,
+        "--workflow",
+        root,
+        structured=True,
+    )
+    assert repeated_job == bound_job
     bound = city.run(
         city.args.gc,
         "base",

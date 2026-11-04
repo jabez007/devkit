@@ -75,10 +75,12 @@ def require_tool_denial(events, tool, arguments, reason):
 
 
 class Spike:
-    def __init__(self, args):
+    def __init__(self, args, *, resume=False):
         self.args = args
         self.root = args.root.resolve()
-        self.root.mkdir(parents=True, exist_ok=False)
+        if resume:
+            require((self.root / "city/city.toml").is_file(), "Resume requires an existing city")
+        self.root.mkdir(parents=True, exist_ok=resume)
         self.city = self.root / "city"
         self.artifacts = self.city / "session-artifacts"
         self.repo = self.city / "repo"

@@ -267,6 +267,12 @@ elif args[:2] == ['pr', 'create']:
     print(value['pr']['url'])
 elif args[:2] == ['pr', 'view']:
     print(json.dumps(value['pr']))
+elif args[:2] == ['pr', 'edit']:
+    value['pr'].update(title=args[args.index('--title') + 1],
+        body=pathlib.Path(args[args.index('--body-file') + 1]).read_text(),
+        headRefOid=value['commit'])
+    state.write_text(json.dumps(value))
+    print(value['pr']['url'])
 else:
     sys.exit(1)
 """

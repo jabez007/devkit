@@ -2,10 +2,14 @@
 
 import json
 import os
+import re
+import shlex
 import shutil
 import subprocess
 import sys
 import time
+import tomllib
+import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -28,6 +32,9 @@ def devcontainer(project):
 
 def implement(city, root, task, attempt):
     city.root_id = root
+    city.artifacts = (
+        city.city / "session-artifacts" / (root + "-" + attempt + "-" + uuid.uuid4().hex[:8])
+    )
     city.args.devcontainer = Path(os.environ["DEVKIT_DEVCONTAINER"]).resolve()
     city.build_container()
     original = city.env.copy()
@@ -59,12 +66,15 @@ def implement(city, root, task, attempt):
 
 
 def _prepare(city, root, task, attempt):
+    bound = city.gc("bd", "show", root, "--json", structured=True)[0]["metadata"]
     (city.worktree / ".mcp.json").write_text('{"mcpServers":{}}\n')
     prompt = city.root / "implementation.md"
     prompt.write_text(
         (PACK / "agents/implementer/prompt.template.md").read_text()
         + f"\nSelected task: {task}. Workflow root: {root}. Assigned attempt: {attempt}.\n"
         + f"City directory: {city.city}. Worktree: {city.worktree}.\n"
+        + f"Delivery round: {bound.get('devkit.feedback.round', 1)}. "
+        + f"Session artifacts: {city.artifacts}.\n"
         + "This is a disposable test repository. Stay in its worktree and use the inherited "
         "native city context to verify approval and read the approved brief. Do not cd "
         "outside the worktree or add a --city flag to pack commands. "
@@ -100,7 +110,6 @@ def _prepare(city, root, task, attempt):
     writable = [city.root / name for name in ("control", "cache", "config", "state")]
     for path in writable:
         path.mkdir(parents=True, exist_ok=True)
-    bound = city.gc("bd", "show", root, "--json", structured=True)[0]["metadata"]
     deployment = city.root / "deployment.json"
     deployment.write_text(
         json.dumps(
@@ -133,6 +142,7 @@ def _prepare(city, root, task, attempt):
             )
         )
     )
+    _migrate_guard(city)
     prepared = city.run(sys.executable, BASE / "assets/prepare.py", deployment, structured=True)
     # Native Beads verifies local process identity before adopting a proxy. Give the
     # container its own proxy root, with the host's authoritative proxy as upstream.
@@ -153,15 +163,61 @@ def _prepare(city, root, task, attempt):
         f" --mount=type=bind,src={profile},dst={target},readonly"
     )
     city.env.update(GC_SESSION=prepared["session_provider"], DEVKIT_UNATTENDED="1")
-    with (city.city / "city.toml").open("a") as stream:
-        stream.write("\n[workspace.env]\n")
-        for key, value in {
+    _workspace_environment(
+        city.city / "city.toml",
+        {
             **prepared["workspace_env"],
             "DOLT_ROOT_PATH": str(city.root / "dolt"),
             "DO_NOT_TRACK": "1",
             "BD_DISABLE_METRICS": "1",
-        }.items():
-            stream.write(f"{key}={json.dumps(value)}\n")
+        },
+    )
+
+
+def _workspace_environment(path, values):
+    text = path.read_text()
+    previous = tomllib.loads(text).get("workspace", {}).get("env", {})
+    merged = {**previous, **values}
+    assert all(isinstance(value, str) for value in merged.values())
+    section = "[workspace.env]\n" + "".join(
+        f"{key}={json.dumps(value)}\n" for key, value in merged.items()
+    )
+    matches = list(re.finditer(r"(?m)^\[workspace\.env\][ \t]*(?:#[^\n]*)?$", text))
+    assert len(matches) <= 1
+    if matches:
+        begin = matches[0]
+        following = re.search(r"(?m)^\[", text[begin.end() :])
+        end = begin.end() + following.start() if following else len(text)
+        text = text[: begin.start()] + section + "\n" + text[end:]
+    else:
+        text += "\n" + section
+    path.write_text(text)
+
+
+def _migrate_guard(city):
+    previous = (
+        tomllib.loads((city.city / "city.toml").read_text()).get("workspace", {}).get("env", {})
+    )
+    old_base = previous.get("DEVKIT_PACK_BASE")
+    settings_path = city.worktree / ".claude/settings.json"
+    if not old_base or old_base == str(BASE) or not settings_path.exists():
+        return
+    old_guard = Path(old_base).parent.parent / "unattended/guard.py"
+    command = shlex.join(
+        [
+            "python",
+            str(old_guard),
+            "--rules",
+            str(city.worktree / ".claude/devkit-unattended-rules.json"),
+        ]
+    )
+    old_entry = {"matcher": "*", "hooks": [{"type": "command", "command": command, "timeout": 10}]}
+    settings = json.loads(settings_path.read_text())
+    entries = settings.get("hooks", {}).get("PreToolUse", [])
+    settings.setdefault("hooks", {})["PreToolUse"] = [
+        entry for entry in entries if entry != old_entry
+    ]
+    settings_path.write_text(json.dumps(settings, indent=2) + "\n")
 
 
 def _preflight(city, root, task):
