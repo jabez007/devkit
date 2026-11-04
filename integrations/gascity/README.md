@@ -5,6 +5,9 @@ agents, formulas, skills and overlays. They use native `gc` and `bd` commands
 for task state. Python specializations keep plugin contract 1.0 and remain
 independently usable. See [ADR 0001](../../docs/adr/0001-delivery-loop-runs-on-gas-city.md).
 
+The [Odoo delivery guide](odoo/README.md) covers the selected-bead workflow,
+per-worktree check grants, devcontainer tools and reviewed draft publication.
+
 ## Pack layout
 
 A stack pack has `pack.toml`, `agents/implementer/agent.toml`,

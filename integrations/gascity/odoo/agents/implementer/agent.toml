@@ -1,0 +1,8 @@
+description = "Implement one approved Odoo task and leave checked draft publication to its operator"
+scope = "city"
+provider = "devkit-claude"
+work_dir = "{{.CityRoot}}/worktrees/task"
+lifecycle = "one_shot"
+install_agent_hooks = ["claude"]
+min_active_sessions = 0
+max_active_sessions = 1

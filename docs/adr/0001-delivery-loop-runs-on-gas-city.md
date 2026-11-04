@@ -191,6 +191,18 @@ best-effort session leases; this serial spike does not establish concurrent-
 writer guarantees. Those deployment and workflow checks remain with #5, #9,
 #10 and #11. No second Devkit job store is needed to proceed with those issues.
 
+The Odoo pack's live qualification exposed a further Beads 1.3.2 deployment
+constraint. Native proxy discovery verifies a local process identity, so a
+task container cannot adopt the host proxy's PID record. Host networking alone
+does not solve that mismatch. The Odoo profile uses Beads' native external
+connection configuration with a container-local proxy root and the host's
+authoritative proxy as upstream. A read-only sidecar binding selects that
+profile only in the container. This preserves one task database and native
+commands without sharing host PIDs. See the [connection guide](../../integrations/gascity/odoo/README.md#connect-native-beads-from-the-container)
+and the pinned native implementation links there. A host proxy restart requires
+a refreshed connection profile. This is a qualified local deployment profile,
+not a claim that arbitrary container or remote Beads layouts work.
+
 ## Backlog after acceptance
 
 | Issue | Consequence |

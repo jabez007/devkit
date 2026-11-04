@@ -428,7 +428,10 @@ from Neovim's terminal without any editor package or AI session.
 The [shared stack-pack base](integrations/gascity/README.md) supplies a native
 one-shot Claude provider, guard installation and reviewed runtime mount settings.
 The [qualification spike](examples/gascity-spike/README.md) consumes this base.
-Stack-specific production delivery workflows remain separate increments.
+The [Odoo pack](integrations/gascity/odoo/README.md) combines approved briefs,
+manifest version checks, fresh-install validation and native runtime tests.
+It prepares checked draft text and requires operator approval to publish it.
+Its real GitHub acceptance run remains pending.
 
 ## License
 

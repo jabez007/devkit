@@ -1,0 +1,43 @@
+formula = "devkit-odoo-delivery"
+description = "Approved behavior, test plan, bounded implementation and checked draft preparation"
+extends = ["devkit-approved-brief"]
+
+[requires]
+formula_compiler = ">=2.0.0"
+
+[[steps]]
+id = "spec"
+title = "Plan observable tests for {{task}}"
+needs = ["approve"]
+description = "Verify this workflow with gc base brief verify before reading its bound brief. Map each acceptance criterion to observable tests. Read the existing addon and its callers. Include a fresh installation and the manifest version change. Finish when every criterion has a test or an explicit open question. Keep the plan in the session artifact."
+
+[steps.metadata]
+"devkit.task" = "{{task}}"
+
+[[steps]]
+id = "implement"
+title = "Build and test the approved behavior for {{task}}"
+needs = ["spec"]
+description_file = "../agents/implementer/prompt.template.md"
+
+[steps.metadata]
+"devkit.task" = "{{task}}"
+"devkit.delivery.role" = "implementation"
+
+[steps.check]
+max_attempts = 3
+
+[steps.check.check]
+mode = "exec"
+path = "../assets/check.sh"
+timeout = "30m"
+
+[[steps]]
+id = "draft-pr"
+title = "Prepare the checked draft pull request for {{task}}"
+needs = ["implement"]
+description = "Run gc odoo delivery report for this workflow. Review the generated body and its SHA-256 with the operator. The unattended session stops here. Only the operator may publish the approved body through gc odoo delivery publish. Leave this step open until the draft is confirmed."
+
+[steps.metadata]
+"devkit.task" = "{{task}}"
+"devkit.delivery.role" = "draft"
