@@ -48,6 +48,18 @@ def test_clean_brief_passes_and_identifies_exact_reviewed_bytes(brief):
     assert result["findings"] == []
 
 
+def test_pack_command_runs_in_native_gate_path_without_interactive_shims(brief):
+    result = subprocess.run(
+        [str(BASE / "commands/brief/run.sh"), "lint", str(brief[0])],
+        env={**os.environ, "GC_PACK_DIR": str(BASE), "PATH": "/usr/local/bin:/usr/bin:/bin"},
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["status"] == "success"
+
+
 @pytest.mark.parametrize(
     "prescription,kind",
     [
