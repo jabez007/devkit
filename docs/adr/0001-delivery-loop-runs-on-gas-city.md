@@ -205,6 +205,17 @@ not a claim that arbitrary container or remote Beads layouts work.
 
 ## Backlog after acceptance
 
+The Odoo pack completed its private-repository GitHub acceptance on 2026-11-04.
+The native install-order failure prevented draft readiness. A real guarded
+Claude session fixed and committed the task, and the installed version, static
+and native Odoo checks passed. After explicit approval of the generated text,
+`gc odoo delivery publish` created a real GitHub draft and verified its exact
+body, title and checked commit. Retrying reused that draft without creating
+a second PR. Native Beads recorded the PR URL and closed the draft step.
+The [acceptance guide](../../integrations/gascity/odoo/README.md#prepare-the-private-github-acceptance-run)
+describes the opt-in fixture and retained operator context. Answer-round resume
+remains with #11.
+
 | Issue | Consequence |
 |---|---|
 | #2 | Update its ownership table and dependency order to this split. |

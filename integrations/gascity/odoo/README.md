@@ -246,8 +246,8 @@ uses a separate Odoo container through the operator-selected runner. It tests
 this explicit arrangement, not arbitrary devcontainer lifecycle commands.
 Approval is performed by the fixture's synthetic operator. The case does not
 publish to GitHub. The publisher contract tests use a scripted GitHub adapter.
-An authorized test repository and approval of the actual draft text are still
-required for the issue's approval-to-GitHub acceptance run.
+Full GitHub acceptance uses the optional private repository target below and
+explicit operator publication of the approved draft text.
 
 ## Prepare the private GitHub acceptance run
 
@@ -276,3 +276,15 @@ Review the report and approve its exact text before invoking the existing
 `gc odoo delivery publish` command. The acceptance case does not create a PR or
 treat its saved context as approval. Keep GitHub authentication in the operator's
 host context when publishing, outside the implementation session.
+
+The 2026-11-04 qualification completed this flow in a dedicated private
+repository. Broken install order returned `INVALID_LOAD_ORDER` while GitHub
+had no PR. The guarded Claude session fixed the addon, added a behavior test,
+committed it and closed the native attempt. Version, fresh-install static and
+native Odoo tests passed, with disposable database cleanup complete. After
+the operator approved the exact generated text, the pack created a real draft
+PR and verified its body, title and checked commit through GitHub. A repeated
+publish returned the same URL, with one PR still present. Native Beads held
+that URL and the draft step was closed. The fixture's brief approval remains
+a synthetic operator action; this does not qualify a production approval UI
+or answer-round resume.

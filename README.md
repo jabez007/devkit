@@ -431,7 +431,7 @@ The [qualification spike](examples/gascity-spike/README.md) consumes this base.
 The [Odoo pack](integrations/gascity/odoo/README.md) combines approved briefs,
 manifest version checks, fresh-install validation and native runtime tests.
 It prepares checked draft text and requires operator approval to publish it.
-Its real GitHub acceptance run remains pending.
+Its live acceptance run reached a verified GitHub draft PR through the operator publisher.
 
 ## License
 
