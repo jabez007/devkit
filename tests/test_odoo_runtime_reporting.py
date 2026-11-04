@@ -135,6 +135,10 @@ SOURCES = {
         self.assertEqual(1, 2)
 """,
     "none": "",
+    "unicode_fail": """class Probe(TransactionCase):
+    def test_fixture(self):
+        self.fail('界' * 3000)
+""",
     "skip": """class Probe(TransactionCase):
     @skip('synthetic')
     def test_fixture(self):
@@ -170,6 +174,7 @@ class Executed(TransactionCase):
     [
         ("pass", 0, 1, 1, 0, 0, True),
         ("fail", 1, 1, 1, 1, 0, True),
+        ("unicode_fail", 1, 1, 1, 1, 0, True),
         ("none", 0, 0, 0, 0, 0, True),
         ("skip", 0, 1, 0, 0, 1, True),
         ("skip_duplicate", 0, 2, 0, 0, 2, True),
@@ -213,7 +218,9 @@ def test_native_report_matches_actual_odoo_outcomes(
         assert len(report["failures"]) == failed
         if failed:
             assert report["failures"][0]["test"].endswith("Probe.test_fixture")
-            assert "1 != 2" in report["failures"][0]["output"]
+            output = report["failures"][0]["output"]
+            assert len(output.encode()) <= 4096
+            assert ("界" if kind == "unicode_fail" else "1 != 2") in output
         assert (project / "report.json").stat().st_mode & 0o777 == 0o600
     finally:
         docker("exec", postgres, "dropdb", "-U", "odoo", "--if-exists", "--force", database)

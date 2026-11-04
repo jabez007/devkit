@@ -47,7 +47,7 @@ def odoo_project(tmp_path, monkeypatch):
     config.mkdir(parents=True)
     policy = config / "policy.toml"
     policy.write_text(
-        '[trusted_plugins]\nmccann-hub-devkit-odoo="0.5.0"\nmccann-hub-devkit-go="0.1.0"\n'
+        '[trusted_plugins]\nmccann-hub-devkit-odoo="0.6.0"\nmccann-hub-devkit-go="0.1.0"\n'
         '[commands."odoo.module.validate"]\nproject='
         + json.dumps(str(project))
         + '\neffects=["read_fs"]\nsurfaces=["python","cli","mcp"]'

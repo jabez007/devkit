@@ -1,6 +1,7 @@
 # Devkit Odoo specialization
 
-Offline Odoo addon verification. Does not require an Odoo server, Go or Beads.
+Offline addon verification and opt-in Odoo 19 runtime tests. Offline checks
+do not require an Odoo server, Go or Beads.
 
 Install reviewed local wheels from the `mccann-hub-devkit` package family.
 The unrelated PyPI `devkit` project is not this foundation. Installation
@@ -16,6 +17,12 @@ devkit --project /path/to/project run odoo.module.validate
 For pre-commit hooks and CI, `devkit-odoo --project /path/to/project` runs the
 same validator without plugin selection or operator policy. See
 [running it as a hook](https://github.com/jabez007/devkit/blob/main/docs/Odoo_Validation.md#run-as-a-pre-commit-hook-or-ci-step).
+
+`odoo.runtime.check` checks the Odoo executable and PostgreSQL connection.
+`odoo.module.test` installs one selected addon on a generated database, runs
+native Odoo tests, and drops the database. Both require explicit operator grants
+for all effects. The standalone `devkit-odoo` entry point remains an offline
+validator. See [runtime setup and limits](https://github.com/jabez007/devkit/blob/main/docs/Odoo_Validation.md#run-native-odoo-tests).
 
 See the [onboarding guide](https://github.com/jabez007/devkit/blob/main/docs/Getting_Started.md)
 for developer and operator setup, and the

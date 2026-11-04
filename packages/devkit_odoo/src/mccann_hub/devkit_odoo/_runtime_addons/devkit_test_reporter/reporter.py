@@ -51,7 +51,8 @@ class Report:
         if len(self.data["failures"]) >= FAILURE_LIMIT:
             self.data["failures_omitted"] += 1
             return
-        output = "".join(traceback.format_exception(*error, limit=20))[-OUTPUT_LIMIT:]
+        encoded = "".join(traceback.format_exception(*error, limit=20)).encode(errors="replace")
+        output = encoded[-OUTPUT_LIMIT:].decode(errors="ignore")
         self.data["failures"].append({"test": str(test.id())[:1024], "output": output})
 
     def finish(self) -> None:

@@ -4,7 +4,7 @@ The [combined example](../examples/ci/project/devkit.toml) runs real Go tests an
 validates a synthetic custom Odoo addon offline. It demonstrates profile results,
 wheel-artifact trust and evidence retrieval. It is not a production Odoo module
 or a validation of a client repository. Package versions are foundation 0.2.0,
-Go 0.1.0 and Odoo 0.5.0.
+Go 0.1.0 and Odoo 0.6.0. This pilot selects only the offline Odoo check.
 
 ## Run the pilot locally
 

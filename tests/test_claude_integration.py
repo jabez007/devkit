@@ -173,7 +173,7 @@ def test_documented_diagnostics_and_evidence_after_bundle_removal(bundle, odoo_p
     failed = invoke(project, "check", "verify", expected=1)
     invoke(project, "check", "no-such-profile", expected=3)
     policy = Path(os.environ["XDG_CONFIG_HOME"]) / "devkit/policy.toml"
-    policy.write_text('[trusted_plugins]\nmccann-hub-devkit-odoo="0.5.0"\n')
+    policy.write_text('[trusted_plugins]\nmccann-hub-devkit-odoo="0.6.0"\n')
     assert (
         invoke(project, "run", "odoo.module.validate", expected=2)["result"]["reason"] == "DENIED"
     )

@@ -147,7 +147,7 @@ Use Python wheels and `importlib.metadata.entry_points()`; do **not** build a ne
 # Current Odoo plugin registration
 [project]
 name = "mccann-hub-devkit-odoo"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = ["mccann-hub-devkit>=0.2,<0.3"]
 
 [project.entry-points."mccann_hub.devkit.specializations.v1"]
@@ -342,6 +342,14 @@ A customer Odoo Project task describes a warehouse barcode enhancement. The conn
 ### 9.1 Odoo scope
 
 Build `odoo.module.validate` as an offline check for an Odoo 19 profile. Parse addon manifests as bounded literal data without executing them. Validate required fields and declared local files, and distinguish local dependency findings from checks that need a complete addon set or a running server. Static validation does not prove successful installation, upgrade, or runtime compatibility.
+
+The opt-in runtime commands in Odoo package 0.6.0 reuse the same specialization
+contract, operator policy and saved result envelopes. `odoo.runtime.check`
+checks Odoo 19 and PostgreSQL prerequisites. `odoo.module.test` installs one
+addon on a generated database, observes the native test runner, and attempts
+database removal even after interruption. Zero executed tests block success.
+Both commands require grants for all effects. They do not become automatic
+environment checks for the offline validator. See [runtime operation and limits](Odoo_Validation.md#run-native-odoo-tests).
 
 The implemented v0.2 inventory defaults to incomplete. Multiple configured addon
 paths form one bounded inventory within the authorized workspace. Explicit full

@@ -1,9 +1,10 @@
-"""Odoo 19 offline manifest validation plugin."""
+"""Odoo 19 offline validation and explicitly authorized runtime tests."""
 
 import json
 from importlib.metadata import version
 
 from mccann_hub.devkit.contracts import (
+    EFFECTS,
     CheckSpec,
     CommandResult,
     CommandSpec,
@@ -17,6 +18,10 @@ from mccann_hub.devkit_odoo.csv_inspection import LIMITS as CSV_LIMITS
 from mccann_hub.devkit_odoo.csv_inspection import CSVInspection
 from mccann_hub.devkit_odoo.dependencies import analyze_graph
 from mccann_hub.devkit_odoo.inventory import Inventory, scan
+from mccann_hub.devkit_odoo.runtime import INPUT_SCHEMA as RUNTIME_INPUT_SCHEMA
+from mccann_hub.devkit_odoo.runtime import PREREQUISITE_SCHEMA
+from mccann_hub.devkit_odoo.runtime import check as check_runtime
+from mccann_hub.devkit_odoo.runtime import test as test_runtime
 from mccann_hub.devkit_odoo.validation import checkpoint, inspect_module
 from mccann_hub.devkit_odoo.xml_inspection import LIMITS as XML_LIMITS
 from mccann_hub.devkit_odoo.xml_inspection import PARSER_VERSION, XMLInspection
@@ -451,6 +456,24 @@ def register() -> Specialization:
                 output_schema=OUTPUT_SCHEMA,
                 effects=frozenset({"read_fs"}),
             ),
+            CommandSpec(
+                "odoo.runtime.check",
+                "Check Odoo 19 and PostgreSQL runtime prerequisites",
+                check_runtime,
+                input_schema=PREREQUISITE_SCHEMA,
+                effects=EFFECTS,
+            ),
+            CommandSpec(
+                "odoo.module.test",
+                "Install and test one Odoo addon on a disposable database",
+                test_runtime,
+                input_schema=RUNTIME_INPUT_SCHEMA,
+                effects=EFFECTS,
+            ),
         ),
-        checks=(CheckSpec("odoo.manifests", "odoo.module.validate"),),
+        checks=(
+            CheckSpec("odoo.manifests", "odoo.module.validate"),
+            CheckSpec("odoo.runtime", "odoo.runtime.check"),
+            CheckSpec("odoo.tests", "odoo.module.test"),
+        ),
     )
