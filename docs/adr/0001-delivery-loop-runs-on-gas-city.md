@@ -213,8 +213,20 @@ and native Odoo checks passed. After explicit approval of the generated text,
 body, title and checked commit. Retrying reused that draft without creating
 a second PR. Native Beads recorded the PR URL and closed the draft step.
 The [acceptance guide](../../integrations/gascity/odoo/README.md#prepare-the-private-github-acceptance-run)
-describes the opt-in fixture and retained operator context. Answer-round resume
-remains with #11.
+describes the opt-in fixture and retained operator context.
+
+The answer-loop qualification completed on 2026-11-05. A rejected synthetic
+assumption produced a second behavior brief and a fresh native approval gate.
+The live session reused the branch and worktree, changed the menu label and
+committed it. Version, static and runtime checks passed, with two Odoo tests
+and complete database cleanup. After approval of the revised exact text, the
+native publisher updated the same private draft. A repeat returned the same
+URL with one PR present. Native task metadata retained round 2 and the PR URL.
+Eight transcript-derived tool failures imported into a separate synthetic
+tooling bead once; repeating the import added no comments. The model's initial
+friction report abbreviated output, so this qualifies native import and serial
+deduplication, not unattended report completeness. No production approval UI
+or concurrent-writer guarantee is claimed.
 
 | Issue | Consequence |
 |---|---|

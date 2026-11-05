@@ -353,8 +353,11 @@ worktree and draft PR. Its new brief required a fresh approval. Claude changed
 the menu label, increased the version and added a second behavior assertion.
 Version, static and runtime checks passed, with two Odoo tests and complete
 database cleanup. The retained-case verification passed after allowing GitHub
-time to report the pushed head. The revised PR text still requires its own
-operator approval before the final publication check.
+time to report the pushed head. On 2026-11-05 the operator approved the revised
+text. The native publisher updated the same draft and verified its exact body,
+title and checked commit. A repeated publication returned the same URL with
+one PR present. The task and new workflow retained round 2 and that PR URL;
+the new draft step was closed.
 
 The model abbreviated parts of its friction report. The operator extracted
 the eight failed commands and their exact output from the transcript for import
