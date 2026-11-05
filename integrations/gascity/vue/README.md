@@ -37,6 +37,22 @@ version's browser and system-library arrangement. Install Python and the shared
 guard in a dedicated virtual environment. Keep the final session's user and
 home directory explicit. Prepare the app's dependencies as the operator.
 
+When applying the prepared workspace environment, set `PATH` explicitly for
+the container. Put the guard's Python virtual environment and selected native
+binary directories before the system paths. Native sessions can inherit the
+controller's host `PATH`; an absent virtual environment then makes the guard
+fail closed. Set `GC_HOME` and the `XDG_CACHE_HOME`, `XDG_CONFIG_HOME` and
+`XDG_STATE_HOME` paths to the owned directories mounted for the session.
+The [live helper](../../../tests/gascity_live.py) applies this configuration and
+probes an allowed read and a denied credential read. It also checks that the
+selected subscription file is readable and that Claude can create its session
+directory, without reading credential contents.
+
+The fixture's image and live profile use UID 1000 and `/home/ubuntu/.claude`.
+The pinned image assigns UID 1001 to `pwuser`. Match the selected numeric user
+to the writable home and read-only credential binding. Another host UID needs
+a corresponding reviewed image profile.
+
 Use the shared preparation command with the built image, reviewed pack paths,
 project settings and selected subscription credential file. Mount the pack,
 settings and credential file read-only. Keep GitHub authentication in the host
@@ -184,3 +200,36 @@ and all four installed tool gates. The final bundle recorded one passing
 Vitest test and one passing Chromium keyboard test. The qualified browser
 image ran Node 26.13.0. This case uses synthetic implementation commits and
 stops before GitHub publication; it does not qualify live model behavior.
+
+To run the guarded live implementation, also export:
+
+```sh
+DEVKIT_VUE_LIVE=1
+DEVKIT_DEVCONTAINER=/absolute/installed/devcontainer
+DEVKIT_CLAUDE=/absolute/installed/claude
+DEVKIT_CLAUDE_CREDENTIALS=/absolute/operator/.claude/.credentials.json
+```
+
+For private GitHub qualification, set `DEVKIT_VUE_GITHUB_REPO=owner/private-test-repository`
+and use a new `--basetemp=/tmp/devkit-vue-acceptance-UNIQUE` directory. Pytest
+deletes an existing base directory. The fixture uses an isolated
+`acceptance/vue-fixture-v2` base branch and a per-task feature branch. An
+existing base must match the complete fixture tree; it is never overwritten
+or force-pushed. Other branches and pull requests are outside this case.
+
+After passing checks, the case pushes the checked feature commit and saves
+`operator-publication-vue.json` with the report, body hash and safe host state
+paths. It stops before creating the draft. Approve the exact title and body,
+then publish through `gc vue delivery publish` in the retained city with host
+GitHub authentication. The saved context is not approval.
+
+The live 2026-11-05 case passed after aligning the numeric user and applying
+the explicit container path and cache configuration above. The guard preflight
+allowed a benign read and denied a credential read. The real one-shot Claude
+session inspected the approved task, committed the counter fix and added
+repeated pointer and keyboard activation tests. The controller passed two
+Vitest tests, ESLint, vue-tsc and two Chromium Playwright tests. Native hooks
+completed and the assigned attempt closed in the same Beads store. The checked
+commit is pushed; exact-text approval and GitHub draft confirmation remain
+the final qualification step. This is one local Linux profile with synthetic
+brief approval, not a production approval UI or a concurrent-writer guarantee.

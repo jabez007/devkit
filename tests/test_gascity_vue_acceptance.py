@@ -9,6 +9,9 @@ from types import SimpleNamespace
 
 import pytest
 
+from tests import gascity_vue_github
+from tests.gascity_live import implement
+from tests.gascity_vue_live import PROFILE, prepare_project
 from tests.test_gascity_odoo_checks import git
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -38,6 +41,12 @@ def city(tmp_path):
             .replace("imports.spike", "imports.vue")
             .replace(str(ROOT / "examples/gascity-spike"), str(PACK))
         )
+        config = workspace.city / "city.toml"
+        config.write_text(
+            config.read_text().replace(
+                'native_transport="off"', 'native_transport="off"\nproxied_idle_timeout="1h"'
+            )
+        )
         yield workspace
     finally:
         workspace.cleanup()
@@ -45,6 +54,8 @@ def city(tmp_path):
 
 def setup_task(workspace):
     shutil.copytree(ROOT / "tests/fixtures/vue", workspace.repo)
+    if os.environ.get("DEVKIT_VUE_LIVE") == "1":
+        prepare_project(workspace.repo)
     git(workspace.repo, "init", "-q", "--initial-branch=main")
     for key, value in (
         ("user.name", "Devkit Qualification"),
@@ -54,6 +65,7 @@ def setup_task(workspace):
         git(workspace.repo, "config", key, value)
     git(workspace.repo, "add", ".")
     git(workspace.repo, "commit", "-qm", "Synthetic Vue counter defect")
+    gascity_vue_github.seed(workspace)
     task = workspace.gc(
         "bd", "create", "Counter advances twice", "--type", "task", "--json", structured=True
     )["id"]
@@ -161,6 +173,7 @@ def bind_job(workspace, task, root):
                 project=str(workspace.worktree),
                 runner=runner,
                 artifacts=str(workspace.root / "checks"),
+                **gascity_vue_github.destination(task),
             )
         )
     )
@@ -227,11 +240,19 @@ def test_native_vue_approval_red_retry_and_browser_gate(city):
         if bead.get("metadata", {}).get("gc.step_ref", "").endswith("implement.iteration.2")
     ]
     assert len(attempts) == 1
-    path = city.worktree / "src/CounterButton.vue"
-    path.write_text(path.read_text().replace("count += 2", "count += 1"))
-    git(city.worktree, "add", "src/CounterButton.vue")
-    git(city.worktree, "commit", "-qm", "Advance the counter once per activation")
-    city.close(attempts[0])
+    if os.environ.get("DEVKIT_VUE_LIVE") == "1":
+        implement(city, root, task, attempts[0], PROFILE)
+        assert not git(city.worktree, "status", "--porcelain=v1")
+        assert git(city.worktree, "rev-parse", "HEAD") != red[0]["commit"]
+        assert (
+            city.gc("bd", "show", attempts[0], "--json", structured=True)[0]["status"] == "closed"
+        )
+    else:
+        path = city.worktree / "src/CounterButton.vue"
+        path.write_text(path.read_text().replace("count += 2", "count += 1"))
+        git(city.worktree, "add", "src/CounterButton.vue")
+        git(city.worktree, "commit", "-qm", "Advance the counter once per activation")
+        city.close(attempts[0])
     city.gc("convoy", "control", ids["devkit-vue-delivery.implement"], timeout=240)
     assert ids["devkit-vue-delivery.draft-pr"] in city.ready()
     metadata = city.gc("bd", "show", root, "--json", structured=True)[0]["metadata"]
@@ -243,9 +264,11 @@ def test_native_vue_approval_red_retry_and_browser_gate(city):
         "vue-tsc",
         "playwright",
     ]
-    assert green["checks"][-1]["result"]["data"]["tests"] == dict(run=1, failed=0, skipped=0)
+    browser = green["checks"][-1]["result"]["data"]["tests"]
+    assert browser["run"] >= 1 and browser["failed"] == 0
     report = city.run(
         city.args.gc, "vue", "delivery", "report", "--workflow", root, structured=True
     )
     assert report["commit"] == git(city.worktree, "rev-parse", "HEAD")
     assert "playwright: success" in report["body"]
+    gascity_vue_github.prepare_publication(city, task, root, report)

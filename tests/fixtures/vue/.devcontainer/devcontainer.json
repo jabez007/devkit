@@ -1,0 +1,5 @@
+{
+  "name": "Devkit Vue delivery qualification",
+  "build": {"dockerfile": "Dockerfile", "context": "."},
+  "remoteUser": "ubuntu"
+}
