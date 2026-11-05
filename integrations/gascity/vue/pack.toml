@@ -1,0 +1,7 @@
+[pack]
+name = "devkit-vue"
+schema = 2
+description = "Approved Vue tasks with project-local test, lint, type and browser gates"
+
+[imports.base]
+source = "../base"

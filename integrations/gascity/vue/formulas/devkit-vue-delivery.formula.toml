@@ -1,0 +1,43 @@
+formula = "devkit-vue-delivery"
+description = "Approved Vue behavior, test plan, bounded implementation and checked draft preparation"
+extends = ["devkit-approved-brief"]
+
+[requires]
+formula_compiler = ">=2.0.0"
+
+[[steps]]
+id = "spec"
+title = "Plan observable Vue tests for {{task}}"
+needs = ["approve"]
+description = "Verify the workflow and selected task with gc base brief verify. Read the existing Vue app, its callers and project checks. Map each acceptance criterion to observable Vitest tests and Playwright tests where configured. Keep the test plan in session artifacts."
+
+[steps.metadata]
+"devkit.task" = "{{task}}"
+
+[[steps]]
+id = "implement"
+title = "Build and test the approved Vue behavior for {{task}}"
+needs = ["spec"]
+description_file = "../agents/implementer/prompt.template.md"
+
+[steps.metadata]
+"devkit.task" = "{{task}}"
+"devkit.delivery.role" = "implementation"
+
+[steps.check]
+max_attempts = 3
+
+[steps.check.check]
+mode = "exec"
+path = "../assets/check.sh"
+timeout = "45m"
+
+[[steps]]
+id = "draft-pr"
+title = "Prepare the checked Vue draft for {{task}}"
+needs = ["implement"]
+description = "Run gc vue delivery report for this workflow. Review the exact title, body and SHA-256 with the operator. Only the operator may publish approved text through gc vue delivery publish. Leave this step open until the draft is confirmed."
+
+[steps.metadata]
+"devkit.task" = "{{task}}"
+"devkit.delivery.role" = "draft"
