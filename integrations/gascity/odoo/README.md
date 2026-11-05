@@ -85,7 +85,7 @@ After shared preparation, append this read-only binding to the reviewed native
 
 Use the actual absolute city and profile paths. Keep the host's sidecar intact;
 the binding changes only the container's view. Do not share host PIDs or mount
-the Docker socket. The [live acceptance helper](../../../tests/gascity_odoo_live.py)
+the Docker socket. The [live acceptance helper](../../../tests/gascity_live.py)
 demonstrates this profile and checks native reads plus approval verification
 inside the container before accepting the implementation run. Its final host
 check observes the attempt closed through the same database.

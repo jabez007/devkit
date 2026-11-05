@@ -61,6 +61,13 @@ Vue requires these shared-base changes:
   into `base/assets/delivery_state.py`. Each stack supplies one adapter with
   `validate(job)` and `run(job, approved_brief)`. Stack entrypoints retain their
   existing native command names and metadata keys.
+- Share live qualification through explicit stack session profiles. Vue's
+  virtual-environment Python requires an explicit container `PATH`; the
+  controller's inherited host path selected a Python without the guard parser.
+  Qualification also forwards owned cache/config paths, verifies the runtime
+  user's session-directory access and probes the unchanged guard's allow and
+  credential-denial behavior. These are test deployment changes, not new base
+  configuration keys or Devkit permissions.
 
 These moves preserve the first stack's CLI and check behavior. Each adapter
 owns its complete job schema and tool-result interpretation. The shared module

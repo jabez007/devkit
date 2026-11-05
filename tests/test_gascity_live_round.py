@@ -11,7 +11,8 @@ from types import SimpleNamespace
 import pytest
 
 from tests.gascity_github import gh
-from tests.gascity_odoo_live import implement
+from tests.gascity_live import implement
+from tests.gascity_odoo_live import PROFILE
 from tests.test_gascity_feedback_acceptance import feedback_command
 from tests.test_gascity_odoo_acceptance import PACK, Spike, bind_job
 from tests.test_gascity_odoo_acceptance import delivery_image as delivery_image
@@ -252,7 +253,7 @@ def test_live_answer_round_reuses_private_branch_and_draft(retained_city, reques
                 protected_branches=[],
             ),
         )
-        implement(workspace, root, task, ids["devkit-odoo-delivery.implement.iteration.1"])
+        implement(workspace, root, task, ids["devkit-odoo-delivery.implement.iteration.1"], PROFILE)
         assert not git(workspace.worktree, "status", "--porcelain=v1")
         assert git(workspace.worktree, "rev-parse", "HEAD") != context["report"]["commit"]
         workspace.gc("convoy", "control", ids["devkit-odoo-delivery.implement"], timeout=240)

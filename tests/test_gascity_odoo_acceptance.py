@@ -11,7 +11,8 @@ from types import SimpleNamespace
 import pytest
 
 from tests import gascity_github
-from tests.gascity_odoo_live import devcontainer, implement
+from tests.gascity_live import implement
+from tests.gascity_odoo_live import PROFILE, devcontainer
 from tests.test_gascity_odoo_checks import git
 from tests.test_odoo_runtime_acceptance import (
     installed_runtime_image as installed_runtime_image,
@@ -328,7 +329,7 @@ def test_native_approval_red_retry_and_installed_runtime_release(city, request, 
     ]
     assert len(attempt) == 1
     if os.environ.get("DEVKIT_DELIVERY_LIVE") == "1":
-        implement(city, root, task, attempt[0])
+        implement(city, root, task, attempt[0], PROFILE)
         assert git(city.worktree, "rev-parse", "HEAD") != red["commit"]
         assert not git(city.worktree, "status", "--porcelain=v1")
         assert city.gc("bd", "show", attempt[0], "--json", structured=True)[0]["status"] == "closed"

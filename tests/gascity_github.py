@@ -88,7 +88,16 @@ def prepare_publication(city, task, root, report):
     )
     remote = git(city.worktree, "ls-remote", "origin", "refs/heads/devkit/" + task)
     assert remote.split()[0] == report["commit"]
-    context = {
+    context = publication_context(city, task, root, report, repository)
+    path = city.root / "operator-publication.json"
+    path.write_text(json.dumps(context, indent=2) + "\n")
+    path.chmod(0o600)
+    print("Private GitHub qualification prepared for PR text review: " + str(path), flush=True)
+
+
+def publication_context(city, task, root, report, repository):
+    """Retain the selected workflow and safe host paths without authentication data."""
+    return {
         "repository": repository,
         "city": str(city.city),
         "task": task,
@@ -113,7 +122,3 @@ def prepare_publication(city, task, root, report):
             if key in city.env
         },
     }
-    path = city.root / "operator-publication.json"
-    path.write_text(json.dumps(context, indent=2) + "\n")
-    path.chmod(0o600)
-    print("Private GitHub qualification prepared for PR text review: " + str(path), flush=True)

@@ -5,7 +5,7 @@ import shlex
 import tomllib
 from types import SimpleNamespace
 
-from tests.gascity_odoo_live import _migrate_guard, _workspace_environment
+from tests.gascity_live import _migrate_guard, _workspace_environment
 
 
 def test_repeated_workspace_environment_updates_one_table_and_preserves_other_values(tmp_path):
