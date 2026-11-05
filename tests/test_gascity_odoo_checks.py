@@ -11,6 +11,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "integrations/gascity/odoo/assets"
+BASE = ROOT / "integrations/gascity/base/assets"
 
 
 def git(project, *args):
@@ -37,7 +38,8 @@ def git(project, *args):
 
 
 @pytest.fixture
-def checks():
+def checks(monkeypatch):
+    monkeypatch.syspath_prepend(str(BASE))
     spec = importlib.util.spec_from_file_location("odoo_pack_checks", ASSETS / "checks.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -180,8 +182,8 @@ def test_artifacts_must_stay_outside_clean_project(checks, job):
 
 @pytest.fixture
 def pull_request(monkeypatch):
-    monkeypatch.syspath_prepend(str(ASSETS))
-    spec = importlib.util.spec_from_file_location("odoo_pull_request", ASSETS / "pull_request.py")
+    monkeypatch.syspath_prepend(str(BASE))
+    spec = importlib.util.spec_from_file_location("odoo_pull_request", BASE / "delivery_pr.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     monkeypatch.delenv("DEVKIT_UNATTENDED", raising=False)

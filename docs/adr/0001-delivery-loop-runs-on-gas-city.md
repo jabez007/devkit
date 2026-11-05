@@ -52,6 +52,25 @@ contract 1.0 until two concrete Python callers demonstrate a missing interface.
 An Odoo pack establishes the first workflow. The Vue pack in #12 tests which
 choices can be shared. Record any core change it requires in this ADR.
 
+Vue requires these shared-base changes:
+
+- Move Git identity checks, protected publication inputs, bounded JSON reads
+  and process capture into `base/assets/delivery_common.py`.
+- Move exact-body draft creation and updates into `base/assets/delivery_pr.py`.
+- Move native job binding, approved check dispatch, round feedback and publication
+  into `base/assets/delivery_state.py`. Each stack supplies one adapter with
+  `validate(job)` and `run(job, approved_brief)`. Stack entrypoints retain their
+  existing native command names and metadata keys.
+
+These moves preserve the first stack's CLI and check behavior. Each adapter
+owns its complete job schema and tool-result interpretation. The shared module
+does not select stack tools or grant effects. No Devkit foundation package or
+plugin contract change is required. The check contracts and native first-stack
+approval, red retry and installed-runtime case verify the extraction before
+the Vue adapter is added.
+An automated source check rejects first-stack names in the shared base and
+Devkit foundation source.
+
 ## Job state and evidence
 
 Do not add the SQLite job store proposed in #4. Gas City owns session and retry

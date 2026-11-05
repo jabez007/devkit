@@ -6,7 +6,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from checks import DeliveryError, commit, environment, git, save
+from delivery_common import DeliveryError, commit, environment, git, save
 
 
 def _check_line(item):
