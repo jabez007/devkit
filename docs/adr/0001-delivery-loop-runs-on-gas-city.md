@@ -116,8 +116,12 @@ Keep operator policy, trust diagnostics, the optional MCP server and the
 specialization template. They have independent callers: authorized command
 invocation, operator diagnosis, native MCP clients and third-party plugin
 authors. The loop does not need to consume every public interface to justify
-its existence. #13 evaluates removals after the first real stack workflow;
-absence from the loop alone is insufficient evidence for deletion.
+its existence. The package review after the Odoo and Vue qualifications retains
+all five workspace distributions and the copyable specialization template.
+The [README caller inventory](../../README.md#packages-and-callers) links the
+CLI, CI, MCP and plugin-author callers. The scripted plugin remains an artifact-
+trust fixture. Each package has a caller or retention reason; retain the current
+packages and plugin contract.
 
 ## Code reuse
 

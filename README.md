@@ -1,27 +1,41 @@
 # Devkit
 
-Composable developer checks, built from scratch. Install the foundation, select
-plugins for a project, and authorize their commands through an operator policy.
-The CLI, Python API, and optional local MCP server share validation, authorization,
-and evidence handling.
+Devkit provides Go test checks, offline Odoo 19 addon validation and opt-in Odoo
+runtime tests. Install the foundation, select plugins for a project, and authorize
+their commands through an operator policy. The `devkit` CLI, Python API and
+optional local MCP server share validation, authorization and verification evidence.
 
-The v0.6 milestone adds an optional [Beads integration](docs/Beads_Integration.md):
-inspect work items and associate verification evidence. The writable follow-up
-adds individually authorized create, claim, update, comment, and close commands.
-The v0.7 follow-up adds exact reference-based evidence discovery and sequential
-linked-worktree support with separate checkout grants and evidence.
-Go checks and offline Odoo 19 validation remain independently usable.
-v0.8 adds a self-contained specialization template, tests against installed
-artifacts, metadata-only selection/trust diagnostics and documented public
-compatibility. Start with [developer/operator onboarding](docs/Getting_Started.md)
-or the [plugin author guide](docs/Plugin_Authoring.md).
-The foundation requires no Beads, Odoo server, Docker, or model credentials.
-The package family is `mccann-hub-devkit`, imported under `mccann_hub`.
-Nothing is published to a public package registry by this migration.
-Versions are foundation 0.2.0, Beads 0.3.0, Go/MCP 0.1.0, and
-Odoo 0.7.0. Plugin API 1.0 and evidence envelope 1.0 are unchanged.
-See [publication readiness](docs/Compatibility.md) for migration instructions
-and the release-ownership decisions still needed before public distribution.
+Use the checks directly in a terminal or CI, or through the optional
+[Gas City stack packs](#optional-gas-city-stack-packs). Gas City and native Beads
+own the delivery workflow, sessions, approval gates and retries. The packs supply
+stack checks, feedback and reviewed draft publication. The Python foundation
+requires no Beads, Odoo server, Docker or model credentials.
+
+Start with [developer/operator onboarding](docs/Getting_Started.md) or the
+[plugin author guide](docs/Plugin_Authoring.md). The package family is
+`mccann-hub-devkit`, imported under `mccann_hub`. Plugin API 1.0 and evidence
+envelope 1.0 retain their existing contracts. See [publication readiness](docs/Compatibility.md)
+for migration instructions and release-ownership decisions.
+
+## Packages and callers
+
+The package review after the working Odoo and Vue loops retains all five
+workspace distributions. Each has a caller independently of a particular stack pack.
+
+| Distribution | Version | Caller and reason to retain |
+| --- | --- | --- |
+| [mccann-hub-devkit](packages/devkit/pyproject.toml) | 0.2.0 | The [CLI](packages/devkit/src/mccann_hub/devkit/cli.py), Python clients and [MCP adapter](packages/devkit_mcp/src/mccann_hub/devkit_mcp/__init__.py) use the shared command service. It owns operator policy, trust diagnostics and portable evidence. |
+| [mccann-hub-devkit-go](packages/devkit_go/pyproject.toml) | 0.1.0 | CLI and CI users run `go.test`; the shipped [CI profile](examples/ci/project/devkit.toml) selects `go.tests`. Go verification remains useful outside the delivery loop. |
+| [mccann-hub-devkit-odoo](packages/devkit_odoo/pyproject.toml) | 0.7.0 | The standalone `devkit-odoo` validator serves hooks and CI. The [Odoo pack](integrations/gascity/odoo/assets/checks.py) also invokes its version and runtime commands through the authorized foundation CLI. |
+| [mccann-hub-devkit-beads](packages/devkit_beads/pyproject.toml) | 0.3.0 | [CLI and MCP work-item workflows](docs/Beads_Integration.md) and the optional [Claude work-items skill](integrations/claude-code/skills/devkit-work-items/SKILL.md) use task lifecycle and evidence associations in supported embedded workspaces. |
+| [mccann-hub-devkit-mcp](packages/devkit_mcp/pyproject.toml) | 0.1.0 | Native MCP clients start `devkit-mcp`; the [Claude integration](integrations/claude-code/README.md) documents explicit project-local registration. It presents the same command service over stdio. |
+
+The copyable [specialization template](examples/plugin) also stays for independent
+plugin authors. The [renamed-plugin acceptance](scripts/check_third_party.py) builds
+and tests it outside this checkout. The [scripted test plugin](tests/fixtures/plugin)
+exercises wheel discovery and artifact trust in the installed-wheel matrix.
+The [compatibility policy](docs/Compatibility.md#public-extension-points) defines
+the supported interfaces.
 
 ## Set up a development checkout
 
@@ -412,7 +426,7 @@ See the [architecture](docs/Composable_Developer_Toolkit_Architecture.md) and
 and later increments. The [v0.7 assessment](docs/v0.7_Assessment.md) records verified
 workflow behavior, worktree limitations and prioritized foundation improvements.
 Tracker connectors, Devkit's Beads server adapter, administrative operations
-and production stack delivery require separate increments.
+and additional production runtime profiles require separate increments.
 
 ## Optional Claude Code integration
 
@@ -425,13 +439,35 @@ from Neovim's terminal without any editor package or AI session.
 
 ## Optional Gas City stack packs
 
-The [shared stack-pack base](integrations/gascity/README.md) supplies a native
-one-shot Claude provider, guard installation and reviewed runtime mount settings.
-The [qualification spike](examples/gascity-spike/README.md) consumes this base.
-The [Odoo pack](integrations/gascity/odoo/README.md) combines approved briefs,
-manifest version checks, fresh-install validation and native runtime tests.
-It prepares checked draft text and requires operator approval to publish it.
-Its live acceptance run reached a verified GitHub draft PR through the operator publisher.
+The [shared stack-pack base](integrations/gascity/README.md) supplies the one-shot
+Claude provider, guard preparation, approval of exact brief bytes, native
+feedback rounds and checked draft publication. Native Gas City formulas and
+Beads own task state, readiness, sessions and bounded retries. A tracker connector
+populates Beads separately; each pack starts from an explicitly selected bead.
+
+The [Odoo pack](integrations/gascity/odoo/README.md) runs `devkit-odoo` for
+fresh-install static validation. It invokes `odoo.module.version.check` and
+`odoo.module.test` through `devkit run`, retaining their run IDs and evidence
+paths. Those commands require explicit trust and effect grants for the exact
+task worktree. The static CLI returns validation JSON without a Devkit run record.
+
+The [Vue pack](integrations/gascity/vue/README.md) runs the project's installed
+Vitest, ESLint and `vue-tsc` tools, plus Playwright when declared. A Playwright
+configuration without its declared dependency blocks the job. The pack captures
+tool output and results in the native check bundle. Those Node checks use no
+Python specialization and create no Devkit run records.
+Dependency and browser installation belong to the operator's project setup.
+
+Both packs require the checked commit to remain clean and unchanged, prepare
+the exact draft title and body for approval, and publish through the host
+operator. Their live local acceptance cases reached verified private GitHub
+drafts; the Odoo case also qualified a fresh answer round reusing its branch
+and PR. The stack guides record runtime profiles and qualification limits.
+
+Gas City uses native task commands against its server workspace. The optional
+Python Beads adapter retains its embedded-workspace and sequential-writer
+contract for independent callers. The [runtime decision](docs/adr/0001-delivery-loop-runs-on-gas-city.md)
+records this split and the shared changes required by Vue.
 
 ## License
 
