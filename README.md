@@ -59,21 +59,32 @@ Text output from `doctor` and `check` includes each returned child check's statu
 diagnostic reason and a project-qualified `runs show` command. Use `--json` for
 the complete structured result, including nested prerequisite evidence.
 
-To install built distributions in another environment:
+Build reviewed distributions in a fresh directory, then install only the
+required packages in its separate virtual environment:
 
 ```sh
-uv build --all-packages
-uv venv /tmp/devkit-install --python 3.12
-uv pip install --python /tmp/devkit-install/bin/python dist/mccann_hub_devkit-0.2.0-py3-none-any.whl
+DEVKIT_BUILD_ROOT=$(mktemp -d /tmp/devkit-build.XXXXXX)
+uv build --all-packages --out-dir "$DEVKIT_BUILD_ROOT/wheels"
+uv venv "$DEVKIT_BUILD_ROOT/venv" --python 3.12
+uv pip install --python "$DEVKIT_BUILD_ROOT/venv/bin/python" \
+  "$DEVKIT_BUILD_ROOT/wheels/mccann_hub_devkit-0.2.0-py3-none-any.whl"
 # Add only the plugins and adapters you need:
-uv pip install --python /tmp/devkit-install/bin/python dist/mccann_hub_devkit_go-0.1.0-py3-none-any.whl
-uv pip install --python /tmp/devkit-install/bin/python dist/mccann_hub_devkit_odoo-0.7.0-py3-none-any.whl
-uv pip install --python /tmp/devkit-install/bin/python dist/mccann_hub_devkit_mcp-0.1.0-py3-none-any.whl
-uv pip install --python /tmp/devkit-install/bin/python dist/mccann_hub_devkit_beads-0.3.0-py3-none-any.whl
+uv pip install --python "$DEVKIT_BUILD_ROOT/venv/bin/python" \
+  "$DEVKIT_BUILD_ROOT/wheels/mccann_hub_devkit_go-0.1.0-py3-none-any.whl"
+uv pip install --python "$DEVKIT_BUILD_ROOT/venv/bin/python" \
+  "$DEVKIT_BUILD_ROOT/wheels/mccann_hub_devkit_odoo-0.7.0-py3-none-any.whl"
+uv pip install --python "$DEVKIT_BUILD_ROOT/venv/bin/python" \
+  "$DEVKIT_BUILD_ROOT/wheels/mccann_hub_devkit_mcp-0.1.0-py3-none-any.whl"
+uv pip install --python "$DEVKIT_BUILD_ROOT/venv/bin/python" \
+  "$DEVKIT_BUILD_ROOT/wheels/mccann_hub_devkit_beads-0.3.0-py3-none-any.whl"
+"$DEVKIT_BUILD_ROOT/venv/bin/devkit" --version
 ```
 
-Use the supplied reviewed foundation wheel until an approved registry release exists. The installed-wheel acceptance script constrains registry
-dependencies to the lockfile; ordinary wheel installs use the declared ranges.
+The fresh build directory separates current wheels from earlier names and
+versions left in `dist/`. Use the supplied reviewed foundation wheel until an
+approved registry release exists. The installed-wheel acceptance script builds
+in its own temporary directory and constrains registry dependencies to the
+lockfile; ordinary wheel installs use the declared ranges.
 
 ## Configure a project
 

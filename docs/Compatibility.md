@@ -37,6 +37,15 @@ release. The declaration and evidence contracts remain 1.0. This supersedes the
 old 0.1.x Python import path; no top-level `devkit` compatibility shim is supplied
 because it would retain the collision with an unrelated package.
 
+Build reviewed artifacts into a fresh output directory. The
+[build and installation example](../README.md#set-up-a-development-checkout)
+keeps each build's wheels and virtual environment together. Treat legacy
+`devkit`, `devkit-go` and `devkit-odoo` 0.1.0 wheels and sdists in an old `dist/`
+directory as superseded build outputs after confirming their package metadata.
+Use exact current filenames when installing; a broad artifact glob can mix
+package generations or versions. The installed-wheel acceptance builds and
+checks the current distribution family in temporary directories.
+
 | Previous distribution / import | Replacement distribution / import |
 | --- | --- |
 | `devkit` / `devkit` | `mccann-hub-devkit` / `mccann_hub.devkit` |
