@@ -254,6 +254,18 @@ friction report abbreviated output, so this qualifies native import and serial
 deduplication, not unattended report completeness. No production approval UI
 or concurrent-writer guarantee is claimed.
 
+The Vue qualification completed on 2026-11-08. A native red Vitest check kept
+the draft step blocked. After approval, a guarded Claude session committed the
+counter fix and added repeated-activation tests. The controller passed two
+Vitest tests, ESLint, vue-tsc and two Chromium Playwright tests. The operator
+then approved the exact draft text. The native publisher created a private
+GitHub draft, verified its title, body and checked commit, and reused the same
+draft on a repeat. Native metadata retained its URL and closed the draft step.
+The [Vue guide](../../integrations/gascity/vue/README.md#verify-the-pack) records
+the local image/user profile and runtime preflights. The shared changes appear
+above; no Devkit foundation or plugin-contract change was needed. Brief approval
+remains synthetic, and concurrent writers are unqualified.
+
 | Issue | Consequence |
 |---|---|
 | #2 | Update its ownership table and dependency order to this split. |

@@ -229,7 +229,9 @@ allowed a benign read and denied a credential read. The real one-shot Claude
 session inspected the approved task, committed the counter fix and added
 repeated pointer and keyboard activation tests. The controller passed two
 Vitest tests, ESLint, vue-tsc and two Chromium Playwright tests. Native hooks
-completed and the assigned attempt closed in the same Beads store. The checked
-commit is pushed; exact-text approval and GitHub draft confirmation remain
-the final qualification step. This is one local Linux profile with synthetic
+completed and the assigned attempt closed in the same Beads store. On
+2026-11-08 the operator approved the exact draft text. The native publisher
+created a private GitHub draft and confirmed its title, body and checked commit.
+A repeated publication reused that draft. Native task metadata recorded the
+PR URL and the draft step closed. This is one local Linux profile with synthetic
 brief approval, not a production approval UI or a concurrent-writer guarantee.
