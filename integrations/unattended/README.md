@@ -56,7 +56,9 @@ The shell parser never executes the submitted command. It visits nested command
 and process substitutions, pipelines and compound commands. Literal `bash -c`
 wrappers and Git aliases are inspected too. The `timeout`, `nice` and `stdbuf`
 launchers are normalized before base and stack rules apply. Stack prefixes also
-apply to resolved Git aliases. Other known command indirection, including shell
+apply to resolved Git aliases. PR review parsing recognizes bundled approval
+flags such as `-ab` and skips body, body-file and repository option values.
+Other known command indirection, including shell
 traps and `find -exec`, is refused. Git queries only read local metadata,
 with filesystem monitoring disabled and a two-second timeout. They never contact
 a remote. A five-second watchdog returns a refusal before the hook's ten-second

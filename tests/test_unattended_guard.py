@@ -99,6 +99,13 @@ def test_force_push_forms_are_denied(guard_project, command):
         "gh pr review 1 --approve",
         "gh pr review 1 -a",
         "gh pr review 1 --approve=true",
+        "gh pr review 1 -ab 'LGTM'",
+        "gh pr review 1 -abLGTM",
+        "gh pr review 1 -aF review.md",
+        "gh pr review 1 -aR example/project",
+        "gh pr review -b 'LGTM' 1 -a",
+        "timeout 5 gh pr review 1 -ab 'LGTM'",
+        "bash -c 'gh pr review 1 -ab LGTM'",
         "gh pr create --title Example",
         "gh pr create --draft --draft=false --title Example",
         "gh pr create --body '--draft' --title Example",
@@ -106,6 +113,23 @@ def test_force_push_forms_are_denied(guard_project, command):
 )
 def test_pr_publication_is_denied(guard_project, command):
     assert "no-pr-publish" in invoke(guard_project, tool_input={"command": command})
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        "1 --comment --body '--approve'",
+        "1 --comment -b '-a'",
+        "1 -cb '--approve'",
+        "1 --comment -bLGTM",
+        "1 --comment -ba",
+        "1 --comment --body='--approve'",
+        "1 --request-changes -F review.md",
+        "-- 1",
+    ],
+)
+def test_review_body_text_is_not_an_approval_flag(guard_project, arguments):
+    assert invoke(guard_project, tool_input={"command": f"gh pr review {arguments}"}) is None
 
 
 @pytest.mark.parametrize(

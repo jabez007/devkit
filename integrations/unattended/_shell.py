@@ -136,6 +136,23 @@ def _draft(arguments):
     return draft
 
 
+def _approves_review(arguments):
+    arguments = iter(arguments)
+    for argument in arguments:
+        name, separator, _ = argument.partition("=")
+        if name == "--":
+            break
+        # Only boolean short options can precede approval in a cluster. A body,
+        # file or repository option consumes the remaining text or the next word.
+        if name == "--approve" or re.match(r"-[cr]*a", name):
+            return True
+        if not separator and (
+            name in {"--body", "--body-file", "--repo"} or re.fullmatch(r"-[cr]*[bFR]", name)
+        ):
+            next(arguments, None)
+    return False
+
+
 def _pr(words):
     if len(words) > 1 and words[1].startswith("-"):
         raise Refusal("literal-shell: put GH repository options after the PR operation")
@@ -160,9 +177,7 @@ def _pr(words):
     operation, *arguments = words[2:]
     if operation in {"merge", "ready"}:
         raise Refusal("no-pr-publish: PR readiness and merge require human review")
-    if operation == "review" and any(
-        arg.split("=", 1)[0] in {"--approve", "-a"} for arg in arguments
-    ):
+    if operation == "review" and _approves_review(arguments):
         raise Refusal("no-pr-publish: PR approval requires human review")
     if operation == "create" and not _draft(arguments):
         raise Refusal("no-pr-publish: unattended PR creation must be a draft")
