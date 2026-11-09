@@ -130,14 +130,15 @@ def _target(job):
         raise DeliveryError("GITHUB_TARGET_REQUIRED")
     if git(job["project"], "branch", "--show-current") != target["head"]:
         raise DeliveryError("BRANCH_MISMATCH")
-    remote = git(job["project"], "remote", "get-url", "--push", target["remote"])
+    # A remote with several URLs pushes to all of them, so every one must match.
+    remotes = git(job["project"], "remote", "get-url", "--push", "--all", target["remote"])
     repo = target["repo"]
     allowed = [
         prefix + repo + suffix
         for prefix in ("https://github.com/", "git@github.com:", "ssh://git@github.com/")
         for suffix in ("", ".git")
     ]
-    if remote not in allowed:
+    if any(remote not in allowed for remote in remotes.splitlines()):
         raise DeliveryError("GITHUB_REMOTE_MISMATCH")
     return target
 

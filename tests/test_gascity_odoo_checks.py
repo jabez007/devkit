@@ -332,3 +332,78 @@ def test_existing_pr_must_match_the_exact_approved_draft(
     with pytest.raises(pull_request.DeliveryError, match="PUBLISHED_PR_MISMATCH"):
         pull_request.publish(job[0], result, result["body_sha256"])
     assert len(pushes) == 1
+
+
+def plant_filter(project, marker):
+    git(project, "config", "filter.planted.clean", f"touch {marker}; cat")
+    (project / ".git/info/attributes").write_text("* filter=planted\n")
+    tracked = project / "tracked"
+    os.utime(tracked, (1, 1))
+
+
+def test_session_written_filter_never_runs_in_the_controller(job, pull_request):
+    project = Path(job[0]["project"])
+    marker = project.parent / "marker"
+    plant_filter(project, marker)
+    with pytest.raises(pull_request.DeliveryError, match="UNSAFE_GIT_CONFIG"):
+        pull_request.commit(project)
+    assert not marker.exists()
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("core.sshCommand", "touch marker"),
+        ("core.pager", "touch marker"),
+        ("core.worktree", "/tmp/other"),
+        ("credential.helper", "!touch marker"),
+        ("remote.origin.pushurl", "https://example.invalid/other.git"),
+        ("remote.origin.vcs", "planted"),
+        ("remote.origin.receivepack", "touch marker"),
+        ("url.https://example.invalid/.insteadOf", "https://github.com/"),
+        ("include.path", "/tmp/planted"),
+        ("includeIf.gitdir:/.path", "/tmp/planted"),
+        ("alias.planted", "!touch marker"),
+        ("push.gpgSign", "true"),
+    ],
+)
+def test_controller_refuses_config_that_can_run_programs_or_redirect(job, pull_request, key, value):
+    project = Path(job[0]["project"])
+    git(project, "config", key, value)
+    with pytest.raises(pull_request.DeliveryError, match="UNSAFE_GIT_CONFIG"):
+        pull_request.commit(project)
+
+
+def test_controller_inspects_per_worktree_config(job, pull_request):
+    project = Path(job[0]["project"])
+    git(project, "config", "extensions.worktreeConfig", "true")
+    linked = project.parent / "linked"
+    git(project, "worktree", "add", "-q", str(linked), "-b", "linked")
+    git(linked, "config", "--worktree", "core.sshCommand", "touch marker")
+    with pytest.raises(pull_request.DeliveryError, match="UNSAFE_GIT_CONFIG"):
+        pull_request.commit(linked)
+
+
+def test_controller_accepts_inert_repository_config(job, pull_request):
+    project = Path(job[0]["project"])
+    for key, value in (
+        ("core.hooksPath", ".beads/hooks"),
+        ("beads.role", "maintainer"),
+        ("user.name", "Fixture"),
+        ("remote.origin.url", "https://github.com/fixture/task.git"),
+        ("remote.origin.fetch", "+refs/heads/*:refs/remotes/origin/*"),
+        ("remote.origin.gh-resolved", "base"),
+        ("branch.devkit/task.remote", "origin"),
+        ("branch.devkit/task.merge", "refs/heads/devkit/task"),
+    ):
+        git(project, "config", key, value)
+    assert pull_request.commit(project) == git(project, "rev-parse", "HEAD")
+
+
+def test_publication_refuses_an_added_push_destination(checks, job, pull_request, github_adapter):
+    result = report(checks, job, pull_request)
+    project = job[0]["project"]
+    git(project, "config", "--add", "remote.origin.url", "https://example.invalid/other.git")
+    with pytest.raises(pull_request.DeliveryError, match="GITHUB_REMOTE_MISMATCH"):
+        pull_request.publish(job[0], result, result["body_sha256"])
+    assert github_adapter[1] == []

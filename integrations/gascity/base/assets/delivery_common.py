@@ -10,6 +10,20 @@ import stat
 import subprocess
 import time
 
+# Sessions can write the repository's config and the controller then runs Git on
+# it with the operator's identity. Only keys that cannot start a program or
+# change where Git acts are accepted, so an unlisted key fails closed.
+INERT_CONFIG = re.compile(
+    r"core\.(repositoryformatversion|filemode|bare|logallrefupdates|ignorecase"
+    r"|precomposeunicode|symlinks|sparsecheckout|sparsecheckoutcone|hookspath)"
+    r"|extensions\.(worktreeconfig|objectformat|refstorage)"
+    r"|user\.(name|email)"
+    r"|init\.defaultbranch"
+    r"|beads\.role"
+    r"|remote\..+\.(url|fetch|gh-resolved)"
+    r"|branch\..+\.(remote|merge|gh-merge-base)"
+)
+
 
 class DeliveryError(Exception):
     def __init__(self, reason):
@@ -23,7 +37,7 @@ def environment():
     return result
 
 
-def git(project, *args):
+def _run_git(project, *args):
     try:
         result = subprocess.run(
             ["git", "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", *args],
@@ -37,6 +51,18 @@ def git(project, *args):
     if result.returncode or len(result.stdout) > 1_000_000:
         raise DeliveryError("GIT_UNAVAILABLE")
     return result.stdout.decode("utf-8").strip()
+
+
+def _refuse_unsafe_config(project):
+    listed = _run_git(project, "config", "--list", "--show-scope", "--name-only", "-z").split("\0")
+    for scope, key in zip(listed[::2], listed[1::2], strict=False):
+        if scope in {"local", "worktree"} and not INERT_CONFIG.fullmatch(key):
+            raise DeliveryError("UNSAFE_GIT_CONFIG")
+
+
+def git(project, *args):
+    _refuse_unsafe_config(project)
+    return _run_git(project, *args)
 
 
 def commit(project):
