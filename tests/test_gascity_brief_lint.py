@@ -66,8 +66,16 @@ def test_pack_command_runs_in_native_gate_path_without_interactive_shims(brief):
         ("Edit addons/sale/models/order.py to store the quantity.", "file_path"),
         ("Change models\\order.py before shipping.", "file_path"),
         ("Update the res.partner model.", "dotted_name"),
+        ("Update StockPicking.actionConfirm before shipping.", "dotted_name"),
+        ("Update res.Partner before shipping.", "dotted_name"),
+        ("Change SALES.ORDER before shipping.", "dotted_name"),
         ("Call button_validate() once.", "call"),
+        ("Call confirm () once.", "call"),
+        ("Call confirm\t( ) once.", "call"),
         ("Add delivered_qty to the form.", "identifier"),
+        ("Change _compute_qty to calculate the remainder.", "identifier"),
+        ("Change _validate to check the quantity.", "identifier"),
+        ("Change __init__ to set the quantity.", "identifier"),
         ("Run the command with --test-enable.", "command_flag"),
         ("Use `python` to calculate the remainder.", "code"),
         ("Update package.json.", "source_file"),
@@ -82,6 +90,23 @@ def test_lint_flags_obvious_implementation_names_without_echoing_text(brief, pre
     assert any(finding["kind"] == kind for finding in result["findings"])
     assert all(finding["section"] == "approach" for finding in result["findings"])
     assert prescription not in json.dumps(result)
+
+
+@pytest.mark.parametrize(
+    "behavior",
+    [
+        "Show the outstanding quantity (including returned items).",
+        "Show the delivery state (pending or sent) beside each order.",
+        "Ask GitHub reviewers to confirm the delivery behavior.",
+        "Accept quantities such as 1.25 and 10.5 without rounding them to whole items.",
+    ],
+)
+def test_lint_accepts_prose_parentheses_product_names_and_decimals(brief, behavior):
+    path, content = brief
+    content["approach"] = behavior
+    path.write_text(json.dumps(content))
+    code, result = lint(path)
+    assert code == 0 and result["findings"] == [], result
 
 
 @pytest.mark.parametrize(

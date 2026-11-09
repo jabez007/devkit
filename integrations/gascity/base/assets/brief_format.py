@@ -14,9 +14,10 @@ REQUIRED = {"schema_version", "task_id", "problem", "acceptance_criteria", "appr
 PATTERNS = {
     # Start once per path token; restarting at every hyphen makes long prose quadratic.
     "file_path": r"(?<![\w.-])(?:[.~]?[\\/])?(?:[\w.-]+[\\/])+[\w.*-]+",
-    "dotted_name": r"\b[a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)+\b",
-    "call": r"\b[A-Za-z_]\w*\(",
-    "identifier": r"\b[A-Za-z][A-Za-z0-9]*_[A-Za-z0-9_]+\b",
+    "dotted_name": r"\b[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+\b",
+    # Spaced empty calls are unambiguous; prose such as 'quantity (including returns)' is not.
+    "call": r"\b[A-Za-z_]\w*(?:\(|[ \t]+\([ \t]*\))",
+    "identifier": r"\b(?:_+[A-Za-z][A-Za-z0-9_]*|[A-Za-z][A-Za-z0-9]*_[A-Za-z0-9_]+)\b",
     "command_flag": r"(?<!\w)--[a-z][a-z0-9-]*\b",
     "code": r"`",
     "source_file": (

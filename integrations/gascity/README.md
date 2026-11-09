@@ -175,9 +175,9 @@ and `out_of_scope` lists. `open_questions` is an optional list. See the
 [rewrite examples](odoo/examples/briefs/README.md).
 
 The command refuses artifacts larger than 100,000 bytes and reports a task
-identity mismatch. It flags obvious source paths, filenames, dotted names,
-call syntax, underscored identifiers, command flags and backticks. Findings
-identify sections and line numbers without echoing brief text. It reports at
+identity mismatch. It flags obvious source paths, filenames, mixed-case dotted
+names, call syntax, private or underscored identifiers, command flags and
+backticks. Findings identify sections and line numbers without echoing brief text. It reports at
 most 100 findings. A clean result includes the exact artifact's SHA-256.
 
 Lint is a backstop. It cannot establish that prose states the right behavior or
