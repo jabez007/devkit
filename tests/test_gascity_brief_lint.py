@@ -65,6 +65,9 @@ def test_pack_command_runs_in_native_gate_path_without_interactive_shims(brief):
     [
         ("Edit addons/sale/models/order.py to store the quantity.", "file_path"),
         ("Change models\\order.py before shipping.", "file_path"),
+        ("Read /settings before shipping.", "file_path"),
+        ("Read ~/settings before shipping.", "file_path"),
+        (r"Read C:\settings before shipping.", "file_path"),
         ("Update the res.partner model.", "dotted_name"),
         ("Update StockPicking.actionConfirm before shipping.", "dotted_name"),
         ("Update res.Partner before shipping.", "dotted_name"),
@@ -79,6 +82,19 @@ def test_pack_command_runs_in_native_gate_path_without_interactive_shims(brief):
         ("Run the command with --test-enable.", "command_flag"),
         ("Use `python` to calculate the remainder.", "code"),
         ("Update package.json.", "source_file"),
+        ("Update README.md before shipping.", "source_file"),
+        ("Update README.MD before shipping.", "source_file"),
+        ("Update DELIVERY.PY before shipping.", "source_file"),
+        ("Update settings.ini before shipping.", "source_file"),
+        ("Update settings.cfg before shipping.", "source_file"),
+        ("Update requirements.txt before shipping.", "source_file"),
+        ("Update dependencies.lock before shipping.", "source_file"),
+        ("Update .env before shipping.", "source_file"),
+        ("Update .env.production before shipping.", "source_file"),
+        ("Update .gitignore before shipping.", "source_file"),
+        ("Update .dockerignore before shipping.", "source_file"),
+        ("Update Dockerfile before shipping.", "source_file"),
+        ("Update Makefile before shipping.", "source_file"),
     ],
 )
 def test_lint_flags_obvious_implementation_names_without_echoing_text(brief, prescription, kind):
@@ -170,3 +186,24 @@ def test_lint_bounds_work_for_long_punctuation_separated_words(brief):
     path.write_text(json.dumps(content))
     code, result = lint(path)
     assert code == 0 and result["status"] == "success"
+
+
+@pytest.mark.parametrize("prefix", ["/", "~/", "C:\\"])
+def test_lint_bounds_work_for_long_rooted_paths(brief, prefix):
+    path, content = brief
+    content["problem"] = prefix + "a-" * 40_000
+    path.write_text(json.dumps(content))
+    code, result = lint(path)
+    assert code == 1 and result["reason"] == "PRESCRIPTIVE_BRIEF", result
+    assert {finding["kind"] for finding in result["findings"]} == {"file_path"}
+
+
+def test_lint_caps_findings_and_preserves_their_line_numbers(brief):
+    path, content = brief
+    content["problem"] = "\n".join(["Change _quantity before shipping."] * 110)
+    path.write_text(json.dumps(content))
+    code, result = lint(path)
+    assert code == 1
+    assert result["findings"] == [
+        {"section": "problem", "line": line, "kind": "identifier"} for line in range(1, 101)
+    ]

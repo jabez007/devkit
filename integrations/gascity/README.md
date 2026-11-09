@@ -177,8 +177,19 @@ and `out_of_scope` lists. `open_questions` is an optional list. See the
 The command refuses artifacts larger than 100,000 bytes and reports a task
 identity mismatch. It flags obvious source paths, filenames, mixed-case dotted
 names, call syntax, private or underscored identifiers, command flags and
-backticks. Findings identify sections and line numbers without echoing brief text. It reports at
-most 100 findings. A clean result includes the exact artifact's SHA-256.
+backticks. Paths include single-component POSIX, home-relative and Windows drive
+paths. Filename checks include documentation and configuration extensions,
+case-insensitive source extensions, `.env` variants, `.gitignore`,
+`.dockerignore`, `Dockerfile` and `Makefile`.
+
+Findings identify sections and line numbers without echoing brief text. It
+reports at most 100 findings. A clean result includes the exact artifact's
+SHA-256. Ordinary prose parentheses, product names and decimal quantities do
+not produce findings on their own.
+
+Recording and approval verification apply these same checks to retained briefs.
+A newly detected prescription blocks reuse until a revised brief is recorded
+in a new workflow.
 
 Lint is a backstop. It cannot establish that prose states the right behavior or
 contains no implementation prescription. A person reviews the full brief.

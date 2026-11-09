@@ -13,7 +13,11 @@ MAX_BYTES = 100_000
 REQUIRED = {"schema_version", "task_id", "problem", "acceptance_criteria", "approach", "scope"}
 PATTERNS = {
     # Start once per path token; restarting at every hyphen makes long prose quadratic.
-    "file_path": r"(?<![\w.-])(?:[.~]?[\\/])?(?:[\w.-]+[\\/])+[\w.*-]+",
+    "file_path": (
+        r"(?<![\w.-])(?:"
+        r"(?:[A-Za-z]:|[.~]?)[\\/][\w.*-]+(?:[\\/][\w.*-]+)*"
+        r"|(?:[\w.-]+[\\/])+[\w.*-]+)"
+    ),
     "dotted_name": r"\b[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+\b",
     # Spaced empty calls are unambiguous; prose such as 'quantity (including returns)' is not.
     "call": r"\b[A-Za-z_]\w*(?:\(|[ \t]+\([ \t]*\))",
@@ -21,7 +25,9 @@ PATTERNS = {
     "command_flag": r"(?<!\w)--[a-z][a-z0-9-]*\b",
     "code": r"`",
     "source_file": (
-        r"(?<![\w.-])[\w.-]+\.(?:py|xml|csv|js|jsx|ts|tsx|vue|json|toml|ya?ml|sql|sh|go|html|css|scss)\b"
+        r"(?<![\w.-])(?:[\w.-]+\."
+        r"(?i:py|xml|csv|js|jsx|ts|tsx|vue|json|toml|ya?ml|sql|sh|go|html|css|scss|md|rst|txt|ini|cfg|lock)"
+        r"|(?:Dockerfile|Makefile)(?:\.[\w.-]+)?|\.env(?:\.[\w.-]+)?|\.gitignore|\.dockerignore)\b"
     ),
 }
 

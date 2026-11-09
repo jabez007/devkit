@@ -264,15 +264,28 @@ class Spike:
             structured=True,
         )
         require(passed["status"] == "success" and not passed["findings"], passed)
+        prescriptions = [
+            "Edit models/delivery.py.",
+            "Update StockPicking.actionConfirm.",
+            "Call _validate.",
+            "Call confirm ().",
+            "Read /settings.",
+            "Read ~/settings.",
+            r"Read C:\settings.",
+            "Update README.md.",
+            "Update .env.",
+            "Update Dockerfile.",
+        ]
         cases = [
             (
-                "prescriptive.json",
-                {**json.loads(source.read_text()), "approach": "Edit models/delivery.py."},
+                f"prescriptive-{index}.json",
+                {**json.loads(source.read_text()), "approach": prescription},
                 1,
                 "PRESCRIPTIVE_BRIEF",
-            ),
-            ("oversized.json", "x" * 100001, 3, "BRIEF_LIMIT"),
+            )
+            for index, prescription in enumerate(prescriptions)
         ]
+        cases.append(("oversized.json", "x" * 100001, 3, "BRIEF_LIMIT"))
         for name, content, exit_code, reason in cases:
             path = self.root / name
             path.write_text(content if isinstance(content, str) else json.dumps(content))
