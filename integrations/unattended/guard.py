@@ -58,6 +58,7 @@ def _publication(tool, arguments):
         operation
         in {
             "pull_request_review_write",
+            "create_and_submit_pull_request_review",
             "create_pull_request_review",
             "submit_pending_pull_request_review",
         }

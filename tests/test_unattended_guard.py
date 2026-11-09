@@ -182,6 +182,7 @@ def test_background_tool_input_is_denied(guard_project):
             {"method": "submit_pending", "event": "approve"},
         ),
         ("mcp__github__create_pull_request_review", {"event": "APPROVE"}),
+        ("mcp__github__create_and_submit_pull_request_review", {"event": "APPROVE"}),
         ("mcp__github__submit_pending_pull_request_review", {"event": "APPROVE"}),
         ("mcp__github__update_pull_request", {"draft": False}),
         ("mcp__github__update_pull_request", {"draft": "false"}),
