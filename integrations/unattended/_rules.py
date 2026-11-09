@@ -12,6 +12,7 @@ REQUIRED = {
     "no-background",
     "no-credential-access",
     "literal-shell",
+    "no-operator-state",
 }
 LIST_FIELDS = {"no-protected-push": "branches", "no-credential-access": "paths"}
 
@@ -83,6 +84,11 @@ def load(path=None):
         if not _strings(value["command_prefix"]):
             raise Refusal(f"{name}: command_prefix must contain literal words")
     return rules
+
+
+def check_git_metadata_write(path):
+    if ".git" in Path(path).parts:
+        raise Refusal("no-operator-state: Git metadata cannot be changed")
 
 
 def check_prefix(words, rules):

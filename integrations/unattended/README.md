@@ -45,11 +45,12 @@ Installing these assets does not register or activate the hook.
 |---|---|
 | `no-force-push` | Force flags, forced refspecs, mirror pushes and configured mirror remotes. |
 | `no-pr-publish` | PR readiness, approval and merge; PR creation without `--draft`; raw `gh api` calls and known GitHub MCP publication tools. |
-| `no-protected-push` | Pushes to the remote's locally recorded default branch, `main`, `master`, or configured protected patterns. Unknown remote defaults and implicit or dynamic destinations are refused. |
+| `no-protected-push` | Pushes to the remote's locally recorded default branch, `main`, `master`, or configured protected patterns, in any spelling Git resolves to them. Unknown remote defaults, implicit or dynamic destinations and configured push mappings are refused. |
 | `no-remote-delete` | Remote deletion flags, deletion refspecs and pruning pushes. |
 | `no-background` | Bash background operators, detached launchers and `run_in_background` tool requests. |
 | `no-credential-access` | Direct tool access, broad searches, literal shell paths and symlinks to the subscription credential file. `CLAUDE_CONFIG_DIR` is respected. |
-| `literal-shell` | Unsupported shell syntax, dynamic Git/PR arguments, shell aliases and command indirection that the hook cannot inspect. |
+| `literal-shell` | Unsupported shell syntax, dynamic program names, dynamic Git/PR arguments, shell aliases, unknown Git commands, changes to the guarded environment and command indirection that the hook cannot inspect. |
+| `no-operator-state` | Native `gc` and `bd` commands outside the session list below, closing any bead but the assigned one, Git configuration changes other than `user.name` and `user.email`, and writes under `.git`. |
 
 The shell parser never executes the submitted command. It visits nested command
 and process substitutions, pipelines and compound commands. Literal `bash -c`
@@ -62,6 +63,14 @@ a remote. A five-second watchdog returns a refusal before the hook's ten-second
 timeout. Invalid input, missing dependencies and invalid rules also refuse the
 request without echoing its contents.
 
+A session can read beads with `show`, `list`, `ready`, `search`, `blocked` and
+`comments`, and can close the one bead named by `GC_BEAD_ID` in the hook's
+environment. It can run `gc base brief lint`, `record`, `show`, `verify` and
+`resume`, `gc base feedback questions`, `friction` and `show`, and a stack's
+`gc <stack> delivery report`. Everything else, including `brief approve`,
+`feedback answers` and `delivery publish`, is refused however the command's
+environment is arranged. Without `GC_BEAD_ID` the hook refuses every close.
+
 Use explicit pushes such as `git push origin HEAD:feature-branch`. Prepare the
 remote HEAD metadata before the session, and include the actual default and
 protected branch names in the reviewed rule file. Protection settings on GitHub
@@ -69,7 +78,8 @@ are not discovered by this offline hook. Repository metadata is not a trusted
 replacement for that operator-prepared list.
 
 The hook inspects tool requests. It does not sandbox arbitrary programs, test
-code, executable replacement or custom MCP implementations. Keep assets and
+code, executable replacement or custom MCP implementations. A program the
+session writes and runs can still call `gc` or edit Git metadata. Keep assets and
 settings read-only, review the tools exposed to the session, and retain the
 runtime and remote's independent access controls. In particular, denying a Read
 request does not make an authentication file inaccessible to arbitrary code

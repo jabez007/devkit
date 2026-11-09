@@ -16,6 +16,20 @@ ROOT = Path(__file__).resolve().parents[1]
 BASE = ROOT / "integrations/gascity/base"
 
 
+# Only what an implementation session needs; approvals and answers stay with the operator.
+SESSION_TASK_TOOLS = (
+    "Bash(gc base brief verify *)",
+    "Bash(gc base brief show *)",
+    "Bash(gc base feedback questions *)",
+    "Bash(gc base feedback friction *)",
+    "Bash(gc base feedback show *)",
+    "Bash(gc bd show *)",
+    "Bash(gc bd list *)",
+    "Bash(gc bd comments *)",
+    "Bash(gc bd close *)",
+)
+
+
 @dataclass(frozen=True)
 class Profile:
     pack: Path
@@ -91,6 +105,7 @@ def _prepare(city, root, task, attempt, profile):
                 prompt_file=str(prompt),
                 allowed_tools=list(profile.tools),
                 artifacts=str(city.artifacts),
+                assigned_bead=attempt,
             )
         )
     )

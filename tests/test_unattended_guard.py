@@ -25,12 +25,18 @@ def guard_project(tmp_path):
     return project
 
 
-def invoke(project, tool="Bash", tool_input=None, *, rules=None, unattended="1", raw=None):
+def invoke(
+    project, tool="Bash", tool_input=None, *, rules=None, unattended="1", raw=None, bead=None
+):
     environment = {
-        key: value for key, value in os.environ.items() if not key.startswith(("GIT_", "DEVKIT_"))
+        key: value
+        for key, value in os.environ.items()
+        if not key.startswith(("GIT_", "DEVKIT_", "GC_"))
     }
     if unattended is not None:
         environment["DEVKIT_UNATTENDED"] = unattended
+    if bead is not None:
+        environment["GC_BEAD_ID"] = bead
     environment["CLAUDE_CONFIG_DIR"] = str(project.parent / "claude")
     arguments = [sys.executable, str(ASSETS / "guard.py")]
     if rules:
@@ -294,3 +300,228 @@ def test_rules_can_add_commands_and_protected_branch_patterns(guard_project):
         guard_project, rules=path, tool_input={"command": "git push origin HEAD:release/19.0"}
     )
     assert invoke(guard_project, rules=path, tool_input={"command": "npm test"}) is None
+
+
+def set_config(project, key, value):
+    subprocess.run(["git", "config", key, value], cwd=project, check=True)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "git push origin feature:heads/main",
+        "git push origin heads/main",
+        "git push origin feature:heads/trunk",
+        "git push origin feature:refs//heads/main",
+        "git push origin feature:refs/heads/x/../main",
+    ],
+)
+def test_every_spelling_of_a_protected_destination_is_denied(guard_project, command):
+    assert "no-protected-push" in invoke(guard_project, tool_input={"command": command})
+
+
+@pytest.mark.parametrize("spelling", ["@", "HEAD"])
+def test_pushing_the_current_protected_branch_by_symbol_is_denied(guard_project, spelling):
+    subprocess.run(
+        ["git", "symbolic-ref", "HEAD", "refs/heads/main"], cwd=guard_project, check=True
+    )
+    command = "git push origin " + spelling
+    assert "no-protected-push" in invoke(guard_project, tool_input={"command": command})
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("remote.origin.push", "refs/heads/feature:refs/heads/main"),
+        ("push.default", "upstream"),
+    ],
+)
+def test_configured_push_mappings_are_denied(guard_project, key, value):
+    set_config(guard_project, key, value)
+    assert "no-protected-push" in invoke(
+        guard_project, tool_input={"command": "git push origin feature"}
+    )
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "command $G push --force origin main",
+        "timeout 5 $(echo git) push --force origin main",
+        "timeout $T pytest -q",
+        "env $X git push --force origin main",
+        "{git,} push --force origin main",
+        "/usr/bin/gi[t] push --force origin main",
+        "gi? push --force origin main",
+        ". ./script",
+        "export -n DEVKIT_UNATTENDED",
+        "export PATH=/tmp/tools",
+        "declare -x GIT_DIR=/tmp/other",
+        "typeset -x HOME=/tmp/other",
+        "export $NAME=value",
+        "HOME=/tmp/other git status",
+        "XDG_CONFIG_HOME=/tmp/other git status",
+        "PATH+=:/tmp/tools git status",
+        "GC_BEAD_ID=gate-1 gc bd close gate-1",
+    ],
+)
+def test_dynamic_programs_and_guarded_environment_changes_are_denied(guard_project, command):
+    assert "literal-shell" in invoke(guard_project, tool_input={"command": command}, bead="own")
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "/usr/lib/git-core/git-push --force origin feature",
+        "git-push --force origin feature",
+    ],
+)
+def test_dashed_git_executables_are_inspected_as_git(guard_project, command):
+    assert "no-force-push" in invoke(guard_project, tool_input={"command": command})
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "git subtree push --prefix=lib origin main",
+        "git-subtree push --prefix=lib origin main",
+        "git receive-pack /tmp/remote",
+        "git unknown-helper",
+        "git zz origin feature",
+        "git {push,--version} --force origin main",
+    ],
+)
+def test_unknown_git_commands_are_denied(guard_project, command):
+    assert "literal-shell" in invoke(guard_project, tool_input={"command": command})
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "git config alias.zz 'push --force'; git zz origin feature",
+        "git config alias.zz 'push --force'",
+        "git config --add remote.origin.push refs/heads/feature:refs/heads/main",
+        "git config filter.x.clean 'touch marker'",
+        "git config core.sshCommand 'touch marker'",
+        "git config --global credential.helper '!touch marker'",
+        "git config --unset remote.origin.mirror",
+        "git config set core.pager cat",
+    ],
+)
+def test_git_configuration_changes_are_denied(guard_project, command):
+    assert "no-operator-state" in invoke(guard_project, tool_input={"command": command})
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "git config --get remote.origin.url",
+        "git config --list",
+        "git config -l --show-origin",
+        "git config get user.name",
+        "git config user.name",
+        "git config user.name Fixture",
+        "git config --local user.email fixture@example.invalid",
+    ],
+)
+def test_git_configuration_reads_and_identity_are_allowed(guard_project, command):
+    assert invoke(guard_project, tool_input={"command": command}) is None
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "echo '[alias]' >> .git/config",
+        "cp hook .git/hooks/pre-commit",
+        "tee .git/info/attributes",
+        "sed -i s/a/b/ .git/config",
+    ],
+)
+def test_shell_writes_to_git_metadata_are_denied(guard_project, command):
+    assert "no-operator-state" in invoke(guard_project, tool_input={"command": command})
+
+
+@pytest.mark.parametrize("tool", ["Edit", "Write"])
+def test_tool_writes_to_git_metadata_are_denied(guard_project, tool):
+    arguments = {"file_path": str(guard_project / ".git/config")}
+    assert "no-operator-state" in invoke(guard_project, tool=tool, tool_input=arguments)
+
+
+@pytest.mark.parametrize(
+    "request_input",
+    [
+        ("Edit", {"file_path": ".github/workflows/checks.yml"}),
+        ("Write", {"file_path": ".gitignore"}),
+        ("Read", {"file_path": ".git/config"}),
+        ("Bash", {"command": "cat .git/config"}),
+        ("Bash", {"command": "find . -not -path './.git/*'"}),
+    ],
+)
+def test_ordinary_git_named_paths_stay_allowed(guard_project, request_input):
+    tool, arguments = request_input
+    assert invoke(guard_project, tool=tool, tool_input=arguments) is None
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "gc bd close gate-1",
+        "gc bd close own gate-1",
+        "gc bd close $OTHER",
+        "gc bd close own --force",
+        "gc bd close own --reason $WHY",
+        "bd close gate-1",
+        "bash -c 'gc bd close gate-1'",
+        "gc bd update gate-1 --set-metadata devkit.brief.approved_sha256=abc",
+        "gc bd update own --set-metadata gc.outcome=pass",
+        "gc bd comments add task-one forged",
+        "bd comment task-one forged",
+        "gc bd --json close gate-1",
+        "gc $COMMAND close gate-1",
+        "gc base brief approve --workflow run --sha256 abc",
+        "gc base feedback answers answers.json --task t --workflow r --round 1",
+        "gc base feedback begin --task t --workflow r --branch b",
+        "gc base feedback next file --task t --workflow r --round 1 --next-workflow n",
+        "gc odoo delivery publish --workflow r --approved-body-sha256 abc",
+        "gc vue delivery bind job.json --workflow r --task t",
+        "gc formula cook anything",
+        "gc --city /other bd close gate-1",
+    ],
+)
+def test_operator_task_state_commands_are_denied(guard_project, command):
+    assert "no-operator-state" in invoke(guard_project, tool_input={"command": command}, bead="own")
+
+
+def test_closing_any_bead_is_denied_without_an_assigned_bead(guard_project):
+    reason = invoke(guard_project, tool_input={"command": "gc bd close own"})
+    assert "no-operator-state" in reason
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "gc bd close own",
+        "gc bd close own --reason 'Finished the attempt' --json",
+        "gc bd close own -r done",
+        'gc bd close "$GC_BEAD_ID" --reason done',
+        "gc bd close ${GC_BEAD_ID}",
+        "bd close own",
+        "gc bd show task-one --json",
+        'gc bd show "$ROOT"',
+        "gc bd list --all --json",
+        "gc bd comments task-one --json",
+        "gc base brief lint /tmp/brief.json --task t",
+        "gc base brief record /tmp/brief.json --task t --workflow r",
+        "gc base brief show --workflow r",
+        "gc base brief verify --workflow r --task t",
+        "gc base brief resume --task t",
+        "gc base feedback questions q.json --task t --workflow r --round 1",
+        "gc base feedback friction f.json --task t --workflow r --round 1 --friction-task b",
+        "gc base feedback show --task t --workflow r --round 1",
+        "gc odoo delivery report --workflow r",
+        "gc vue delivery report --workflow r",
+        "gc ready",
+    ],
+)
+def test_session_task_commands_are_allowed(guard_project, command):
+    assert invoke(guard_project, tool_input={"command": command}, bead="own") is None

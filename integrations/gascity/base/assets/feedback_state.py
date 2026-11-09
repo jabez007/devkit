@@ -11,6 +11,7 @@ from native_state import StateError, _gc, _identity, _show, _update
 
 PREFIX = "devkit.feedback."
 MARKER = "devkit-feedback:v1\n"
+AUTHOR = "Devkit feedback"
 FIELDS = {
     "question": {"question", "assumption", "reason"},
     "friction": {"command", "expected", "observed", "action"},
@@ -129,7 +130,8 @@ def comments(task):
     for item in values:
         if not isinstance(item, dict) or not isinstance(item.get("text"), str):
             raise StateError("INVALID_TASK_STATE")
-        if item["text"].startswith(MARKER):
+        # Only this module writes as AUTHOR; a marker alone proves nothing about who wrote it.
+        if item.get("author") == AUTHOR and item["text"].startswith(MARKER):
             event = json.loads(item["text"][len(MARKER) :], object_pairs_hook=_object)
             if not isinstance(event, dict) or event.get("schema_version") != 1:
                 raise StateError("INVALID_FEEDBACK_COMMENT")
@@ -164,7 +166,7 @@ def _append(task, events):
             task,
             MARKER + json.dumps(event, ensure_ascii=True, sort_keys=True),
             "--author",
-            "Devkit feedback",
+            AUTHOR,
         )
         existing.add(event["id"])
         added += 1

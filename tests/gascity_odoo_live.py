@@ -3,7 +3,7 @@
 import shutil
 from pathlib import Path
 
-from tests.gascity_live import Profile
+from tests.gascity_live import SESSION_TASK_TOOLS, Profile
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "examples/gascity-spike"
@@ -14,7 +14,7 @@ PROFILE = Profile(
         "Read",
         "Edit",
         "Write",
-        "Bash(gc *)",
+        *SESSION_TASK_TOOLS,
         "Bash(cd *)",
         "Bash(git *)",
         "Bash(devkit-odoo *)",

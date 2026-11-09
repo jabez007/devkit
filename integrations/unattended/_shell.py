@@ -1,10 +1,12 @@
 """Visit real Bash syntax, including nested substitutions, without executing it."""
 
+import re
 from pathlib import Path
 
 import bashlex
 from _git import inspect as inspect_git
-from _rules import Refusal, check_prefix
+from _rules import Refusal, check_git_metadata_write, check_prefix
+from _task_state import inspect as inspect_task_state
 
 LAUNCHERS = {
     "timeout": {
@@ -19,6 +21,12 @@ LAUNCHERS = {
         "positional": 0,
     },
 }
+DECLARATIONS = {"export", "declare", "typeset", "local", "readonly"}
+METADATA_WRITERS = {"cp", "mv", "tee", "install", "ln", "sed"}
+FILE_REDIRECTS = {">", ">>", ">|", "&>", "&>>", "<>"}
+# Brace, glob and other shell expansion leave no node for the parser to report.
+LITERAL_PROGRAM = re.compile(r"\[|[\w.+:-]+")
+VARIABLE = re.compile(r"[A-Za-z_]\w*")
 
 
 def _launcher(program, arguments):
@@ -47,14 +55,26 @@ def _launcher(program, arguments):
 
 
 def _assignment(word):
-    name = word.split("=", 1)[0]
-    if name.startswith(("GIT_", "GH_", "DEVKIT_", "CLAUDE_")) or name in {
+    match = VARIABLE.match(word)
+    name = match.group() if match else word
+    if name.startswith(("GIT_", "GH_", "DEVKIT_", "CLAUDE_", "GC_")) or name in {
         "PATH",
         "BASH_ENV",
         "ENV",
         "SHELLOPTS",
+        "HOME",
+        "XDG_CONFIG_HOME",
     }:
         raise Refusal("literal-shell: command cannot override the guarded runtime environment")
+
+
+def _declaration(arguments):
+    for word in arguments[1:]:
+        if word.startswith(("-", "+")):
+            continue
+        if not VARIABLE.fullmatch(word.split("=", 1)[0]):
+            raise Refusal("literal-shell: declared variable name must be literal")
+        _assignment(word)
 
 
 def _unwrap(words):
@@ -172,45 +192,39 @@ class Inspection(bashlex.ast.nodevisitor):
         words = [part for part in parts if part.kind == "word"]
         if not words:
             return
-        if words[0].parts:
-            raise Refusal("literal-shell: command name must be literal")
         arguments = _unwrap([word.word for word in words])
         if not arguments:
             return
+        program = len(words) - len(arguments)
+        # A wrapper's expanded argument could itself become the program it starts.
+        if any(word.parts for word in words[: program + 1]) or not LITERAL_PROGRAM.fullmatch(
+            arguments[0]
+        ):
+            raise Refusal("literal-shell: command name must be literal")
         self._inspect(arguments, words)
 
     def visitword(self, node, word):
         self.credential_check(word)
 
+    def visitredirect(self, node, source, kind, output, heredoc):
+        if kind in FILE_REDIRECTS and hasattr(output, "word"):
+            check_git_metadata_write(output.word)
+
     def _inspect(self, arguments, nodes):
         program = arguments[0]
-        if program in {"git-send-pack", "git-http-push"}:
+        if program.startswith("git-"):
             arguments = ["git", program.removeprefix("git-"), *arguments[1:]]
             program = "git"
-        if program in {"nohup", "disown", "bg", "setsid", "daemonize"}:
-            raise Refusal("no-background: detached processes are forbidden")
-        if program in {
-            "eval",
-            "source",
-            ".",
-            "sudo",
-            "xargs",
-            "parallel",
-            "alias",
-            "unalias",
-            "unset",
-            "enable",
-            "trap",
-            "ionice",
-            "chrt",
-        }:
-            raise Refusal("literal-shell: indirect commands cannot be inspected")
-        if program == "find" and any(
-            word in {"-exec", "-execdir", "-ok", "-okdir"} for word in arguments[1:]
-        ):
-            raise Refusal("literal-shell: find command execution cannot be inspected")
+        _refuse_indirection(program, arguments)
+        if program in DECLARATIONS:
+            _declaration(arguments)
+        if program in METADATA_WRITERS:
+            for word in arguments[1:]:
+                check_git_metadata_write(word)
         if program in {"bash", "sh", "zsh", "dash"}:
             self._shell(arguments)
+        elif program in {"gc", "bd"}:
+            inspect_task_state(arguments, [bool(node.parts) for node in nodes[-len(arguments) :]])
         elif program in {"git", "gh"}:
             if any(node.parts for node in nodes):
                 raise Refusal("literal-shell: Git and PR arguments must be literal")
@@ -224,6 +238,31 @@ class Inspection(bashlex.ast.nodevisitor):
         if len(arguments) < 3 or arguments[1] not in {"-c", "-lc", "-ec", "-lec"}:
             raise Refusal("literal-shell: only literal shell -c commands can be inspected")
         inspect(arguments[2], self.cwd, self.rules, self.credential_check, self.depth + 1)
+
+
+def _refuse_indirection(program, arguments):
+    if program in {"nohup", "disown", "bg", "setsid", "daemonize"}:
+        raise Refusal("no-background: detached processes are forbidden")
+    if program in {
+        "eval",
+        "source",
+        ".",
+        "sudo",
+        "xargs",
+        "parallel",
+        "alias",
+        "unalias",
+        "unset",
+        "enable",
+        "trap",
+        "ionice",
+        "chrt",
+    }:
+        raise Refusal("literal-shell: indirect commands cannot be inspected")
+    if program == "find" and any(
+        word in {"-exec", "-execdir", "-ok", "-okdir"} for word in arguments[1:]
+    ):
+        raise Refusal("literal-shell: find command execution cannot be inspected")
 
 
 def inspect(command, cwd, rules, credential_check, depth=0):

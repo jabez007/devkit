@@ -39,6 +39,7 @@ def session(tmp_path):
         "api_key='ANTHROPIC_API_KEY' in os.environ, "
         "auth_token='ANTHROPIC_AUTH_TOKEN' in os.environ, "
         "git_overrides=any(key.startswith('GIT_') for key in os.environ), "
+        "bead=os.environ.get('GC_BEAD_ID'), "
         "unattended=os.environ.get('DEVKIT_UNATTENDED'))))\n"
         "sys.exit(int(os.environ.get('FAKE_EXIT_CODE', '0')))\n"
     )
@@ -103,6 +104,8 @@ def test_base_launcher_excludes_inherited_git_workspace_overrides(session):
         {"mcp_config": "/nonexistent/project-mcp.json"},
         {"allowed_tools": []},
         {"additional_flags": ["--bare"]},
+        {"assigned_bead": "../other"},
+        {"assigned_bead": 7},
         {"project": "relative/project"},
     ],
 )
@@ -127,3 +130,17 @@ def test_base_launcher_refuses_oversized_prompt(session):
     Path(session[1]["prompt_file"]).write_bytes(b"x" * 1_000_001)
     result = launch(session)
     assert result.returncode != 0 and "DEVKIT_SESSION_READY" not in result.stdout
+
+
+def test_base_launcher_tells_the_guard_which_bead_the_session_may_close(session):
+    path, data, _ = session
+    path.write_text(json.dumps({**data, "assigned_bead": "attempt-1"}))
+    assert launch(session, GC_BEAD_ID="inherited").returncode == 0
+    observed = json.loads((Path(data["artifacts"]) / "agent.jsonl").read_text())
+    assert observed["bead"] == "attempt-1"
+
+
+def test_base_launcher_keeps_a_native_bead_when_none_is_configured(session):
+    assert launch(session, GC_BEAD_ID="native").returncode == 0
+    observed = json.loads((Path(session[1]["artifacts"]) / "agent.jsonl").read_text())
+    assert observed["bead"] == "native"

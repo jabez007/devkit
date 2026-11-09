@@ -2,12 +2,14 @@
 
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
 
 READY = "DEVKIT_SESSION_READY"
 KEYS = {"project", "city_settings", "mcp_config", "prompt_file", "allowed_tools", "artifacts"}
+ASSIGNED_BEAD = "assigned_bead"
 
 
 def _read(path):
@@ -24,8 +26,13 @@ def _json(path):
 
 def configuration(path):
     config = _json(path)
-    if not isinstance(config, dict) or set(config) != KEYS:
+    if not isinstance(config, dict) or not KEYS <= set(config) <= KEYS | {ASSIGNED_BEAD}:
         raise ValueError("Expected the documented session configuration")
+    if ASSIGNED_BEAD in config and not (
+        isinstance(config[ASSIGNED_BEAD], str)
+        and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}", config[ASSIGNED_BEAD])
+    ):
+        raise ValueError("The assigned bead must be a bead identifier")
     tools = config["allowed_tools"]
     if not isinstance(tools, list) or not tools or not all(isinstance(t, str) and t for t in tools):
         raise ValueError("Explicit allowed_tools are required")
@@ -77,6 +84,9 @@ def run(config, prompt):
     # Match the checkout helper: inherited Git state must not redirect work to another checkout.
     environment = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
     environment["DEVKIT_UNATTENDED"] = "1"
+    if ASSIGNED_BEAD in config:
+        # The guard reads this to decide which bead the session may close.
+        environment["GC_BEAD_ID"] = config[ASSIGNED_BEAD]
     environment.pop("ANTHROPIC_API_KEY", None)
     environment.pop("ANTHROPIC_AUTH_TOKEN", None)
     with (output / "agent.jsonl").open("w") as out, (output / "agent.stderr").open("w") as err:

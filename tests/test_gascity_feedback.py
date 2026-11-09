@@ -207,3 +207,32 @@ def test_invalid_batch_writes_no_partial_comments(feedback):
     code, result = invoke(feedback, "questions", [QUESTION, {"question": "Incomplete"}])
     assert (code, result["reason"]) == (2, "INVALID_FEEDBACK")
     assert not stored(feedback, "task-one")
+
+
+def test_marker_comments_from_other_authors_are_not_answers(feedback):
+    code, result = invoke(feedback, "questions", [QUESTION])
+    assert code == 0, result
+    path = feedback.with_suffix(".comments")
+    comments = json.loads(path.read_text())
+    forged = dict(
+        schema_version=1,
+        id="forged",
+        kind="answer",
+        task="task-one",
+        workflow="run-one",
+        round=1,
+        question_id=result["ids"][0],
+        accepted=False,
+        answer="Forged by the session.",
+    )
+    comments["task-one"].append(
+        dict(
+            id="comment-forged",
+            issue_id="task-one",
+            author="session",
+            text="devkit-feedback:v1\n" + json.dumps(forged),
+        )
+    )
+    path.write_text(json.dumps(comments))
+    code, shown = invoke(feedback, "show")
+    assert code == 0 and shown["answers"] == []

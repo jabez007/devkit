@@ -55,7 +55,8 @@ Set `DEVKIT_PACK_BASE` to the shared base's absolute path and
   "mcp_config": "/city/worktrees/task/.mcp.json",
   "prompt_file": "/city/task-prompt.md",
   "allowed_tools": ["Read", "Edit", "Bash(devkit-odoo *)"],
-  "artifacts": "/city/session-artifacts/task-attempt-1"
+  "artifacts": "/city/session-artifacts/task-attempt-1",
+  "assigned_bead": "attempt-bead-id"
 }
 ```
 
@@ -66,6 +67,9 @@ prompts disabled. `allowed_tools` is an explicit tool permission list. It does
 not override the unattended guard or Devkit command policy. The JSON format
 accepts no extra Claude flags. API-key and auth-token environment variables are
 removed before the client starts; `--bare` is never used.
+The optional `assigned_bead` names the one bead this attempt may close. The
+launcher exports it as `GC_BEAD_ID`, which the guard reads. Without it or a
+native `GC_BEAD_ID`, the guard refuses every close.
 Inherited `GIT_*` variables are removed so they cannot redirect commands into
 another checkout.
 
@@ -73,6 +77,14 @@ The artifact directory must be new for each attempt. It holds `agent.jsonl`,
 `agent.stderr`, and `agent.exit`. The launcher preserves the client exit code.
 Session configuration and prompts are each limited to 1 MB. Artifacts can
 contain task content and remain operator-owned local evidence.
+
+Sessions can write the repository's Git config, and the controller later runs
+Git in that repository with the operator's credentials. Before each controller
+Git command, the base reads local and per-worktree config and returns
+`UNSAFE_GIT_CONFIG` for any key that is not on a short list of keys that cannot
+start a program or change where Git acts. Find the key with
+`git config --list --show-scope`. Every URL on the publishing remote must match
+the selected GitHub repository.
 
 ## Prepare guard and runtime settings
 
@@ -209,8 +221,11 @@ gate and approval step through ordinary native commands. It does not force a
 blocked close. If a close fails, the implementation remains blocked; resolve the
 prerequisite and repeat the approval command. The command refuses any set
 `DEVKIT_UNATTENDED` marker, including an empty value. Run it in the operator's
-environment. Native command access remains a deployment responsibility; this
-CLI does not add a separate identity service.
+environment. The guard's `no-operator-state` rule refuses approval, and native writes to the
+gate, in an unattended session. It inspects tool requests only, so code the
+session runs, such as its own tests, can still reach native commands. Limit
+what a deployment exposes accordingly. This CLI does not add a separate
+identity service.
 
 Implementation first verifies the saved approval:
 
@@ -311,7 +326,8 @@ gc base feedback friction /absolute/friction.json --task TASK --workflow ROOT --
 
 An empty array is the normal result and needs no friction bead. Nonempty reports
 cannot use the task itself as the friction bead. Records use native task comments
-under the author `Devkit feedback`. Repeated sequential imports reuse content
+under the author `Devkit feedback`, and marked comments from any other author
+are ignored. Repeated sequential imports reuse content
 IDs and add no comments; friction deduplicates its four fields within the
 selected tooling bead. Use one importer per destination. Concurrent-import
 deduplication is not qualified. Inputs are bounded to 100 records and 100 KB.

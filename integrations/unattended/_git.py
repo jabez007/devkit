@@ -7,6 +7,24 @@ import subprocess
 
 from _rules import Refusal, check_prefix
 
+# Git runs these itself and never lets an alias replace them. Any other name is an
+# alias or an external git-* program, such as subtree, which pushes on its own.
+KNOWN_COMMANDS = {
+    "add", "am", "apply", "archive", "bisect", "blame", "branch", "bundle", "cat-file",
+    "check-attr", "check-ignore", "check-mailmap", "check-ref-format", "checkout", "cherry",
+    "cherry-pick", "clean", "clone", "commit", "commit-tree", "count-objects", "describe",
+    "diff", "diff-files", "diff-index", "diff-tree", "fetch", "for-each-ref", "format-patch",
+    "fsck", "gc", "grep", "hash-object", "help", "init", "log", "ls-files", "ls-remote",
+    "ls-tree", "merge", "merge-base", "merge-file", "mv", "name-rev", "notes", "pull",
+    "rebase", "reflog", "remote", "repack", "replace", "rerere", "reset", "restore",
+    "rev-list", "rev-parse", "revert", "rm", "shortlog", "show", "show-branch", "show-ref",
+    "sparse-checkout", "stash", "status", "switch", "symbolic-ref", "tag", "update-index",
+    "update-ref", "var", "verify-commit", "verify-tag", "version", "worktree", "write-tree",
+}  # fmt: skip
+CONFIG_READS = {"--get", "--get-all", "--get-regexp", "--get-urlmatch", "--list", "-l"}
+CONFIG_SCOPES = {"--local", "--global", "--worktree"}
+SESSION_CONFIG = {"user.name", "user.email"}
+
 
 def read(cwd, *arguments):
     environment = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
@@ -89,10 +107,17 @@ def _push_targets(arguments):
 
 def _destination(refspec, cwd):
     destination = refspec.split(":", 1)[-1]
-    if destination == "HEAD":
+    if destination in {"HEAD", "@"}:
         destination = read(cwd, "symbolic-ref", "--quiet", "--short", "HEAD") or ""
-    destination = destination.removeprefix("refs/heads/")
-    if not destination or any(char in destination for char in "$`*?[]{}~^\\"):
+    # Git also resolves heads/<name> on the remote, so both prefixes name a branch.
+    destination = destination.removeprefix("refs/heads/").removeprefix("heads/")
+    if (
+        not destination
+        or "//" in destination
+        or ".." in destination
+        or destination.startswith("/")
+        or any(char in destination for char in "$`*?[]{}~^\\")
+    ):
         raise Refusal("no-protected-push: push destination is not a literal branch")
     return destination
 
@@ -105,16 +130,40 @@ def inspect(words, cwd, rules, depth=0):
     check_prefix(["git", command, *arguments], rules)
     if command in {"push", "send-pack", "http-push"}:
         _inspect_push(arguments, cwd, rules)
-    else:
+    elif command == "config":
+        _inspect_config(arguments)
+    elif command not in KNOWN_COMMANDS:
         _inspect_alias(command, arguments, cwd, rules, depth)
+
+
+def _inspect_config(arguments):
+    """Refuse writes, because a later command in the request would obey them unseen."""
+    options = {argument for argument in arguments if argument.startswith("-")}
+    names = [argument for argument in arguments if not argument.startswith("-")]
+    if options & CONFIG_READS or names[:1] in (["get"], ["list"]):
+        return
+    if options <= CONFIG_SCOPES and (
+        len(names) == 1 or (len(names) == 2 and names[0].lower() in SESSION_CONFIG)
+    ):
+        return
+    raise Refusal("no-operator-state: Git configuration cannot be changed")
 
 
 def _inspect_alias(command, arguments, cwd, rules, depth):
     alias = read(cwd, "config", "--get", f"alias.{command}")
-    if alias:
-        if depth >= 4 or alias.startswith("!"):
-            raise Refusal("literal-shell: shell or recursive Git alias")
-        inspect(["git", *shlex.split(alias), *arguments], cwd, rules, depth + 1)
+    if not alias:
+        raise Refusal("literal-shell: unknown Git command")
+    if depth >= 4 or alias.startswith("!"):
+        raise Refusal("literal-shell: shell or recursive Git alias")
+    inspect(["git", *shlex.split(alias), *arguments], cwd, rules, depth + 1)
+
+
+def _refuse_configured_mapping(remote, cwd):
+    """Git applies these to a push that names only a source, moving its destination."""
+    if read(cwd, "config", "--get", f"remote.{remote}.push") or read(
+        cwd, "config", "--get", "push.default"
+    ) in {"upstream", "tracking"}:
+        raise Refusal("no-protected-push: configured push mapping can change the destination")
 
 
 def _inspect_push(arguments, cwd, rules):
@@ -125,6 +174,7 @@ def _inspect_push(arguments, cwd, rules):
     remote, targets = _push_targets(arguments)
     if read(cwd, "config", "--bool", "--get", f"remote.{remote}.mirror") == "true":
         raise Refusal("no-force-push: remote is configured for mirror pushes")
+    _refuse_configured_mapping(remote, cwd)
     default = read(cwd, "symbolic-ref", "--quiet", "--short", f"refs/remotes/{remote}/HEAD")
     if not default:
         raise Refusal("no-protected-push: remote default branch is unknown")

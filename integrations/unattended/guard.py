@@ -7,7 +7,7 @@ import signal
 import sys
 from pathlib import Path
 
-from _rules import Refusal, load
+from _rules import Refusal, check_git_metadata_write, load
 
 
 def _credential_paths(rules):
@@ -56,6 +56,8 @@ def inspect(event, rules):
     if tool in {"Read", "Edit", "Write", "NotebookEdit"}:
         value = arguments.get("file_path", arguments.get("notebook_path", ""))
         _credential_check(value, cwd, credentials)
+        if tool != "Read":
+            check_git_metadata_write(_path(value, cwd))
     if tool in {"Glob", "Grep"}:
         target = _path(arguments.get("path", str(cwd)), cwd)
         if any(path == target or path.is_relative_to(target) for path in credentials):
