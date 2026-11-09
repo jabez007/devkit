@@ -184,8 +184,14 @@ case-insensitive source extensions, `.env` variants, `.gitignore`,
 
 Findings identify sections and line numbers without echoing brief text. It
 reports at most 100 findings. A clean result includes the exact artifact's
-SHA-256. Ordinary prose parentheses, product names and decimal quantities do
-not produce findings on their own.
+SHA-256.
+
+These do not produce findings on their own: prose parentheses, decimal
+quantities, `(s)` plurals, single-letter abbreviations such as `e.g.` and `U.S.`,
+`Node.js`, `Vue.js`, and slash pairs of two plain parts such as `and/or` and
+`24/7`. A relative path is flagged only when it has three or more parts or a
+part containing `.`, `_` or `*`, so a two-part path like `models/order` is left
+to the reviewer.
 
 Recording and approval verification apply these same checks to retained briefs.
 A newly detected prescription blocks reuse until a revised brief is recorded

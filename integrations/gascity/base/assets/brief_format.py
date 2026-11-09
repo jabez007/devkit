@@ -11,21 +11,31 @@ from native_state import BEAD_ID as TASK
 
 MAX_BYTES = 100_000
 REQUIRED = {"schema_version", "task_id", "problem", "acceptance_criteria", "approach", "scope"}
+# Two plain parts read as prose, such as and/or or 24/7. A third part, or a '.', '_' or
+# '*' in a part, marks a path. A sentence-ending period does not count.
+PROSE_SLASH_PAIR = r"(?:[^\W_]|-)+[\\/](?:[^\W_]|-)+(?!\.*[\w*\\/-])"
+PRODUCT_NAME = r"(?:Node|Vue)\.js\b"
 PATTERNS = {
     # Start once per path token; restarting at every hyphen makes long prose quadratic.
     "file_path": (
         r"(?<![\w.-])(?:"
         r"(?:[A-Za-z]:|[.~]?)[\\/][\w.*-]+(?:[\\/][\w.*-]+)*"
-        r"|(?:[\w.-]+[\\/])+[\w.*-]+)"
+        rf"|(?!{PROSE_SLASH_PAIR})(?:[\w.-]+[\\/])+[\w.*-]+)"
     ),
-    "dotted_name": r"\b[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+\b",
+    # Short all-single-letter names are abbreviations such as e.g. and U.S. The bound
+    # keeps a long dotted chain from being rescanned at every letter.
+    "dotted_name": (
+        rf"\b(?!{PRODUCT_NAME})(?![A-Za-z](?:\.[A-Za-z]){{1,3}}\.?(?![\w.]))"
+        r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+\b"
+    ),
     # Spaced empty calls are unambiguous; prose such as 'quantity (including returns)' is not.
-    "call": r"\b[A-Za-z_]\w*(?:\(|[ \t]+\([ \t]*\))",
+    # A bare (s) is a plural, as in item(s).
+    "call": r"\b[A-Za-z_]\w*(?:\((?!s\))|[ \t]+\([ \t]*\))",
     "identifier": r"\b(?:_+[A-Za-z][A-Za-z0-9_]*|[A-Za-z][A-Za-z0-9]*_[A-Za-z0-9_]+)\b",
     "command_flag": r"(?<!\w)--[a-z][a-z0-9-]*\b",
     "code": r"`",
     "source_file": (
-        r"(?<![\w.-])(?:[\w.-]+\."
+        rf"(?<![\w.-])(?!{PRODUCT_NAME})(?:[\w.-]+\."
         r"(?i:py|xml|csv|js|jsx|ts|tsx|vue|json|toml|ya?ml|sql|sh|go|html|css|scss|md|rst|txt|ini|cfg|lock)"
         r"|(?:Dockerfile|Makefile)(?:\.[\w.-]+)?|\.env(?:\.[\w.-]+)?|\.gitignore|\.dockerignore)\b"
     ),

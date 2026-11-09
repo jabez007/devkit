@@ -65,6 +65,10 @@ def test_pack_command_runs_in_native_gate_path_without_interactive_shims(brief):
     [
         ("Edit addons/sale/models/order.py to store the quantity.", "file_path"),
         ("Change models\\order.py before shipping.", "file_path"),
+        ("Edit src/models/order before shipping.", "file_path"),
+        ("Edit delivery_models/order before shipping.", "file_path"),
+        ("Edit models/delivery_order before shipping.", "file_path"),
+        ("Edit models/* before shipping.", "file_path"),
         ("Read /settings before shipping.", "file_path"),
         ("Read ~/settings before shipping.", "file_path"),
         (r"Read C:\settings before shipping.", "file_path"),
@@ -72,7 +76,9 @@ def test_pack_command_runs_in_native_gate_path_without_interactive_shims(brief):
         ("Update StockPicking.actionConfirm before shipping.", "dotted_name"),
         ("Update res.Partner before shipping.", "dotted_name"),
         ("Change SALES.ORDER before shipping.", "dotted_name"),
+        ("Update res.p before shipping.", "dotted_name"),
         ("Call button_validate() once.", "call"),
+        ("Call refresh(x) once.", "call"),
         ("Call confirm () once.", "call"),
         ("Call confirm\t( ) once.", "call"),
         ("Add delivered_qty to the form.", "identifier"),
@@ -82,6 +88,8 @@ def test_pack_command_runs_in_native_gate_path_without_interactive_shims(brief):
         ("Run the command with --test-enable.", "command_flag"),
         ("Use `python` to calculate the remainder.", "code"),
         ("Update package.json.", "source_file"),
+        ("Update node.js before shipping.", "source_file"),
+        ("Update Index.js before shipping.", "source_file"),
         ("Update README.md before shipping.", "source_file"),
         ("Update README.MD before shipping.", "source_file"),
         ("Update DELIVERY.PY before shipping.", "source_file"),
@@ -118,6 +126,34 @@ def test_lint_flags_obvious_implementation_names_without_echoing_text(brief, pre
     ],
 )
 def test_lint_accepts_prose_parentheses_product_names_and_decimals(brief, behavior):
+    path, content = brief
+    content["approach"] = behavior
+    path.write_text(json.dumps(content))
+    code, result = lint(path)
+    assert code == 0 and result["findings"] == [], result
+
+
+@pytest.mark.parametrize(
+    "behavior",
+    [
+        "Let users sign in and/or sign out.",
+        "Let users choose one or both of sign in and/or.",
+        "Keep the client/server handshake.",
+        "Allow read/write access.",
+        "Stop at 1/2 of the limit.",
+        "Open the 24/7 support page.",
+        "Run an A/B comparison.",
+        "Mark the line N/A on the form.",
+        "Allow 50 orders/day.",
+        "Refund some orders, e.g. partial ones.",
+        "Refund the rest, i.e. partial ones.",
+        "Sell to customers in the U.S. market.",
+        "Show the banner to Node.js users.",
+        "Show the banner on the Vue.js page.",
+        "List each item(s) on the order.",
+    ],
+)
+def test_lint_accepts_common_prose_shorthand(brief, behavior):
     path, content = brief
     content["approach"] = behavior
     path.write_text(json.dumps(content))
@@ -186,6 +222,14 @@ def test_lint_bounds_work_for_long_punctuation_separated_words(brief):
     path.write_text(json.dumps(content))
     code, result = lint(path)
     assert code == 0 and result["status"] == "success"
+
+
+def test_lint_bounds_work_for_long_single_letter_dotted_names(brief):
+    path, content = brief
+    content["problem"] = "a." * 40_000 + "a"
+    path.write_text(json.dumps(content))
+    code, result = lint(path)
+    assert code == 1 and {finding["kind"] for finding in result["findings"]} == {"dotted_name"}
 
 
 @pytest.mark.parametrize("prefix", ["/", "~/", "C:\\"])
