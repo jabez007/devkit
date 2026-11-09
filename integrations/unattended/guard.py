@@ -9,6 +9,26 @@ from pathlib import Path
 
 from _rules import Refusal, check_git_metadata_write, load
 
+MCP_FILE_READS = {
+    "read_file",
+    "read_text_file",
+    "read_media_file",
+    "get_file_info",
+    "list_directory",
+    "list_directory_with_sizes",
+    "directory_tree",
+    "search_files",
+}
+MCP_FILE_WRITES = {"write_file", "append_file", "edit_file", "create_directory"}
+MCP_REMOTE_WRITES = {
+    "git_push",
+    "push_files",
+    "create_branch",
+    "create_or_update_file",
+    "delete_file",
+    "update_pull_request_branch",
+}
+
 
 def _credential_paths(rules):
     paths = rules["no-credential-access"]["paths"]
@@ -34,10 +54,67 @@ def _publication(tool, arguments):
     operation = tool.rsplit("__", 1)[-1]
     if operation in {"merge_pull_request", "mark_pull_request_ready_for_review"}:
         raise Refusal("no-pr-publish: PR readiness and merge require human review")
-    if operation == "pull_request_review_write" and arguments.get("event") == "APPROVE":
+    if (
+        operation
+        in {
+            "pull_request_review_write",
+            "create_pull_request_review",
+            "submit_pending_pull_request_review",
+        }
+        and str(arguments.get("event", "")).upper() == "APPROVE"
+    ):
         raise Refusal("no-pr-publish: PR approval requires human review")
     if operation == "create_pull_request" and arguments.get("draft") is not True:
         raise Refusal("no-pr-publish: unattended PR creation must be a draft")
+    if (
+        operation in {"update_pull_request", "update_pull_request_draft_state"}
+        and "draft" in arguments
+        and arguments["draft"] is not True
+    ):
+        raise Refusal("no-pr-publish: PR readiness requires human review")
+
+
+def _mcp_paths(operation, arguments):
+    if operation == "read_multiple_files":
+        paths = arguments.get("paths")
+        if not isinstance(paths, list):
+            raise Refusal("guard-input: MCP batch paths must be a list")
+        return [(path, False) for path in paths]
+    if operation in {"move_file", "copy_file"}:
+        return [
+            (arguments["source"], operation == "move_file"),
+            (arguments["destination"], True),
+        ]
+    if operation in MCP_FILE_READS | MCP_FILE_WRITES:
+        return [(arguments["path"], operation in MCP_FILE_WRITES)]
+    return []
+
+
+def _mcp_file(value, writable, cwd, credentials):
+    # The server's working directory can differ from the Claude request's cwd.
+    if not isinstance(value, str) or not Path(value).is_absolute():
+        raise Refusal("guard-input: MCP filesystem paths must be absolute")
+    # Filesystem tools receive literal paths, not shell-expanded arguments.
+    target = Path(value).resolve()
+    _credential_check(str(target), cwd, credentials)
+    if writable:
+        check_git_metadata_write(target)
+
+
+def _mcp(tool, arguments, cwd, credentials):
+    if not tool.startswith("mcp__"):
+        return
+    operation = tool.rsplit("__", 1)[-1]
+    if operation in {"delete_branch", "delete_ref"}:
+        raise Refusal("no-remote-delete: remote branches cannot be deleted")
+    if operation in MCP_REMOTE_WRITES:
+        if arguments.get("force") or arguments.get("force_with_lease"):
+            raise Refusal("no-force-push: forced remote writes are forbidden")
+        # An MCP owner/repo need not match cwd. Local Git metadata cannot prove
+        # that this remote target is an unprotected, non-default branch.
+        raise Refusal("no-protected-push: use an inspected explicit Git push instead of MCP writes")
+    for value, writable in _mcp_paths(operation, arguments):
+        _mcp_file(value, writable, cwd, credentials)
 
 
 def inspect(event, rules):
@@ -53,6 +130,7 @@ def inspect(event, rules):
     if arguments.get("run_in_background"):
         raise Refusal("no-background: background tool execution is forbidden")
     _publication(tool, arguments)
+    _mcp(tool, arguments, cwd, credentials)
     if tool in {"Read", "Edit", "Write", "NotebookEdit"}:
         value = arguments.get("file_path", arguments.get("notebook_path", ""))
         _credential_check(value, cwd, credentials)

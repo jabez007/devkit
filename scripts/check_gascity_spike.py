@@ -681,6 +681,31 @@ class Spike:
             ("Bash", {"command": "git push --force"}, GUARD_REASON),
             ("Bash", {"command": "gh pr merge 1"}, "no-pr-publish"),
             ("Bash", {"command": "gh pr ready 1"}, "no-pr-publish"),
+            ("Bash", {"command": "gh pr review 1 -ab LGTM"}, "no-pr-publish"),
+            ("mcp__github__update_pull_request", {"draft": False}, "no-pr-publish"),
+            ("mcp__github__create_pull_request_review", {"event": "APPROVE"}, "no-pr-publish"),
+            ("mcp__github__push_files", {"branch": "main"}, "no-protected-push"),
+            ("mcp__github__delete_branch", {"branch": "feature"}, "no-remote-delete"),
+            (
+                "mcp__filesystem__read_multiple_files",
+                {
+                    "paths": [
+                        str(self.worktree / "README.md"),
+                        str(self.worktree / ".credentials.json"),
+                    ]
+                },
+                CREDENTIAL_REASON,
+            ),
+            (
+                "mcp__filesystem__write_file",
+                {"path": str(self.worktree / ".git/config"), "content": ""},
+                "no-operator-state",
+            ),
+            (
+                "mcp__filesystem__read_text_file",
+                {"path": str(self.worktree / "addons/example/__manifest__.py")},
+                None,
+            ),
             ("Bash", {"command": "sleep 1", "run_in_background": True}, "no-background"),
             ("Read", {"file_path": str(self.worktree / ".credentials.json")}, CREDENTIAL_REASON),
             ("Read", {"file_path": str(self.worktree / "addons/example/__manifest__.py")}, None),

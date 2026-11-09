@@ -177,10 +177,208 @@ def test_background_tool_input_is_denied(guard_project):
         ("mcp__github__merge_pull_request", {}),
         ("mcp__github__mark_pull_request_ready_for_review", {}),
         ("mcp__github__pull_request_review_write", {"event": "APPROVE"}),
+        (
+            "mcp__github__pull_request_review_write",
+            {"method": "submit_pending", "event": "approve"},
+        ),
+        ("mcp__github__create_pull_request_review", {"event": "APPROVE"}),
+        ("mcp__github__submit_pending_pull_request_review", {"event": "APPROVE"}),
+        ("mcp__github__update_pull_request", {"draft": False}),
+        ("mcp__github__update_pull_request", {"draft": "false"}),
+        ("mcp__github__update_pull_request_draft_state", {"draft": False}),
+        ("mcp__github__create_pull_request", {}),
+        ("mcp__github__create_pull_request", {"draft": "true"}),
+        ("mcp__renamed_server__update_pull_request", {"draft": False}),
     ],
 )
 def test_known_github_mcp_publication_is_denied(guard_project, tool, arguments):
     assert "no-pr-publish" in invoke(guard_project, tool, arguments)
+
+
+@pytest.mark.parametrize(
+    "operation,arguments,rule",
+    [
+        ("push_files", {"branch": "main"}, "no-protected-push"),
+        ("push_files", {"branch": "feature"}, "no-protected-push"),
+        ("create_or_update_file", {"branch": "main"}, "no-protected-push"),
+        ("create_branch", {"branch": "release/next"}, "no-protected-push"),
+        ("delete_file", {"branch": "trunk"}, "no-protected-push"),
+        ("update_pull_request_branch", {"pullNumber": 1}, "no-protected-push"),
+        ("git_push", {"force": True}, "no-force-push"),
+        ("git_push", {"remote": "origin", "branch": "feature"}, "no-protected-push"),
+        ("delete_branch", {"branch": "feature"}, "no-remote-delete"),
+        ("delete_ref", {"ref": "refs/heads/feature"}, "no-remote-delete"),
+    ],
+)
+def test_mcp_remote_writes_cannot_bypass_local_push_checks(
+    guard_project, operation, arguments, rule
+):
+    assert rule in invoke(guard_project, f"mcp__github__{operation}", arguments)
+
+
+@pytest.mark.parametrize(
+    "operation,arguments",
+    [
+        ("get_pull_request", {"pullNumber": 1}),
+        ("get_file_contents", {"path": "README.md"}),
+        ("create_pull_request", {"draft": True}),
+        ("update_pull_request", {"draft": True}),
+        ("update_pull_request_draft_state", {"draft": True}),
+        ("update_pull_request", {"title": "Example"}),
+        ("pull_request_review_write", {"method": "create"}),
+        ("pull_request_review_write", {"method": "submit_pending", "event": "COMMENT"}),
+        ("create_pull_request_review", {"event": "REQUEST_CHANGES"}),
+        ("submit_pending_pull_request_review", {"event": "COMMENT"}),
+    ],
+)
+def test_mcp_reads_drafts_and_nonapproval_reviews_defer_to_permissions(
+    guard_project, operation, arguments
+):
+    assert invoke(guard_project, f"mcp__github__{operation}", arguments) is None
+
+
+@pytest.mark.parametrize(
+    "operation",
+    [
+        "read_file",
+        "read_text_file",
+        "read_media_file",
+        "get_file_info",
+        "list_directory",
+        "list_directory_with_sizes",
+        "directory_tree",
+        "search_files",
+        "write_file",
+        "append_file",
+        "edit_file",
+        "create_directory",
+    ],
+)
+def test_mcp_filesystem_credential_access_is_denied(guard_project, operation):
+    secret = guard_project.parent / "claude/.credentials.json"
+    assert "no-credential-access" in invoke(
+        guard_project, f"mcp__files__{operation}", {"path": str(secret)}
+    )
+
+
+@pytest.mark.parametrize("operation", ["read_file", "read_text_file", "search_files"])
+def test_mcp_filesystem_aliases_and_parent_scopes_are_denied(guard_project, operation):
+    directory = guard_project.parent / "claude"
+    directory.mkdir()
+    secret = directory / ".credentials.json"
+    secret.write_text("synthetic-test-secret")
+    alias = guard_project / "alias.json"
+    alias.symlink_to(secret)
+    for path in (alias, directory, directory.parent):
+        assert "no-credential-access" in invoke(
+            guard_project, f"mcp__files__{operation}", {"path": str(path)}
+        )
+
+
+def test_mcp_filesystem_paths_do_not_expand_environment_variables(guard_project):
+    directory = guard_project / "$CLAUDE_CONFIG_DIR"
+    directory.mkdir()
+    secret = guard_project.parent / "claude/.credentials.json"
+    secret.parent.mkdir()
+    secret.write_text("synthetic-test-secret")
+    alias = directory / "alias.json"
+    alias.symlink_to(secret)
+    assert "no-credential-access" in invoke(
+        guard_project, "mcp__files__read_text_file", {"path": str(alias)}
+    )
+    metadata = directory / "metadata"
+    metadata.symlink_to(guard_project / ".git/config")
+    assert "no-operator-state" in invoke(
+        guard_project, "mcp__files__write_file", {"path": str(metadata)}
+    )
+
+
+def test_mcp_batch_reads_check_every_path(guard_project):
+    arguments = {
+        "paths": [
+            str(guard_project / "README.md"),
+            str(guard_project.parent / "claude/.credentials.json"),
+        ]
+    }
+    assert "no-credential-access" in invoke(
+        guard_project, "mcp__files__read_multiple_files", arguments
+    )
+
+
+@pytest.mark.parametrize("operation", ["move_file", "copy_file"])
+@pytest.mark.parametrize("field", ["source", "destination"])
+def test_mcp_file_transfers_cannot_access_credentials(guard_project, operation, field):
+    arguments = {
+        "source": str(guard_project / "source.txt"),
+        "destination": str(guard_project / "destination.txt"),
+    }
+    arguments[field] = str(guard_project.parent / "claude/.credentials.json")
+    assert "no-credential-access" in invoke(guard_project, f"mcp__files__{operation}", arguments)
+
+
+@pytest.mark.parametrize(
+    "operation", ["write_file", "append_file", "edit_file", "create_directory"]
+)
+def test_mcp_filesystem_writes_to_git_metadata_are_denied(guard_project, operation):
+    assert "no-operator-state" in invoke(
+        guard_project, f"mcp__files__{operation}", {"path": str(guard_project / ".git/config")}
+    )
+
+
+@pytest.mark.parametrize(
+    "operation,arguments",
+    [
+        ("move_file", {"source": ".git/config", "destination": "config.txt"}),
+        ("move_file", {"source": "config.txt", "destination": ".git/config"}),
+        ("copy_file", {"source": "config.txt", "destination": ".git/config"}),
+    ],
+)
+def test_mcp_file_transfers_cannot_change_git_metadata(guard_project, operation, arguments):
+    arguments = {key: str(guard_project / value) for key, value in arguments.items()}
+    assert "no-operator-state" in invoke(guard_project, f"mcp__files__{operation}", arguments)
+
+
+@pytest.mark.parametrize(
+    "operation,arguments",
+    [
+        ("read_text_file", {"path": "README.md"}),
+        ("write_file", {"path": "src/app.py", "content": "example"}),
+        ("read_multiple_files", {"paths": ["README.md", "src/app.py"]}),
+        ("copy_file", {"source": ".git/config", "destination": "config.txt"}),
+        ("move_file", {"source": "source.txt", "destination": "destination.txt"}),
+        ("directory_tree", {"path": "."}),
+        ("search_files", {"path": ".", "pattern": "*.py"}),
+    ],
+)
+def test_ordinary_mcp_filesystem_requests_defer_to_permissions(guard_project, operation, arguments):
+    arguments = arguments.copy()
+    for field in ("path", "source", "destination"):
+        if field in arguments:
+            arguments[field] = str(guard_project / arguments[field])
+    if "paths" in arguments:
+        arguments["paths"] = [str(guard_project / path) for path in arguments["paths"]]
+    assert invoke(guard_project, f"mcp__files__{operation}", arguments) is None
+
+
+@pytest.mark.parametrize("path", ["alias.json", "", None])
+def test_mcp_filesystem_paths_must_be_absolute(guard_project, path):
+    assert "guard-input" in invoke(guard_project, "mcp__files__read_text_file", {"path": path})
+
+
+@pytest.mark.parametrize("paths", ["/tmp/claude/.credentials.json", None, [None]])
+def test_malformed_mcp_batch_paths_fail_closed(guard_project, paths):
+    assert invoke(guard_project, "mcp__files__read_multiple_files", {"paths": paths})
+
+
+@pytest.mark.parametrize(
+    "tool,arguments",
+    [
+        ("mcp__github__update_pull_request", {"draft": False}),
+        ("mcp__files__read_text_file", {"path": "~/.claude/.credentials.json"}),
+    ],
+)
+def test_unset_guard_leaves_mcp_permissions_unchanged(guard_project, tool, arguments):
+    assert invoke(guard_project, tool, arguments, unattended=None) is None
 
 
 @pytest.mark.parametrize(

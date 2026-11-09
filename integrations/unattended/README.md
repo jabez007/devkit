@@ -45,10 +45,10 @@ Installing these assets does not register or activate the hook.
 |---|---|
 | `no-force-push` | Force flags, forced refspecs, mirror pushes and configured mirror remotes. |
 | `no-pr-publish` | PR readiness, approval and merge; PR creation without `--draft`; raw `gh api` calls and known GitHub MCP publication tools. |
-| `no-protected-push` | Pushes to the remote's locally recorded default branch, `main`, `master`, or configured protected patterns, in any spelling Git resolves to them. Unknown remote defaults, implicit or dynamic destinations and configured push mappings are refused. |
-| `no-remote-delete` | Remote deletion flags, deletion refspecs and pruning pushes. |
+| `no-protected-push` | Pushes to the remote's locally recorded default branch, `main`, `master`, or configured protected patterns, in any spelling Git resolves to them. Unknown remote defaults, implicit or dynamic destinations, configured push mappings and known MCP remote writes are refused. |
+| `no-remote-delete` | Remote deletion flags, deletion refspecs, pruning pushes and known MCP branch/ref deletion tools. |
 | `no-background` | Bash background operators, detached launchers and `run_in_background` tool requests. |
-| `no-credential-access` | Direct tool access, broad searches, literal shell paths and symlinks to the subscription credential file. `CLAUDE_CONFIG_DIR` is respected. |
+| `no-credential-access` | Direct tool access, broad searches, literal shell paths and symlinks to the subscription credential file, including known filesystem MCP tools. `CLAUDE_CONFIG_DIR` is respected. |
 | `literal-shell` | Unsupported shell syntax, dynamic program names, dynamic Git/PR arguments, shell aliases, unknown Git commands, changes to the guarded environment and command indirection that the hook cannot inspect. |
 | `no-operator-state` | Native `gc` and `bd` commands outside the session list below, closing any bead but the assigned one, Git configuration changes other than `user.name` and `user.email`, and writes under `.git`. |
 
@@ -58,8 +58,8 @@ wrappers and Git aliases are inspected too. The `timeout`, `nice` and `stdbuf`
 launchers are normalized before base and stack rules apply. Stack prefixes also
 apply to resolved Git aliases. PR review parsing recognizes bundled approval
 flags such as `-ab` and skips body, body-file and repository option values.
-Other known command indirection, including shell
-traps and `find -exec`, is refused. Git queries only read local metadata,
+Other known command indirection, including shell traps and `find -exec`, is
+refused. Git queries only read local metadata,
 with filesystem monitoring disabled and a two-second timeout. They never contact
 a remote. A five-second watchdog returns a refusal before the hook's ten-second
 timeout. Invalid input, missing dependencies and invalid rules also refuse the
@@ -78,6 +78,27 @@ remote HEAD metadata before the session, and include the actual default and
 protected branch names in the reviewed rule file. Protection settings on GitHub
 are not discovered by this offline hook. Repository metadata is not a trusted
 replacement for that operator-prepared list.
+
+Known MCP operations are matched by tool name regardless of the configured
+server name. GitHub PR checks cover draft creation, draft-to-ready updates,
+merge, and approval through current and legacy review tools. Reads, explicit
+drafts and non-approval reviews still use the existing permission checks.
+See the [GitHub MCP tool definitions](https://github.com/github/github-mcp-server#tools).
+
+The filesystem MCP checks cover text, media and batch reads, directory listings
+and searches, file metadata, writes, appends, edits, directory creation, copies
+and moves. Every path must be absolute because the server can have a different
+working directory. Batch requests check every path; transfers check both ends.
+Credential paths and their parent scopes are refused. Writes and moves cannot
+change `.git` metadata. See the
+[filesystem MCP tool definitions](https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem#api).
+
+The hook refuses MCP `git_push`, `push_files`, `create_branch`,
+`create_or_update_file`, `delete_file` and `update_pull_request_branch` requests.
+Their remote repository can differ from the local checkout, so local metadata
+cannot establish its default or protected branches. Use an explicit inspected
+Git push instead.
+MCP `delete_branch` and `delete_ref` requests are always refused.
 
 The hook inspects tool requests. It does not sandbox arbitrary programs, test
 code, executable replacement or custom MCP implementations. A program the
